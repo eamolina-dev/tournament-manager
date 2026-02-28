@@ -1,7 +1,13 @@
+import { SingleElimination } from "./components/Elimination";
+import { RankingPage } from "./components/RankingPage";
+import { ZonesPage } from "./components/ZonesPage";
+
 export default function App() {
   return (
     <>
-      <h1>hola</h1>
+      {/* <ZonesPage /> */}
+      {/* <RankingPage /> */}
+      <SingleElimination />
     </>
   );
 }
