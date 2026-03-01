@@ -16,7 +16,7 @@ export const RankingPage = ({ rows, compact = false, maxRows }: RankingPageProps
           <thead>
             <tr className="border-b border-slate-200 text-slate-500">
               <th className="py-2 pr-3 font-medium">#</th>
-              <th className="py-2 pr-3 font-medium">Pareja</th>
+              <th className="py-2 pr-3 font-medium">Jugador / Equipo</th>
               <th className="py-2 text-right font-medium">Pts</th>
             </tr>
           </thead>
