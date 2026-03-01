@@ -1,23 +1,13 @@
 import { useState } from "react";
 import { GROUPS } from "./data";
-import type { Match } from "./types";
 import { GroupCard } from "./GroupCard";
 import { MatchCard } from "./MatchCard";
 
 export const ZonesPage = () => {
-  const [groups, setGroups] = useState(GROUPS);
-
-  const updateMatch = (updated: Match) => {
-    setGroups((prev) =>
-      prev.map((g) => ({
-        ...g,
-        matches: g.matches.map((m) => (m.id === updated.id ? updated : m)),
-      }))
-    );
-  };
+  const [groups] = useState(GROUPS);
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
+    <div className="max-w-7xl p-1">
       <div
         className="
           grid gap-6
@@ -36,10 +26,6 @@ export const ZonesPage = () => {
                 team2={match.team2}
                 sets1={match.sets1}
                 sets2={match.sets2}
-                // // winner={match.winner}
-                // onChange={(updatedMatch) =>
-                //   updateMatch(updatedMatch)
-                // }
               />
             ))}
           </GroupCard>

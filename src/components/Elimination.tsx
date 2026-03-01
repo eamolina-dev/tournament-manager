@@ -1,10 +1,5 @@
-import {
-  SingleEliminationBracket,
-  Match,
-  SVGViewer,
-} from "@g-loot/react-tournament-brackets";
+import { SingleEliminationBracket, SVGViewer } from "@g-loot/react-tournament-brackets";
 import { MatchCard } from "./MatchCard";
-import { Children } from "react";
 import React from "react";
 
 export const matches = [
@@ -165,8 +160,6 @@ function parseSets(result?: string): [number?, number?, number?] {
 const BracketMatchAdapter = ({
   topParty,
   bottomParty,
-  topWon,
-  bottomWon,
 }: any) => {
   return (
     <MatchCard
@@ -187,7 +180,7 @@ export const SingleElimination = () => (
     matches={matches}
     matchComponent={(props: any) => <BracketMatchAdapter {...props} />}
     svgWrapper={({ children, ...props }: Props & any) => (
-      <SVGViewer width={500} height={500} {...props}>
+      <SVGViewer width={900} height={600} {...props}>
         {children}
       </SVGViewer>
     )}
@@ -197,7 +190,7 @@ export const SingleElimination = () => (
   //   matches={matches}
   //   matchComponent={Match}
   //   svgWrapper={({ children, ...props }) => (
-  //     <SVGViewer width={500} height={500} {...props}>
+  //     <SVGViewer width={900} height={600} {...props}>
   //       {children}
   //     </SVGViewer>
   //   )}
