@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { RankingPage } from "./RankingPage";
 
 export const GroupCard = ({
@@ -5,7 +6,7 @@ export const GroupCard = ({
   children,
 }: {
   name: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
     <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">{name}</h2>

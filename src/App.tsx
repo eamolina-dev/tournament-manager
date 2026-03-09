@@ -1,142 +1,135 @@
 import { useMemo, useState } from "react";
-import { SingleElimination } from "./components/Elimination";
-import { RankingPage } from "./components/RankingPage";
-import { ZonesPage } from "./components/ZonesPage";
 import { AppLayout } from "./components/AppLayout";
-import { Home } from "./components/Home";
-import {
-  TOURNAMENTS,
-  getGeneralRankingRows,
-  getTournamentRankingRows,
-} from "./data/circuitData";
+import { useTournamentCatalog, useTournamentCategories, useTournamentDashboardData } from "./features/tournaments/hooks";
+import { AdminPage } from "./pages/AdminPage";
+import { BracketPage } from "./pages/BracketPage";
+import { GroupStandingsPage } from "./pages/GroupStandingsPage";
+import { MatchesPage } from "./pages/MatchesPage";
+import { TournamentOverviewPage } from "./pages/TournamentOverviewPage";
 
-type View =
-  | { page: "home" }
-  | { page: "generalRanking" }
-  | { page: "tournament"; tournamentId: string };
+type PublicTab = "overview" | "standings" | "matches" | "bracket";
 
 export default function App() {
-  const [view, setView] = useState<View>({ page: "home" });
-  const [activeTab, setActiveTab] = useState<
-    "zonas" | "cruces" | "ranking" | "horarios"
-  >("zonas");
+  const [mode, setMode] = useState<"public" | "admin">("public");
+  const [tournamentId, setTournamentId] = useState("");
+  const [tournamentCategoryId, setTournamentCategoryId] = useState("");
+  const [publicTab, setPublicTab] = useState<PublicTab>("overview");
 
-  const selectedTournament = useMemo(
-    () =>
-      view.page === "tournament"
-        ? TOURNAMENTS.find((t) => t.id === view.tournamentId)
-        : null,
-    [view]
+  const { tournamentsState, categoriesState } = useTournamentCatalog();
+  const tournamentCategoriesState = useTournamentCategories(tournamentId || null);
+  const dashboardState = useTournamentDashboardData(tournamentCategoryId || null);
+
+  const categoryNameById = useMemo(
+    () => new Map(categoriesState.data.map((category) => [category.id, `${category.name} (Nivel ${category.level})`])),
+    [categoriesState.data],
   );
-
-  const generalRankingRows = useMemo(() => getGeneralRankingRows(), []);
-  const tournamentRankingRows = useMemo(
-    () =>
-      selectedTournament ? getTournamentRankingRows(selectedTournament.id) : [],
-    [selectedTournament]
-  );
-
-  if (view.page === "generalRanking") {
-    return (
-      <AppLayout onBackHome={() => setView({ page: "home" })}>
-        <h1 className="text-3xl font-bold text-slate-900">
-          Ranking General - Circuito 2026
-        </h1>
-        <RankingPage rows={generalRankingRows} />
-      </AppLayout>
-    );
-  }
-
-  if (view.page === "tournament" && selectedTournament) {
-    return (
-      <AppLayout onBackHome={() => setView({ page: "home" })}>
-        <header className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">
-            {selectedTournament.status}
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {selectedTournament.title}
-          </h1>
-          <p className="text-sm text-slate-600">
-            {selectedTournament.location}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white">
-              Editar torneo
-            </button>
-            <button className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700">
-              Eliminar torneo
-            </button>
-            <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700">
-              Crear imagen para compartir
-            </button>
-          </div>
-        </header>
-
-        <nav className="flex flex-wrap gap-2">
-          {[
-            { key: "zonas", label: "Zonas" },
-            { key: "cruces", label: "Cruces" },
-            { key: "ranking", label: "Ranking del torneo" },
-            { key: "horarios", label: "Horarios (v2)" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as typeof activeTab)}
-              className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                activeTab === tab.key
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 bg-white text-slate-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        {activeTab === "zonas" && <ZonesPage />}
-
-        {activeTab === "cruces" && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">
-              Cuadro eliminatorio
-            </h2>
-            <div className="overflow-x-auto">
-              <SingleElimination />
-            </div>
-          </section>
-        )}
-
-        {activeTab === "ranking" && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">
-              Ranking individual del torneo actual
-            </h2>
-            <RankingPage rows={tournamentRankingRows} />
-          </section>
-        )}
-
-        {activeTab === "horarios" && (
-          <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-            Próximamente: horarios de partidos y canchas (v2).
-          </section>
-        )}
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>
-      <Home
-        generalRanking={generalRankingRows}
-        tournaments={TOURNAMENTS}
-        onOpenGeneralRanking={() => setView({ page: "generalRanking" })}
-        onOpenTournament={(tournamentId) => {
-          setActiveTab("zonas");
-          setView({ page: "tournament", tournamentId });
-        }}
-      />
+      <header className="rounded-2xl border border-slate-200 bg-white p-4">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Padel Tournament Manager</p>
+        <h1 className="text-2xl font-bold text-slate-900">Supabase MVP</h1>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`rounded-md px-3 py-2 text-sm font-medium ${
+              mode === "public" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+            }`}
+            onClick={() => setMode("public")}
+          >
+            Público
+          </button>
+          <button
+            type="button"
+            className={`rounded-md px-3 py-2 text-sm font-medium ${
+              mode === "admin" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"
+            }`}
+            onClick={() => setMode("admin")}
+          >
+            Admin
+          </button>
+        </div>
+      </header>
+
+      {mode === "public" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-600">Torneo</span>
+              <select
+                className="rounded-md border border-slate-300 px-3 py-2"
+                value={tournamentId}
+                onChange={(event) => {
+                  setTournamentId(event.target.value);
+                  setTournamentCategoryId("");
+                }}
+              >
+                <option value="">Seleccionar torneo...</option>
+                {tournamentsState.data.map((tournament) => (
+                  <option key={tournament.id} value={tournament.id}>
+                    {tournament.name ?? tournament.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-600">Categoría</span>
+              <select
+                className="rounded-md border border-slate-300 px-3 py-2"
+                value={tournamentCategoryId}
+                onChange={(event) => setTournamentCategoryId(event.target.value)}
+                disabled={!tournamentId}
+              >
+                <option value="">Seleccionar categoría...</option>
+                {tournamentCategoriesState.data.map((tc) => (
+                  <option key={tc.id} value={tc.id}>
+                    {categoryNameById.get(tc.category_id ?? "") ?? tc.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <nav className="mt-4 flex flex-wrap gap-2">
+            {[
+              { key: "overview", label: "Overview" },
+              { key: "standings", label: "Standings" },
+              { key: "matches", label: "Matches" },
+              { key: "bracket", label: "Bracket" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`rounded-md px-3 py-2 text-sm font-medium ${
+                  publicTab === tab.key
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700"
+                }`}
+                onClick={() => setPublicTab(tab.key as PublicTab)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </section>
+      )}
+
+      {mode === "admin" ? (
+        <AdminPage />
+      ) : (
+        <>
+          {dashboardState.error && (
+            <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{dashboardState.error}</p>
+          )}
+
+          {publicTab === "overview" && <TournamentOverviewPage data={dashboardState.data} />}
+          {publicTab === "standings" && <GroupStandingsPage data={dashboardState.data} />}
+          {publicTab === "matches" && <MatchesPage data={dashboardState.data} />}
+          {publicTab === "bracket" && <BracketPage data={dashboardState.data} />}
+        </>
+      )}
     </AppLayout>
   );
 }
