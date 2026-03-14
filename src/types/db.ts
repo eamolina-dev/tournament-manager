@@ -1306,7 +1306,14 @@ export type Database = {
       }
     }
     Enums: {
-      match_stage: "group" | "quarter" | "semi" | "final"
+      match_stage:
+        | "group"
+        | "quarter"
+        | "semi"
+        | "final"
+        | "round_of_32"
+        | "round_of_16"
+        | "round_of_8"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1434,7 +1441,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      match_stage: ["group", "quarter", "semi", "final"],
+      match_stage: [
+        "group",
+        "quarter",
+        "semi",
+        "final",
+        "round_of_32",
+        "round_of_16",
+        "round_of_8",
+      ],
     },
   },
 } as const

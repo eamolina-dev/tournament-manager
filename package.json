@@ -17,6 +17,7 @@
     "react-dom": "^19.2.0",
     "react-svg-pan-zoom": "^3.13.1",
     "styled-components": "^6.3.11",
+    "supabase": "^2.78.1",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
