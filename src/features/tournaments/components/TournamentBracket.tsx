@@ -1,62 +1,62 @@
 import {
   SingleEliminationBracket,
   SVGViewer,
-} from "@g-loot/react-tournament-brackets";
-import type { Match } from "../data/mockTournaments";
-import { MatchCard } from "../../matches/components/MatchCard";
+} from "@g-loot/react-tournament-brackets"
+import type { Match } from "../types"
+import { MatchCard } from "../../matches/components/MatchCard"
 
-const stageOrder = { quarter: 1, semi: 2, final: 3 };
+const stageOrder = { quarter: 1, semi: 2, final: 3 }
 
 type BracketMatch = {
-  id: string;
-  nextMatchId: string | null;
-  name: string;
-  tournamentRoundText: string;
-  state: "DONE";
+  id: string
+  nextMatchId: string | null
+  name: string
+  tournamentRoundText: string
+  state: "DONE"
   participants: [
     { id: string; name: string; resultText?: string; isWinner: boolean },
     { id: string; name: string; resultText?: string; isWinner: boolean },
-  ];
-};
+  ]
+}
 
 const getWinner = (score?: string) => {
-  if (!score) return 0;
-  const sets = score.split(" ");
-  let team1 = 0;
-  let team2 = 0;
+  if (!score) return 0
+  const sets = score.split(" ")
+  let team1 = 0
+  let team2 = 0
 
   sets.forEach((set) => {
-    const [a, b] = set.split("-").map(Number);
-    if (a > b) team1 += 1;
-    if (b > a) team2 += 1;
-  });
+    const [a, b] = set.split("-").map(Number)
+    if (a > b) team1 += 1
+    if (b > a) team2 += 1
+  })
 
-  return team1 > team2 ? 1 : 2;
-};
+  return team1 > team2 ? 1 : 2
+}
 
 const mapMatches = (matches: Match[]): BracketMatch[] => {
   const sorted = [...matches].sort(
     (a, b) => stageOrder[a.stage ?? "final"] - stageOrder[b.stage ?? "final"],
-  );
+  )
 
-  const finals = sorted.filter((item) => item.stage === "final");
-  const semis = sorted.filter((item) => item.stage === "semi");
-  const quarters = sorted.filter((item) => item.stage === "quarter");
+  const finals = sorted.filter((item) => item.stage === "final")
+  const semis = sorted.filter((item) => item.stage === "semi")
+  const quarters = sorted.filter((item) => item.stage === "quarter")
 
   const withTree = sorted.map((item, index) => {
-    const isQuarter = item.stage === "quarter";
-    const isSemi = item.stage === "semi";
+    const isQuarter = item.stage === "quarter"
+    const isSemi = item.stage === "semi"
 
-    let nextMatchId: string | null = null;
+    let nextMatchId: string | null = null
     if (isQuarter) {
-      const targetSemi = semis[Math.floor(index / 2)];
-      nextMatchId = targetSemi?.id ?? null;
+      const targetSemi = semis[Math.floor(index / 2)]
+      nextMatchId = targetSemi?.id ?? null
     }
     if (isSemi) {
-      nextMatchId = finals[0]?.id ?? null;
+      nextMatchId = finals[0]?.id ?? null
     }
 
-    const winner = getWinner(item.score);
+    const winner = getWinner(item.score)
 
     return {
       id: item.id,
@@ -78,11 +78,11 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
           isWinner: winner === 2,
         },
       ] as BracketMatch["participants"],
-    };
-  });
+    }
+  })
 
-  return withTree;
-};
+  return withTree
+}
 
 const BracketCard = ({ topParty, bottomParty }: any) => (
   <MatchCard
@@ -94,11 +94,11 @@ const BracketCard = ({ topParty, bottomParty }: any) => (
       time: "--:--",
     }}
   />
-);
+)
 
 export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
   if (!matches.length) {
-    return <p className="text-sm text-slate-500">Sin cruces cargados.</p>;
+    return <p className="text-sm text-slate-500">Sin cruces cargados.</p>
   }
 
   return (
@@ -113,5 +113,5 @@ export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
         )}
       />
     </div>
-  );
-};
+  )
+}
