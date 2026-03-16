@@ -1,4 +1,8 @@
-import type { RankingRow } from "../../tournaments/data/mockTournaments";
+export type RankingRow = {
+  pos: number;
+  player: string;
+  points: number;
+};
 
 export const RankingTable = ({ rows }: { rows: RankingRow[] }) => (
   <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MatchCard } from "../../matches/components/MatchCard";
-import { findTournamentCategory } from "../data/mockTournaments";
 import { TournamentBracket } from "../components/TournamentBracket";
+import { supabase } from "../../../shared/supabase/client";
+import type { Match } from "../data/mockTournaments";
 
 type TournamentCategoryPageProps = {
   slug: string;
@@ -18,24 +19,181 @@ type ResultRow = {
   puntos: number;
 };
 
+type CategoryData = {
+  category: string;
+  champion?: string;
+  finalist?: string;
+  semifinalists?: [string, string];
+  zones: {
+    id: string;
+    name: string;
+    standings: { pareja: string; pj: number; pg: number; sg: number; gg: number }[];
+    matches: Match[];
+  }[];
+  bracketMatches: Match[];
+  schedule: Match[];
+  resultRows: ResultRow[];
+};
+
 export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPageProps) => {
   const [activeTab, setActiveTab] = useState<SectionTab>("Zonas");
-  const { tournament, categoryData } = useMemo(
-    () => findTournamentCategory(slug, category),
-    [slug, category],
-  );
-  const [zoneId, setZoneId] = useState(categoryData?.zones[0]?.id ?? "A");
+  const [tournamentName, setTournamentName] = useState<string | null>(null);
+  const [categoryData, setCategoryData] = useState<CategoryData | null>(null);
+  const [zoneId, setZoneId] = useState("A");
 
-  if (!tournament || !categoryData) {
+  useEffect(() => {
+    const loadCategoryData = async () => {
+      const { data: categoryRows, error: categoryError } = await supabase
+        .from("tournament_categories")
+        .select(`id, tournament_id, tournaments(name), categories(name)`)
+        .eq("tournament_id", slug);
+
+      if (categoryError || !categoryRows) {
+        setCategoryData(null);
+        setTournamentName(null);
+        return;
+      }
+
+      const categoryRow = categoryRows.find((row) => row.categories?.name === category);
+
+      if (!categoryRow) {
+        setCategoryData(null);
+        setTournamentName(null);
+        return;
+      }
+
+      setTournamentName(categoryRow.tournaments?.name ?? "Torneo");
+
+      const [groupsRes, standingsRes, teamsRes, matchesRes, teamResultsRes] = await Promise.all([
+        supabase
+          .from("groups")
+          .select("id, name")
+          .eq("tournament_category_id", categoryRow.id),
+        supabase.from("v_group_table_full").select("group_id, team_id, matches_won, sets_won, games_won"),
+        supabase
+          .from("v_teams_with_players")
+          .select("id, team_name")
+          .eq("tournament_category_id", categoryRow.id),
+        supabase
+          .from("matches")
+          .select("id, team1_id, team2_id, winner_team_id, stage, group_id, scheduled_at, court")
+          .eq("tournament_category_id", categoryRow.id),
+        supabase
+          .from("team_results")
+          .select("team_id, final_position, points_awarded")
+          .eq("tournament_category_id", categoryRow.id)
+          .order("final_position", { ascending: true }),
+      ]);
+
+      if (groupsRes.error || standingsRes.error || teamsRes.error || matchesRes.error || teamResultsRes.error) {
+        setCategoryData(null);
+        return;
+      }
+
+      const groups = groupsRes.data ?? [];
+      const standings = standingsRes.data ?? [];
+      const teams = teamsRes.data ?? [];
+      const matches = matchesRes.data ?? [];
+      const teamResults = teamResultsRes.data ?? [];
+
+      const teamNameById = new Map(teams.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]));
+      const matchIds = matches.map((match) => match.id);
+
+      const { data: matchSets } = matchIds.length
+        ? await supabase
+            .from("match_sets")
+            .select("match_id, set_number, team1_games, team2_games")
+            .in("match_id", matchIds)
+            .order("set_number", { ascending: true })
+        : { data: [], error: null };
+
+      const scoreByMatchId = new Map<string, string>();
+      for (const setRow of matchSets ?? []) {
+        const current = scoreByMatchId.get(setRow.match_id) ?? "";
+        const setScore = `${setRow.team1_games}-${setRow.team2_games}`;
+        scoreByMatchId.set(setRow.match_id, current ? `${current} ${setScore}` : setScore);
+      }
+
+      const mappedMatches: Match[] = matches.map((match) => {
+        const scheduledAt = match.scheduled_at ? new Date(match.scheduled_at) : null;
+
+        return {
+          id: match.id,
+          team1: teamNameById.get(match.team1_id) ?? "Pendiente",
+          team2: teamNameById.get(match.team2_id) ?? "Pendiente",
+          score: scoreByMatchId.get(match.id),
+          day: getDayLabel(scheduledAt),
+          time: scheduledAt ? toTime(scheduledAt) : "--:--",
+          court: match.court ?? undefined,
+          stage: toBracketStage(match.stage),
+          zoneId: match.group_id ?? undefined,
+        };
+      });
+
+      const zones = groups.map((group) => {
+        const zoneStandings = standings
+          .filter((item) => item.group_id === group.id)
+          .map((item) => ({
+            pareja: teamNameById.get(item.team_id ?? "") ?? "Equipo",
+            pj: 0,
+            pg: item.matches_won ?? 0,
+            sg: item.sets_won ?? 0,
+            gg: item.games_won ?? 0,
+          }));
+
+        return {
+          id: group.id,
+          name: group.name,
+          standings: zoneStandings,
+          matches: mappedMatches.filter((item) => item.zoneId === group.id),
+        };
+      });
+
+      const sortedResults = teamResults
+        .filter((row) => row.final_position <= 3)
+        .map((row) => ({
+          pos: row.final_position as 1 | 2 | 3,
+          pareja: teamNameById.get(row.team_id) ?? "Equipo",
+          puntos: row.points_awarded ?? defaultPointsByPosition(row.final_position),
+        }));
+
+      const champion = sortedResults.find((item) => item.pos === 1)?.pareja;
+      const finalist = sortedResults.find((item) => item.pos === 2)?.pareja;
+      const semifinalists = sortedResults.filter((item) => item.pos === 3).map((item) => item.pareja) as string[];
+
+      setCategoryData({
+        category,
+        champion,
+        finalist,
+        semifinalists: semifinalists.length >= 2 ? [semifinalists[0], semifinalists[1]] : undefined,
+        zones,
+        bracketMatches: mappedMatches.filter((item) => item.stage),
+        schedule: mappedMatches,
+        resultRows: sortedResults,
+      });
+    };
+
+    void loadCategoryData();
+  }, [slug, category]);
+
+  useEffect(() => {
+    const nextZoneId = categoryData?.zones[0]?.id ?? "A";
+    setZoneId(nextZoneId);
+  }, [categoryData]);
+
+  const activeZone = useMemo(
+    () => categoryData?.zones.find((zone) => zone.id === zoneId) ?? categoryData?.zones[0],
+    [categoryData, zoneId],
+  );
+
+  if (!tournamentName || !categoryData) {
     return <p className="rounded-xl bg-white p-4 text-sm text-slate-600">Torneo o categoría no encontrada.</p>;
   }
-
-  const activeZone = categoryData.zones.find((zone) => zone.id === zoneId) ?? categoryData.zones[0];
 
   return (
     <section className="flex flex-col gap-4">
       <header className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{tournament.name}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{tournamentName}</h1>
         <p className="text-sm text-slate-500">Categoría {categoryData.category}</p>
 
         {categoryData.champion && (
@@ -63,7 +221,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         ))}
       </div>
 
-      {activeTab === "Zonas" && (
+      {activeTab === "Zonas" && activeZone && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="mb-3 flex flex-wrap gap-2">
             {categoryData.zones.map((zone) => (
@@ -130,7 +288,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
                 </tr>
               </thead>
               <tbody>
-                {buildResultsRows(categoryData).map((row, index) => (
+                {categoryData.resultRows.map((row, index) => (
                   <tr key={`${row.pareja}-${index}`} className="border-b border-slate-100 last:border-none">
                     <td className="py-2 font-semibold text-slate-900">{row.pos}</td>
                     <td className="py-2 text-slate-700">{row.pareja}</td>
@@ -143,11 +301,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         </section>
       )}
 
-      {activeTab === "Horarios" && (
-        <ScheduleSection
-          matches={categoryData.schedule}
-        />
-      )}
+      {activeTab === "Horarios" && <ScheduleSection matches={categoryData.schedule} />}
     </section>
   );
 };
@@ -226,29 +380,6 @@ const ScheduleSection = ({ matches }: { matches: { id: string; day: "Viernes" | 
   );
 };
 
-const buildResultsRows = (categoryData: {
-  champion?: string;
-  finalist?: string;
-  semifinalists?: [string, string];
-}) => {
-  const rows: ResultRow[] = [];
-
-  if (categoryData.champion) {
-    rows.push({ pos: 1, pareja: categoryData.champion, puntos: 1000 });
-  }
-  if (categoryData.finalist) {
-    rows.push({ pos: 2, pareja: categoryData.finalist, puntos: 600 });
-  }
-  if (categoryData.semifinalists?.[0]) {
-    rows.push({ pos: 3, pareja: categoryData.semifinalists[0], puntos: 360 });
-  }
-  if (categoryData.semifinalists?.[1]) {
-    rows.push({ pos: 3, pareja: categoryData.semifinalists[1], puntos: 360 });
-  }
-
-  return rows;
-};
-
 const sortCourts = (a: string, b: string) => {
   const parseCourt = (value: string) => {
     const normalized = value.trim().toUpperCase();
@@ -268,4 +399,28 @@ const sortTimes = (a: string, b: string) => {
   };
 
   return toMinutes(a) - toMinutes(b);
+};
+
+const getDayLabel = (date: Date | null): "Viernes" | "Sabado" | "Domingo" => {
+  if (!date) return "Viernes";
+
+  const day = date.getDay();
+  if (day === 6) return "Sabado";
+  if (day === 0) return "Domingo";
+  return "Viernes";
+};
+
+const toTime = (date: Date) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+const toBracketStage = (stage: string): Match["stage"] => {
+  if (stage === "quarter" || stage === "semi" || stage === "final") return stage;
+  return undefined;
+};
+
+const defaultPointsByPosition = (position: number) => {
+  if (position === 1) return 1000;
+  if (position === 2) return 600;
+  if (position === 3) return 360;
+  return 0;
 };
