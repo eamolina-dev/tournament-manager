@@ -21,6 +21,7 @@ export type Database = {
           id: string
           level: number
           name: string
+          slug: string | null
         }
         Insert: {
           circuit_id?: string | null
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           level: number
           name: string
+          slug?: string | null
         }
         Update: {
           circuit_id?: string | null
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           level?: number
           name?: string
+          slug?: string | null
         }
         Relationships: [
           {
@@ -808,6 +811,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string | null
+          slug: string | null
           start_date: string | null
           sum_limit: number | null
           type: string | null
@@ -818,6 +822,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
+          slug?: string | null
           start_date?: string | null
           sum_limit?: number | null
           type?: string | null
@@ -828,6 +833,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
+          slug?: string | null
           start_date?: string | null
           sum_limit?: number | null
           type?: string | null
