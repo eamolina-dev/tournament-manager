@@ -1,5 +1,5 @@
-import { supabase } from "../../shared/supabase/client"
-import { throwIfError } from "../../shared/supabase/throw-if-error"
+import { supabase } from "../../lib/supabase"
+import { throwIfError } from "../../lib/throw-if-error"
 import type { Match, MatchInsert, MatchSet, MatchSetInsert } from "../../shared/types/entities"
 
 export const createMatch = async (input: MatchInsert): Promise<Match> => {

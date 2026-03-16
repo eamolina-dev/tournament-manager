@@ -1,8 +1,8 @@
-import type { Match } from "../../tournaments/data/mockTournaments";
+import type { Match } from "../../tournaments/types"
 
 type MatchCardProps = {
-  match: Pick<Match, "team1" | "team2" | "score" | "day" | "time" | "court">;
-};
+  match: Pick<Match, "team1" | "team2" | "score" | "day" | "time" | "court">
+}
 
 export const MatchCard = ({ match }: MatchCardProps) => (
   <article className="rounded-xl border border-slate-200 bg-white p-3">
@@ -17,4 +17,4 @@ export const MatchCard = ({ match }: MatchCardProps) => (
       {match.court ? ` · ${match.court}` : ""}
     </p>
   </article>
-);
+)

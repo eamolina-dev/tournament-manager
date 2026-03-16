@@ -1,14 +1,42 @@
-import { useState } from "react";
-import {
-  rankingByCategory,
-  type CategoryCode,
-} from "../../tournaments/data/mockTournaments";
-import { RankingTable } from "../components/RankingTable";
+import { useEffect, useMemo, useState } from "react"
+import { getRankingsByCategory } from "../data/supabaseRankings"
+import { RankingTable } from "../components/RankingTable"
+import type { CategoryCode } from "../../tournaments/types"
 
-const categories: CategoryCode[] = ["4ta", "5ta", "6ta", "7ma", "8va"];
+const categories: CategoryCode[] = ["4ta", "5ta", "6ta", "7ma", "8va"]
 
 export const RankingsPage = () => {
-  const [selected, setSelected] = useState<CategoryCode>("6ta");
+  const [selected, setSelected] = useState<CategoryCode>("6ta")
+  const [rankings, setRankings] = useState<Record<CategoryCode, { pos: number; player: string; points: number }[]>>({
+    "4ta": [],
+    "5ta": [],
+    "6ta": [],
+    "7ma": [],
+    "8va": [],
+  })
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getRankingsByCategory()
+      const mapped: Record<CategoryCode, { pos: number; player: string; points: number }[]> = {
+        "4ta": [],
+        "5ta": [],
+        "6ta": [],
+        "7ma": [],
+        "8va": [],
+      }
+
+      for (const categoryData of data) {
+        mapped[categoryData.category] = categoryData.rows
+      }
+
+      setRankings(mapped)
+    }
+
+    void load()
+  }, [])
+
+  const rows = useMemo(() => rankings[selected], [rankings, selected])
 
   return (
     <section className="flex flex-col gap-3">
@@ -28,7 +56,7 @@ export const RankingsPage = () => {
         ))}
       </div>
 
-      <RankingTable rows={rankingByCategory[selected]} />
+      <RankingTable rows={rows} />
     </section>
-  );
-};
+  )
+}
