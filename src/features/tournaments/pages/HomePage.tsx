@@ -24,7 +24,7 @@ const HomePageContent = ({ navigate }: HomePageProps) => {
 
   useEffect(() => {
     const load = async () => {
-      const { data, error: queryError } = await supabase
+      const { data: tournamentsData, error: tournamentsError } = await supabase
         .from("tournaments")
         .select(
           `
@@ -32,32 +32,61 @@ const HomePageContent = ({ navigate }: HomePageProps) => {
             slug,
             name,
             start_date,
-            end_date,
-            tournament_categories(
-              category:categories(
-                name,
-                slug
-              )
-            )
+            end_date
           `,
         )
         .order("start_date", { ascending: true });
 
-      if (queryError) {
-        setError(queryError.message);
+      if (tournamentsError) {
+        setError(tournamentsError.message);
         setIsLoading(false);
         return;
       }
 
-      const mapped: TournamentCard[] = (data ?? []).map((tournament) => {
-        const categories = (tournament.tournament_categories ?? [])
-          .map((item) => item.category)
+      const { data: tournamentCategoriesData, error: tournamentCategoriesError } = await supabase
+        .from("tournament_categories")
+        .select(
+          `
+            tournament_id,
+            categories(
+              name,
+              slug
+            )
+          `,
+        );
+
+      if (tournamentCategoriesError) {
+        setError(tournamentCategoriesError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      const categoriesByTournamentId = (tournamentCategoriesData ?? []).reduce<
+        Record<string, { name: string; slug: string }[]>
+      >((acc, item) => {
+        if (!item.tournament_id) return acc;
+
+        const categoryRows = Array.isArray(item.categories) ? item.categories : [item.categories];
+        const parsedCategories = categoryRows
           .filter((category): category is { name: string | null; slug: string | null } => Boolean(category))
           .map((category) => ({
             name: category.name ?? "Categoría",
             slug: category.slug ?? "",
           }))
           .filter((category) => category.slug.length > 0);
+
+        if (!acc[item.tournament_id]) {
+          acc[item.tournament_id] = [];
+        }
+
+        acc[item.tournament_id].push(...parsedCategories);
+        return acc;
+      }, {});
+
+      const mapped: TournamentCard[] = (tournamentsData ?? []).map((tournament) => {
+        const categories = (categoriesByTournamentId[tournament.id] ?? []).filter(
+          (category, index, array) => array.findIndex((item) => item.slug === category.slug) === index,
+        );
 
         const dateLabel = formatDateRange(tournament.start_date, tournament.end_date);
 
