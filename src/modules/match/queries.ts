@@ -30,6 +30,20 @@ export const getMatchSets = async (matchId: string): Promise<MatchSet[]> => {
   return data
 }
 
+export const getMatchSetsByMatchIds = async (
+  matchIds: string[]
+): Promise<MatchSet[]> => {
+  if (!matchIds.length) return []
+
+  const { data, error } = await supabase
+    .from("match_sets")
+    .select("*")
+    .in("match_id", matchIds)
+
+  throwIfError(error)
+  return data
+}
+
 export const getBracket = async (): Promise<BracketMatch[]> => {
   const { data, error } = await supabase.from("v_bracket").select("*")
 

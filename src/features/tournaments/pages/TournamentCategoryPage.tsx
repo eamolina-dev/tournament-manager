@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { MatchCard } from "../../matches/components/MatchCard"
+import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData"
 import { TournamentBracket } from "../components/TournamentBracket"
-import { getTournamentCategoryPageData } from "../data/supabaseTournaments"
 
 type TournamentCategoryPageProps = {
   slug: string

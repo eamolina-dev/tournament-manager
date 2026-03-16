@@ -26,6 +26,19 @@ export const getTournamentById = async (
   return data
 }
 
+export const getTournamentBySlug = async (
+  tournamentSlug: string
+): Promise<Pick<Tournament, "id" | "name"> | null> => {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("id, name")
+    .eq("slug", tournamentSlug)
+    .maybeSingle()
+
+  throwIfError(error)
+  return data
+}
+
 export const getTournamentCategories = async (
   tournamentId: string
 ): Promise<TournamentCategory[]> => {
@@ -33,6 +46,21 @@ export const getTournamentCategories = async (
     .from("tournament_categories")
     .select("*")
     .eq("tournament_id", tournamentId)
+
+  throwIfError(error)
+  return data
+}
+
+export const getTournamentCategoryBySlug = async (
+  tournamentId: string,
+  categorySlug: string
+): Promise<{ id: string; categories: { name: string; slug: string | null } } | null> => {
+  const { data, error } = await supabase
+    .from("tournament_categories")
+    .select("id, categories!inner(name, slug)")
+    .eq("tournament_id", tournamentId)
+    .eq("categories.slug", categorySlug)
+    .maybeSingle()
 
   throwIfError(error)
   return data
