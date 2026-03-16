@@ -1,50 +1,57 @@
-import { useMemo, useState } from "react";
-import { MatchCard } from "../../matches/components/MatchCard";
-import { findTournamentCategory } from "../data/mockTournaments";
-import { TournamentBracket } from "../components/TournamentBracket";
+import { useMemo, useState } from "react"
+import { MatchCard } from "../../matches/components/MatchCard"
+import { TournamentBracket } from "../components/TournamentBracket"
+import { useMatches } from "../../../modules/match/hooks"
+import { useGroupStandings, useRanking } from "../../../modules/ranking/hooks"
+import { useGroups, useTournament } from "../../../modules/tournament/hooks"
 
 type TournamentCategoryPageProps = {
-  slug: string;
-  category: string;
-};
+  slug: string
+  category: string
+}
 
-const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const;
+const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const
 
-type SectionTab = (typeof sectionTabs)[number];
-
-type ResultRow = {
-  pos: 1 | 2 | 3;
-  pareja: string;
-  puntos: number;
-};
+type SectionTab = (typeof sectionTabs)[number]
 
 export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPageProps) => {
-  const [activeTab, setActiveTab] = useState<SectionTab>("Zonas");
-  const { tournament, categoryData } = useMemo(
-    () => findTournamentCategory(slug, category),
-    [slug, category],
-  );
-  const [zoneId, setZoneId] = useState(categoryData?.zones[0]?.id ?? "A");
+  const [activeTab, setActiveTab] = useState<SectionTab>("Zonas")
+  const { data: tournamentData, loading: tournamentLoading } = useTournament(slug, category)
 
-  if (!tournament || !categoryData) {
-    return <p className="rounded-xl bg-white p-4 text-sm text-slate-600">Torneo o categoría no encontrada.</p>;
+  const categoryId = tournamentData?.category.id
+  const { data: groups } = useGroups(categoryId)
+  const { data: standingsByGroup } = useGroupStandings(categoryId)
+  const { groupMatches, bracketMatches, schedule } = useMatches(categoryId)
+  const { data: rankingRows } = useRanking(categoryId)
+
+  const [zoneId, setZoneId] = useState<string>("")
+
+  const zones = useMemo(
+    () =>
+      groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        standings: standingsByGroup[group.name] ?? [],
+        matches: groupMatches.filter((match) => match.groupId === group.id),
+      })),
+    [groups, standingsByGroup, groupMatches],
+  )
+
+  const activeZone = zones.find((zone) => zone.id === zoneId) ?? zones[0]
+
+  if (tournamentLoading) {
+    return <p className="rounded-xl bg-white p-4 text-sm text-slate-600">Cargando torneo...</p>
   }
 
-  const activeZone = categoryData.zones.find((zone) => zone.id === zoneId) ?? categoryData.zones[0];
+  if (!tournamentData) {
+    return <p className="rounded-xl bg-white p-4 text-sm text-slate-600">Torneo o categoría no encontrada.</p>
+  }
 
   return (
     <section className="flex flex-col gap-4">
       <header className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{tournament.name}</h1>
-        <p className="text-sm text-slate-500">Categoría {categoryData.category}</p>
-
-        {categoryData.champion && (
-          <div className="mt-3 space-y-1 text-sm text-slate-700">
-            <p>🥇 Champion: {categoryData.champion}</p>
-            <p>🥈 Finalist: {categoryData.finalist}</p>
-            <p>🥉 Semifinalists: {categoryData.semifinalists?.join(" · ")}</p>
-          </div>
-        )}
+        <h1 className="text-2xl font-bold text-slate-900">{tournamentData.tournament.name}</h1>
+        <p className="text-sm text-slate-500">Categoría {tournamentData.category.category}</p>
       </header>
 
       <div className="flex flex-wrap gap-2">
@@ -66,12 +73,12 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
       {activeTab === "Zonas" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="mb-3 flex flex-wrap gap-2">
-            {categoryData.zones.map((zone) => (
+            {zones.map((zone) => (
               <button
                 key={zone.id}
                 onClick={() => setZoneId(zone.id)}
                 className={`rounded-full px-3 py-1 text-sm ${
-                  zone.id === activeZone.id
+                  zone.id === activeZone?.id
                     ? "bg-slate-900 text-white"
                     : "border border-slate-300 text-slate-700"
                 }`}
@@ -93,7 +100,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
                 </tr>
               </thead>
               <tbody>
-                {activeZone.standings.map((standing) => (
+                {activeZone?.standings.map((standing) => (
                   <tr key={standing.pareja} className="border-b border-slate-100 last:border-none">
                     <td className="py-2">{standing.pareja}</td>
                     <td className="py-2">{standing.pj}</td>
@@ -107,7 +114,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
           </div>
 
           <div className="mt-4 grid gap-2">
-            {activeZone.matches.length ? (
+            {activeZone?.matches.length ? (
               activeZone.matches.map((match) => <MatchCard key={match.id} match={match} />)
             ) : (
               <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>
@@ -116,7 +123,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         </section>
       )}
 
-      {activeTab === "Cruces" && <TournamentBracket matches={categoryData.bracketMatches} />}
+      {activeTab === "Cruces" && <TournamentBracket matches={bracketMatches} />}
 
       {activeTab === "Resultados" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -130,11 +137,11 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
                 </tr>
               </thead>
               <tbody>
-                {buildResultsRows(categoryData).map((row, index) => (
-                  <tr key={`${row.pareja}-${index}`} className="border-b border-slate-100 last:border-none">
+                {rankingRows.map((row) => (
+                  <tr key={`${row.player}-${row.pos}`} className="border-b border-slate-100 last:border-none">
                     <td className="py-2 font-semibold text-slate-900">{row.pos}</td>
-                    <td className="py-2 text-slate-700">{row.pareja}</td>
-                    <td className="py-2 text-right font-semibold text-slate-900">{row.puntos}</td>
+                    <td className="py-2 text-slate-700">{row.player}</td>
+                    <td className="py-2 text-right font-semibold text-slate-900">{row.points}</td>
                   </tr>
                 ))}
               </tbody>
@@ -143,25 +150,25 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         </section>
       )}
 
-      {activeTab === "Horarios" && (
-        <ScheduleSection
-          matches={categoryData.schedule}
-        />
-      )}
+      {activeTab === "Horarios" && <ScheduleSection matches={schedule} />}
     </section>
-  );
-};
+  )
+}
 
-const dayTabs = ["Viernes", "Sabado", "Domingo"] as const;
+const dayTabs = ["Viernes", "Sabado", "Domingo"] as const
 
-const ScheduleSection = ({ matches }: { matches: { id: string; day: "Viernes" | "Sabado" | "Domingo"; time: string; court?: string; team1: string; team2: string }[] }) => {
-  const [day, setDay] = useState<(typeof dayTabs)[number]>("Viernes");
-  const dayMatches = matches.filter((match) => match.day === day);
+const ScheduleSection = ({
+  matches,
+}: {
+  matches: { id: string; day: string; time: string; court?: string; team1: string; team2: string }[]
+}) => {
+  const [day, setDay] = useState<(typeof dayTabs)[number]>("Viernes")
+  const dayMatches = matches.filter((match) => match.day === day)
 
-  const courts = Array.from(new Set(dayMatches.map((match) => match.court ?? "-"))).sort(sortCourts);
-  const timeSlots = Array.from(new Set(dayMatches.map((match) => match.time))).sort(sortTimes);
+  const courts = Array.from(new Set(dayMatches.map((match) => match.court ?? "-"))).sort(sortCourts)
+  const timeSlots = Array.from(new Set(dayMatches.map((match) => match.time))).sort(sortTimes)
 
-  const matchesByCell = new Map(dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match]));
+  const matchesByCell = new Map(dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match]))
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -197,7 +204,7 @@ const ScheduleSection = ({ matches }: { matches: { id: string; day: "Viernes" | 
                 <tr key={time} className="border-b border-slate-100 last:border-none align-top">
                   <td className="sticky left-0 z-10 bg-white py-2 pr-2 font-semibold text-slate-700">{time}</td>
                   {courts.map((court) => {
-                    const match = matchesByCell.get(`${time}__${court}`);
+                    const match = matchesByCell.get(`${time}__${court}`)
                     return (
                       <td key={`${time}-${court}`} className="py-2 px-1">
                         {match ? (
@@ -212,7 +219,7 @@ const ScheduleSection = ({ matches }: { matches: { id: string; day: "Viernes" | 
                           </div>
                         )}
                       </td>
-                    );
+                    )
                   })}
                 </tr>
               ))}
@@ -223,49 +230,26 @@ const ScheduleSection = ({ matches }: { matches: { id: string; day: "Viernes" | 
         )}
       </div>
     </section>
-  );
-};
-
-const buildResultsRows = (categoryData: {
-  champion?: string;
-  finalist?: string;
-  semifinalists?: [string, string];
-}) => {
-  const rows: ResultRow[] = [];
-
-  if (categoryData.champion) {
-    rows.push({ pos: 1, pareja: categoryData.champion, puntos: 1000 });
-  }
-  if (categoryData.finalist) {
-    rows.push({ pos: 2, pareja: categoryData.finalist, puntos: 600 });
-  }
-  if (categoryData.semifinalists?.[0]) {
-    rows.push({ pos: 3, pareja: categoryData.semifinalists[0], puntos: 360 });
-  }
-  if (categoryData.semifinalists?.[1]) {
-    rows.push({ pos: 3, pareja: categoryData.semifinalists[1], puntos: 360 });
-  }
-
-  return rows;
-};
+  )
+}
 
 const sortCourts = (a: string, b: string) => {
   const parseCourt = (value: string) => {
-    const normalized = value.trim().toUpperCase();
-    if (normalized === "-") return 999;
-    const match = normalized.match(/^C(\d+)$/);
-    if (match) return Number(match[1]);
-    return 998;
-  };
+    const normalized = value.trim().toUpperCase()
+    if (normalized === "-") return 999
+    const match = normalized.match(/^C(\d+)$/)
+    if (match) return Number(match[1])
+    return 998
+  }
 
-  return parseCourt(a) - parseCourt(b) || a.localeCompare(b);
-};
+  return parseCourt(a) - parseCourt(b) || a.localeCompare(b)
+}
 
 const sortTimes = (a: string, b: string) => {
   const toMinutes = (value: string) => {
-    const [hours, minutes] = value.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
+    const [hours, minutes] = value.split(":").map(Number)
+    return hours * 60 + minutes
+  }
 
-  return toMinutes(a) - toMinutes(b);
-};
+  return toMinutes(a) - toMinutes(b)
+}

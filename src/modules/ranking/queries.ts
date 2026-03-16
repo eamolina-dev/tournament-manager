@@ -7,6 +7,13 @@ import type {
   RankingRule,
 } from "../../shared/types/entities"
 
+export type RankingViewRow = {
+  player_name: string | null
+  points: number | null
+  position: number | null
+  category_name: string | null
+}
+
 export const getRankingTableByCategory = async (
   tournamentCategoryId: string
 ): Promise<Ranking[]> => {
@@ -18,6 +25,17 @@ export const getRankingTableByCategory = async (
 
   throwIfError(error)
   return data
+}
+
+export const getRankingPreview = async (limit = 10): Promise<RankingViewRow[]> => {
+  const { data, error } = await supabase
+    .from("v_ranking" as never)
+    .select("*")
+    .order("position", { ascending: true })
+    .limit(limit)
+
+  throwIfError(error)
+  return (data ?? []) as RankingViewRow[]
 }
 
 export const getRankingRulesByCircuit = async (

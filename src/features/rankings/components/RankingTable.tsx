@@ -1,4 +1,4 @@
-import type { RankingRow } from "../../tournaments/data/mockTournaments";
+import type { RankingRow } from "../../../modules/ranking/hooks"
 
 export const RankingTable = ({ rows }: { rows: RankingRow[] }) => (
   <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -21,4 +21,4 @@ export const RankingTable = ({ rows }: { rows: RankingRow[] }) => (
       </tbody>
     </table>
   </div>
-);
+)

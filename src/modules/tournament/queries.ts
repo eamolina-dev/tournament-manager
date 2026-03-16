@@ -7,8 +7,13 @@ import type {
   TournamentCategory,
 } from "../../shared/types/entities"
 
+export type CategoryLookup = {
+  id: string
+  name: string
+}
+
 export const getTournaments = async (): Promise<Tournament[]> => {
-  const { data, error } = await supabase.from("tournaments").select("*")
+  const { data, error } = await supabase.from("tournaments").select("*").order("start_date")
   throwIfError(error)
   return data
 }
@@ -33,6 +38,13 @@ export const getTournamentCategories = async (
     .from("tournament_categories")
     .select("*")
     .eq("tournament_id", tournamentId)
+
+  throwIfError(error)
+  return data
+}
+
+export const getCategoriesLookup = async (): Promise<CategoryLookup[]> => {
+  const { data, error } = await supabase.from("categories").select("id, name")
 
   throwIfError(error)
   return data
