@@ -1,30 +1,20 @@
 import { useEffect, useMemo, useState } from "react"
-import { getRankingsByCategory } from "../data/supabaseRankings"
 import { RankingTable } from "../components/RankingTable"
-import type { CategoryCode } from "../../tournaments/types"
-
-const categories: CategoryCode[] = ["4ta", "5ta", "6ta", "7ma", "8va"]
+import { getRankingsByCategory } from "../../../services/rankings/getRankingsByCategory"
+import {
+  createEmptyCategoryRankingMap,
+  rankingCategories,
+  type CategoryCode,
+} from "../../../types/ranking"
 
 export const RankingsPage = () => {
   const [selected, setSelected] = useState<CategoryCode>("6ta")
-  const [rankings, setRankings] = useState<Record<CategoryCode, { pos: number; player: string; points: number }[]>>({
-    "4ta": [],
-    "5ta": [],
-    "6ta": [],
-    "7ma": [],
-    "8va": [],
-  })
+  const [rankings, setRankings] = useState(createEmptyCategoryRankingMap)
 
   useEffect(() => {
     const load = async () => {
       const data = await getRankingsByCategory()
-      const mapped: Record<CategoryCode, { pos: number; player: string; points: number }[]> = {
-        "4ta": [],
-        "5ta": [],
-        "6ta": [],
-        "7ma": [],
-        "8va": [],
-      }
+      const mapped = createEmptyCategoryRankingMap()
 
       for (const categoryData of data) {
         mapped[categoryData.category] = categoryData.rows
@@ -41,7 +31,7 @@ export const RankingsPage = () => {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        {categories.map((category) => (
+        {rankingCategories.map((category) => (
           <button
             key={category}
             onClick={() => setSelected(category)}

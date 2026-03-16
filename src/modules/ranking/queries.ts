@@ -7,6 +7,35 @@ import type {
   RankingRule,
 } from "../../shared/types/entities"
 
+export const getTeamResults = async (): Promise<
+  Pick<Ranking, "team_id" | "points_awarded" | "tournament_category_id">[]
+> => {
+  const { data, error } = await supabase
+    .from("team_results")
+    .select("team_id, points_awarded, tournament_category_id")
+
+  throwIfError(error)
+  return data
+}
+
+export const getCategories = async (): Promise<{
+  categories: { id: string; slug: string | null }[]
+  tournamentCategories: { id: string; category_id: string | null }[]
+}> => {
+  const [categoriesRes, tournamentCategoriesRes] = await Promise.all([
+    supabase.from("categories").select("id, slug"),
+    supabase.from("tournament_categories").select("id, category_id"),
+  ])
+
+  throwIfError(categoriesRes.error)
+  throwIfError(tournamentCategoriesRes.error)
+
+  return {
+    categories: categoriesRes.data,
+    tournamentCategories: tournamentCategoriesRes.data,
+  }
+}
+
 export const getRankingTableByCategory = async (
   tournamentCategoryId: string
 ): Promise<Ranking[]> => {
