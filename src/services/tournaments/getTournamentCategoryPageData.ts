@@ -1,4 +1,3 @@
-import { TournamentBracket } from "../../features/tournaments/components/TournamentBracket"
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
 import { getRankingTableByCategory, getGroupTableFull } from "../../modules/ranking/queries"
 import { getTeamPlayersByCategory } from "../../modules/team/queries"
@@ -9,6 +8,7 @@ import {
 } from "../../modules/tournament/queries"
 
 export type TournamentCategoryPageData = {
+  tournamentCategoryId: string
   tournamentName: string
   categoryName: string
   champion?: string
@@ -49,6 +49,18 @@ export type TournamentCategoryPageData = {
     court?: string
   }[]
   results: { pos: 1 | 2 | 3; pareja: string; puntos: number }[]
+  teams: { id: string; name: string }[]
+  editableMatches: {
+    id: string
+    team1Id: string
+    team2Id: string
+    groupId: string | null
+    stage: "group" | "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
+    scheduledAt: string | null
+    court: string | null
+    sets: { setNumber: number; team1Games: number; team2Games: number }[]
+    winnerTeamId: string | null
+  }[]
 }
 
 const toDay = (iso?: string | null): "Viernes" | "Sabado" | "Domingo" => {
@@ -95,10 +107,6 @@ export const getTournamentCategoryPageData = async (
   if (!tournament) return null
 
   const category = await getTournamentCategoryBySlugs(tournamentSlug, categorySlug)
-
-  console.log("tournament", tournament)
-  console.log("categorySlug", categorySlug)
-  console.log("category", category)
 
   if (!category) return null
 
@@ -177,6 +185,7 @@ export const getTournamentCategoryPageData = async (
     .map((row) => row.pareja)
 
   return {
+    tournamentCategoryId,
     tournamentName: tournament.name ?? "Torneo",
     categoryName: category.category.name ?? "Categoría",
     champion,
@@ -194,5 +203,23 @@ export const getTournamentCategoryPageData = async (
         schedule,
     ),
     results: resultRows,
+    teams: teams
+      .filter((team) => team.id)
+      .map((team) => ({ id: team.id ?? "", name: team.team_name ?? "Equipo" })),
+    editableMatches: matches.map((match) => ({
+      id: match.id,
+      team1Id: match.team1_id,
+      team2Id: match.team2_id,
+      groupId: match.group_id,
+      stage: match.stage,
+      scheduledAt: match.scheduled_at,
+      court: match.court,
+      winnerTeamId: match.winner_team_id,
+      sets: (setsByMatch.get(match.id) ?? []).map((set) => ({
+        setNumber: set.set_number ?? 1,
+        team1Games: set.team1_games ?? 0,
+        team2Games: set.team2_games ?? 0,
+      })),
+    })),
   }
 }

@@ -51,6 +51,18 @@ export const getTournamentCategories = async (
   return data
 }
 
+export const getAllCategories = async (): Promise<
+  { id: string; name: string; slug: string | null }[]
+> => {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .order("level", { ascending: true })
+
+  throwIfError(error)
+  return data
+}
+
 export const getTournamentCategoryBySlugs = async (
   tournamentSlug: string,
   categorySlug: string
