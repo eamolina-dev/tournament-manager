@@ -10,6 +10,8 @@ import { TournamentBracket } from "../components/TournamentBracket"
 type TournamentCategoryPageProps = {
   slug: string
   category: string
+  isAdmin?: boolean
+  navigate?: (path: string) => void
 }
 
 const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const
@@ -17,7 +19,7 @@ const stageOptions = ["group", "quarter", "semi", "final", "round_of_32", "round
 
 type SectionTab = (typeof sectionTabs)[number]
 
-export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPageProps) => {
+export const TournamentCategoryPage = ({ slug, category, isAdmin = false, navigate }: TournamentCategoryPageProps) => {
   const [activeTab, setActiveTab] = useState<SectionTab>("Zonas")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -60,7 +62,25 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
   return (
     <section className="flex flex-col gap-4">
       <header className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{data.tournamentName}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">{data.tournamentName}</h1>
+          {!isAdmin && navigate && (
+            <button
+              onClick={() => navigate(`/admin/tournament/${slug}/${category}`)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Gestionar torneo
+            </button>
+          )}
+          {isAdmin && navigate && (
+            <button
+              onClick={() => navigate(`/tournament/${slug}/${category}`)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Ver vista pública
+            </button>
+          )}
+        </div>
         <p className="text-sm text-slate-500">Categoría {data.categoryName}</p>
 
         {data.champion && (
@@ -72,7 +92,8 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         )}
       </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      {isAdmin && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gestión rápida</h2>
 
         <div className="mt-3 grid gap-4 md:grid-cols-2">
@@ -205,31 +226,36 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
 
         {saving && <p className="mt-2 text-xs text-slate-500">Procesando...</p>}
       </section>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        {sectionTabs.map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-full px-3 py-1.5 text-sm font-medium ${tab === activeTab ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "Zonas" && activeZone && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {data.zones.map((zone) => (
-              <button key={zone.id} onClick={() => setZoneId(zone.id)} className={`rounded-full px-3 py-1 text-sm ${zone.id === activeZone.id ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>
-                {zone.name}
+      {!isAdmin && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {sectionTabs.map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`rounded-full px-3 py-1.5 text-sm font-medium ${tab === activeTab ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>
+                {tab}
               </button>
             ))}
           </div>
-          <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2">Pareja</th><th className="py-2">PJ</th><th className="py-2">PG</th><th className="py-2">SG</th><th className="py-2">GG</th></tr></thead><tbody>{activeZone.standings.map((standing) => (<tr key={standing.pareja} className="border-b border-slate-100 last:border-none"><td className="py-2">{standing.pareja}</td><td className="py-2">{standing.pj}</td><td className="py-2">{standing.pg}</td><td className="py-2">{standing.sg}</td><td className="py-2">{standing.gg}</td></tr>))}</tbody></table></div>
-          <div className="mt-4 grid gap-2">{activeZone.matches.length ? activeZone.matches.map((match) => <MatchCard key={match.id} match={match} />) : <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>}</div>
-        </section>
+
+          {activeTab === "Zonas" && activeZone && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {data.zones.map((zone) => (
+                  <button key={zone.id} onClick={() => setZoneId(zone.id)} className={`rounded-full px-3 py-1 text-sm ${zone.id === activeZone.id ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>
+                    {zone.name}
+                  </button>
+                ))}
+              </div>
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2">Pareja</th><th className="py-2">PJ</th><th className="py-2">PG</th><th className="py-2">SG</th><th className="py-2">GG</th></tr></thead><tbody>{activeZone.standings.map((standing) => (<tr key={standing.pareja} className="border-b border-slate-100 last:border-none"><td className="py-2">{standing.pareja}</td><td className="py-2">{standing.pj}</td><td className="py-2">{standing.pg}</td><td className="py-2">{standing.sg}</td><td className="py-2">{standing.gg}</td></tr>))}</tbody></table></div>
+              <div className="mt-4 grid gap-2">{activeZone.matches.length ? activeZone.matches.map((match) => <MatchCard key={match.id} match={match} />) : <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>}</div>
+            </section>
+          )}
+          {activeTab === "Cruces" && <TournamentBracket matches={data.bracketMatches} />}
+          {activeTab === "Resultados" && <section className="rounded-2xl border border-slate-200 bg-white p-4"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2">Pos</th><th className="py-2">Pareja</th><th className="py-2 text-right">Puntos</th></tr></thead><tbody>{data.results.map((row, index) => (<tr key={`${row.pareja}-${index}`} className="border-b border-slate-100 last:border-none"><td className="py-2 font-semibold text-slate-900">{row.pos}</td><td className="py-2 text-slate-700">{row.pareja}</td><td className="py-2 text-right font-semibold text-slate-900">{row.puntos}</td></tr>))}</tbody></table></div></section>}
+          {activeTab === "Horarios" && <ScheduleSection matches={data.schedule} />}
+        </>
       )}
-      {activeTab === "Cruces" && <TournamentBracket matches={data.bracketMatches} />}
-      {activeTab === "Resultados" && <section className="rounded-2xl border border-slate-200 bg-white p-4"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2">Pos</th><th className="py-2">Pareja</th><th className="py-2 text-right">Puntos</th></tr></thead><tbody>{data.results.map((row, index) => (<tr key={`${row.pareja}-${index}`} className="border-b border-slate-100 last:border-none"><td className="py-2 font-semibold text-slate-900">{row.pos}</td><td className="py-2 text-slate-700">{row.pareja}</td><td className="py-2 text-right font-semibold text-slate-900">{row.puntos}</td></tr>))}</tbody></table></div></section>}
-      {activeTab === "Horarios" && <ScheduleSection matches={data.schedule} />}
     </section>
   )
 }
