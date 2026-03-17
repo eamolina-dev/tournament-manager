@@ -4,42 +4,28 @@ export type HomeTournament = {
   slug: string
   name: string
   locationOrDate?: string
-  categories: { category: string }[]
+  categories: { name: string; slug: string }[]
 }
 
 export const getHomeTournaments = async (): Promise<HomeTournament[]> => {
   const { data, error } = await supabase
-    .from("tournaments")
-    .select(`
-      id,
-      slug,
-      name,
-      start_date,
-      end_date,
-      tournament_categories(
-        categories(name, slug)
-      )
-    `)
-    .order("start_date", { ascending: false })
+    .from("home_tournaments_view")
+    .select("*")
+    .order("start_date", { ascending: false });
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(error.message);
 
-  return (data ?? []).map((tournament) => {
-    const start = tournament.start_date
-      ? new Date(tournament.start_date).toLocaleDateString("es-AR")
-      : undefined
-    const end = tournament.end_date
-      ? new Date(tournament.end_date).toLocaleDateString("es-AR")
-      : undefined
+  return (data ?? []).map((t) => {
+    // Formateo de fechas local
+    const start = t.start_date ? new Date(t.start_date).toLocaleDateString("es-AR") : "";
+    const end = t.end_date ? new Date(t.end_date).toLocaleDateString("es-AR") : "";
 
     return {
-      slug: tournament.slug ?? tournament.id,
-      name: tournament.name ?? "Torneo",
+      slug: t.slug || t.id.toString(),
+      name: t.name || "Torneo",
       locationOrDate: start && end ? `${start} - ${end}` : start,
-      categories: (tournament.tournament_categories ?? [])
-        .map((item) => item.categories?.slug ?? item.categories?.name)
-        .filter((value): value is string => Boolean(value))
-        .map((category) => ({ category })),
-    }
-  })
-}
+      // 'categories_data' viene de la View como array de objetos
+      categories: t.categories_data || [],
+    };
+  });
+};
