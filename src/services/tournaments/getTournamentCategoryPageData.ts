@@ -1,10 +1,11 @@
+import { TournamentBracket } from "../../features/tournaments/components/TournamentBracket"
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
 import { getRankingTableByCategory, getGroupTableFull } from "../../modules/ranking/queries"
 import { getTeamPlayersByCategory } from "../../modules/team/queries"
 import {
   getGroupsByCategory,
   getTournamentBySlug,
-  getTournamentCategoryBySlug,
+  getTournamentCategoryBySlugs,
 } from "../../modules/tournament/queries"
 
 export type TournamentCategoryPageData = {
@@ -89,9 +90,16 @@ export const getTournamentCategoryPageData = async (
   categorySlug: string,
 ): Promise<TournamentCategoryPageData | null> => {
   const tournament = await getTournamentBySlug(tournamentSlug)
+
+  // console.log('torunament: ' + TournamentBracket)
   if (!tournament) return null
 
-  const category = await getTournamentCategoryBySlug(tournament.id, categorySlug)
+  const category = await getTournamentCategoryBySlugs(tournamentSlug, categorySlug)
+
+  console.log("tournament", tournament)
+  console.log("categorySlug", categorySlug)
+  console.log("category", category)
+
   if (!category) return null
 
   const tournamentCategoryId = category.id
@@ -170,7 +178,7 @@ export const getTournamentCategoryPageData = async (
 
   return {
     tournamentName: tournament.name ?? "Torneo",
-    categoryName: category.categories.name,
+    categoryName: category.category.name ?? "Categoría",
     champion,
     finalist,
     semifinalists:

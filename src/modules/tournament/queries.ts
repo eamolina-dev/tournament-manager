@@ -51,19 +51,30 @@ export const getTournamentCategories = async (
   return data
 }
 
-export const getTournamentCategoryBySlug = async (
-  tournamentId: string,
+export const getTournamentCategoryBySlugs = async (
+  tournamentSlug: string,
   categorySlug: string
-): Promise<{ id: string; categories: { name: string; slug: string | null } } | null> => {
+) => {
   const { data, error } = await supabase
     .from("tournament_categories")
-    .select("id, categories!inner(name, slug)")
-    .eq("tournament_id", tournamentId)
+    .select(`
+      id,
+      tournament:tournaments!inner(slug),
+      category:categories!inner(name, slug)
+    `)
+    .eq("tournaments.slug", tournamentSlug)
     .eq("categories.slug", categorySlug)
-    .maybeSingle()
+    .maybeSingle();
 
-  throwIfError(error)
-  return data
+  if (error) {
+    console.error("Error detallado:", error);
+    return null;
+  }
+
+  console.log("Buscando Torneo: |", tournamentSlug, "|", "Categoría: |", categorySlug, "|");
+  console.log("Resultado real de DB:", JSON.stringify(data, null, 2));
+
+  return data;
 }
 
 export const getGroupsByCategory = async (
