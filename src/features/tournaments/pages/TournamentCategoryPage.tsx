@@ -10,6 +10,8 @@ import { TournamentBracket } from "../components/TournamentBracket"
 type TournamentCategoryPageProps = {
   slug: string
   category: string
+  isAdmin?: boolean
+  navigate?: (path: string) => void
 }
 
 const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const
@@ -17,7 +19,7 @@ const stageOptions = ["group", "quarter", "semi", "final", "round_of_32", "round
 
 type SectionTab = (typeof sectionTabs)[number]
 
-export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPageProps) => {
+export const TournamentCategoryPage = ({ slug, category, isAdmin = false, navigate }: TournamentCategoryPageProps) => {
   const [activeTab, setActiveTab] = useState<SectionTab>("Zonas")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -60,7 +62,17 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
   return (
     <section className="flex flex-col gap-4">
       <header className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h1 className="text-2xl font-bold text-slate-900">{data.tournamentName}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">{data.tournamentName}</h1>
+          {!isAdmin && navigate && (
+            <button
+              onClick={() => navigate(`/admin/tournament/${slug}/${category}`)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Gestionar torneo
+            </button>
+          )}
+        </div>
         <p className="text-sm text-slate-500">Categoría {data.categoryName}</p>
 
         {data.champion && (
@@ -72,7 +84,8 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
         )}
       </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      {isAdmin && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gestión rápida</h2>
 
         <div className="mt-3 grid gap-4 md:grid-cols-2">
@@ -205,6 +218,7 @@ export const TournamentCategoryPage = ({ slug, category }: TournamentCategoryPag
 
         {saving && <p className="mt-2 text-xs text-slate-500">Procesando...</p>}
       </section>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {sectionTabs.map((tab) => (
