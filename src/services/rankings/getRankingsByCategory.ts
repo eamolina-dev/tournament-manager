@@ -19,6 +19,15 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
     getPlayers(),
   ])
 
+  console.log("cat")
+  console.log(categories)
+  console.log("res")
+  console.log(results)
+  console.log("teams")
+  console.log(teams)
+  console.log("players")
+  console.log(players)
+
   const categoryByTournamentCategory = new Map(
     categories.tournamentCategories.map((item) => [item.id, item.category_id]),
   )
