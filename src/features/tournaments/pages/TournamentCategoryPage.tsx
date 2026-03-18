@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  createMatch,
-  deleteMatch,
   replaceMatchSets,
   updateMatch,
   updateMatchResult,
 } from "../../../modules/match/mutations";
 import { createPlayer } from "../../../modules/player/mutations";
+import { getPlayers } from "../../../modules/player/queries";
 import { createTeam, deleteTeam } from "../../../modules/team/mutations";
 import { generateGroupsAndMatches } from "../../../modules/tournament/mutations";
 import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
@@ -21,17 +20,19 @@ type TournamentCategoryPageProps = {
 };
 
 const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const;
-const stageOptions = [
-  "group",
-  "quarter",
-  "semi",
-  "final",
-  "round_of_32",
-  "round_of_16",
-  "round_of_8",
-] as const;
 
 type SectionTab = (typeof sectionTabs)[number];
+
+type FlowStatus = "draft" | "teams_ready" | "groups_ready" | "matches_ready";
+
+type TeamFormState = {
+  player1Id: string;
+  player1NewName: string;
+  player2Id: string;
+  player2NewName: string;
+};
+
+const NEW_PLAYER_OPTION = "__new__";
 
 export const TournamentCategoryPage = ({
   slug,
@@ -45,14 +46,12 @@ export const TournamentCategoryPage = ({
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
   const [zoneId, setZoneId] = useState("");
-  const [teamForm, setTeamForm] = useState({ player1: "", player2: "" });
-  const [matchForm, setMatchForm] = useState({
-    team1Id: "",
-    team2Id: "",
-    groupId: "",
-    stage: "group",
-    scheduledAt: "",
-    court: "",
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
+  const [teamForm, setTeamForm] = useState<TeamFormState>({
+    player1Id: "",
+    player1NewName: "",
+    player2Id: "",
+    player2NewName: "",
   });
 
   const load = async () => {
@@ -66,14 +65,36 @@ export const TournamentCategoryPage = ({
     }
   };
 
+  const loadPlayers = async () => {
+    const response = await getPlayers();
+    setPlayers(
+      response
+        .filter((player) => Boolean(player.id) && Boolean(player.name?.trim()))
+        .map((player) => ({ id: player.id, name: player.name?.trim() ?? "" }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  };
+
   useEffect(() => {
     void load();
-  }, [slug, category]);
+    if (isAdmin) {
+      void loadPlayers();
+    }
+  }, [slug, category, isAdmin]);
 
   const activeZone = useMemo(() => {
     if (!data?.zones.length) return null;
     return data.zones.find((zone) => zone.id === zoneId) ?? data.zones[0];
   }, [data, zoneId]);
+
+  const flowStatus = useMemo<FlowStatus>(() => {
+    if (!data?.teams.length) return "draft";
+    if (!data.zones.length) return "teams_ready";
+    if (!data.editableMatches.length) return "groups_ready";
+    return "matches_ready";
+  }, [data]);
+
+  const canGenerateZones = (data?.teams.length ?? 0) >= 2;
 
   if (loading)
     return (
@@ -125,233 +146,283 @@ export const TournamentCategoryPage = ({
       </header>
 
       {isAdmin && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Gestión rápida
-          </h2>
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+          <header className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Flujo de carga
+            </h2>
+            <p className="mt-1 text-sm text-slate-700">
+              Estado actual: <strong>{flowStatus}</strong>
+            </p>
+            <p className="text-xs text-slate-500">
+              Avance recomendado: draft → teams_ready → groups_ready → matches_ready
+            </p>
+          </header>
 
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <article className="rounded-xl border border-slate-200 p-3">
-              <h3 className="font-semibold">Equipos</h3>
-              <div className="mt-2 grid gap-2">
-                <input
-                  value={teamForm.player1}
+          <article className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">1. Equipos</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Seleccioná jugadores existentes o crealos en el momento.
+            </p>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Jugador/a 1
+                </label>
+                <select
+                  value={teamForm.player1Id}
                   onChange={(event) =>
                     setTeamForm((prev) => ({
                       ...prev,
-                      player1: event.target.value,
+                      player1Id: event.target.value,
+                      ...(event.target.value !== NEW_PLAYER_OPTION
+                        ? { player1NewName: "" }
+                        : {}),
                     }))
                   }
-                  placeholder="Jugador/a 1"
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-                <input
-                  value={teamForm.player2}
-                  onChange={(event) =>
-                    setTeamForm((prev) => ({
-                      ...prev,
-                      player2: event.target.value,
-                    }))
-                  }
-                  placeholder="Jugador/a 2 (opcional)"
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-                <button
-                  onClick={() =>
-                    void (async () => {
-                      if (!teamForm.player1.trim()) return;
-                      setSaving(true);
-                      try {
-                        const player1 = await createPlayer({
-                          name: teamForm.player1.trim(),
-                        });
-                        const player2 = teamForm.player2.trim()
-                          ? await createPlayer({
-                              name: teamForm.player2.trim(),
-                            })
-                          : null;
-
-                        await createTeam({
-                          tournament_category_id: data.tournamentCategoryId,
-                          player1_id: player1.id,
-                          player2_id: player2?.id ?? undefined,
-                        });
-                        setTeamForm({ player1: "", player2: "" });
-                        await load();
-                      } finally {
-                        setSaving(false);
-                      }
-                    })()
-                  }
-                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  Crear equipo
-                </button>
-              </div>
-
-              <div className="mt-3 max-h-40 space-y-2 overflow-auto">
-                {data.teams.map((team) => (
-                  <div
-                    key={team.id}
-                    className="flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span>{team.name}</span>
-                    <button
-                      onClick={() => void deleteTeam(team.id).then(load)}
-                      className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-xl border border-slate-200 p-3">
-              <h3 className="font-semibold">Zonas automáticas</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Genera zonas y partidos de grupo con la lógica existente.
-              </p>
-              <button
-                onClick={() =>
-                  void (async () => {
-                    setSaving(true);
-                    try {
-                      await generateGroupsAndMatches(data.tournamentCategoryId);
-                      await load();
-                    } finally {
-                      setSaving(false);
+                  <option value="">Seleccionar jugador</option>
+                  {players.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                  <option value={NEW_PLAYER_OPTION}>+ Crear nuevo jugador</option>
+                </select>
+                {teamForm.player1Id === NEW_PLAYER_OPTION && (
+                  <input
+                    value={teamForm.player1NewName}
+                    onChange={(event) =>
+                      setTeamForm((prev) => ({
+                        ...prev,
+                        player1NewName: event.target.value,
+                      }))
                     }
-                  })()
-                }
-                className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                Generar zonas y partidos
-              </button>
-            </article>
-          </div>
+                    placeholder="Nombre del nuevo jugador"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                )}
+              </div>
 
-          <article className="mt-4 rounded-xl border border-slate-200 p-3">
-            <h3 className="font-semibold">Partidos</h3>
-            <div className="mt-2 grid gap-2 md:grid-cols-3">
-              <select
-                value={matchForm.team1Id}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, team1Id: e.target.value }))
-                }
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              >
-                <option value="">Equipo 1</option>
-                {data.teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={matchForm.team2Id}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, team2Id: e.target.value }))
-                }
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              >
-                <option value="">Equipo 2</option>
-                {data.teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={matchForm.groupId}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, groupId: e.target.value }))
-                }
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              >
-                <option value="">Sin zona</option>
-                {data.zones.map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={matchForm.stage}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, stage: e.target.value }))
-                }
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              >
-                {stageOptions.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {stage}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="datetime-local"
-                value={matchForm.scheduledAt}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, scheduledAt: e.target.value }))
-                }
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              />
-              <input
-                value={matchForm.court}
-                onChange={(e) =>
-                  setMatchForm((p) => ({ ...p, court: e.target.value }))
-                }
-                placeholder="Cancha"
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Jugador/a 2 (opcional)
+                </label>
+                <select
+                  value={teamForm.player2Id}
+                  onChange={(event) =>
+                    setTeamForm((prev) => ({
+                      ...prev,
+                      player2Id: event.target.value,
+                      ...(event.target.value !== NEW_PLAYER_OPTION
+                        ? { player2NewName: "" }
+                        : {}),
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Sin segundo jugador</option>
+                  {players.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                  <option value={NEW_PLAYER_OPTION}>+ Crear nuevo jugador</option>
+                </select>
+                {teamForm.player2Id === NEW_PLAYER_OPTION && (
+                  <input
+                    value={teamForm.player2NewName}
+                    onChange={(event) =>
+                      setTeamForm((prev) => ({
+                        ...prev,
+                        player2NewName: event.target.value,
+                      }))
+                    }
+                    placeholder="Nombre del nuevo jugador"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                )}
+              </div>
             </div>
+
             <button
               onClick={() =>
                 void (async () => {
-                  if (!matchForm.team1Id || !matchForm.team2Id) return;
-                  await createMatch({
-                    tournament_category_id: data.tournamentCategoryId,
-                    team1_id: matchForm.team1Id,
-                    team2_id: matchForm.team2Id,
-                    group_id: matchForm.groupId || null,
-                    stage: matchForm.stage as (typeof stageOptions)[number],
-                    scheduled_at: matchForm.scheduledAt
-                      ? new Date(matchForm.scheduledAt).toISOString()
-                      : null,
-                    court: matchForm.court || null,
-                  });
-                  setMatchForm({
-                    team1Id: "",
-                    team2Id: "",
-                    groupId: "",
-                    stage: "group",
-                    scheduledAt: "",
-                    court: "",
-                  });
-                  await load();
+                  const resolvePlayerId = async (
+                    selectedId: string,
+                    newName: string,
+                    required: boolean,
+                  ): Promise<string | null> => {
+                    if (selectedId && selectedId !== NEW_PLAYER_OPTION) {
+                      return selectedId;
+                    }
+
+                    const normalizedName = newName.trim();
+                    if (!normalizedName) {
+                      if (required) {
+                        throw new Error("Debe seleccionar o crear el Jugador/a 1.");
+                      }
+                      return null;
+                    }
+
+                    const existing = players.find(
+                      (player) =>
+                        player.name.toLocaleLowerCase() ===
+                        normalizedName.toLocaleLowerCase(),
+                    );
+                    if (existing) return existing.id;
+
+                    const created = await createPlayer({ name: normalizedName });
+                    return created.id;
+                  };
+
+                  setSaving(true);
+                  try {
+                    const player1Id = await resolvePlayerId(
+                      teamForm.player1Id,
+                      teamForm.player1NewName,
+                      true,
+                    );
+                    const player2Id = await resolvePlayerId(
+                      teamForm.player2Id,
+                      teamForm.player2NewName,
+                      false,
+                    );
+
+                    if (!player1Id) return;
+
+                    await createTeam({
+                      tournament_category_id: data.tournamentCategoryId,
+                      player1_id: player1Id,
+                      player2_id: player2Id ?? undefined,
+                    });
+                    setTeamForm({
+                      player1Id: "",
+                      player1NewName: "",
+                      player2Id: "",
+                      player2NewName: "",
+                    });
+                    await Promise.all([load(), loadPlayers()]);
+                  } finally {
+                    setSaving(false);
+                  }
                 })()
               }
               className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
             >
-              Crear partido
+              Crear equipo
             </button>
 
-            <div className="mt-3 space-y-2">
-              {data.editableMatches.map((match) => (
-                <EditableMatchRow
-                  key={match.id}
-                  match={match}
-                  teams={data.teams}
-                  zones={data.zones}
-                  onRefresh={load}
-                />
-              ))}
+            <div className="mt-4 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Equipos creados ({data.teams.length})
+              </p>
+              {data.teams.length ? (
+                <div className="max-h-48 space-y-2 overflow-auto">
+                  {data.teams.map((team) => (
+                    <div
+                      key={team.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm"
+                    >
+                      <span>{team.name}</span>
+                      <button
+                        onClick={() => void deleteTeam(team.id).then(load)}
+                        className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">Aún no hay equipos creados.</p>
+              )}
             </div>
           </article>
 
+          <article className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">2. Zonas</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Generá zonas automáticamente a partir de los equipos cargados.
+            </p>
+
+            <button
+              disabled={!canGenerateZones || saving}
+              onClick={() =>
+                void (async () => {
+                  if (!canGenerateZones) return;
+                  setSaving(true);
+                  try {
+                    await generateGroupsAndMatches(data.tournamentCategoryId);
+                    await load();
+                  } finally {
+                    setSaving(false);
+                  }
+                })()
+              }
+              className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              Generar zonas
+            </button>
+
+            {!canGenerateZones && (
+              <p className="mt-2 text-xs text-amber-600">
+                Necesitás al menos 2 equipos para generar zonas.
+              </p>
+            )}
+
+            <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Zonas generadas ({data.zones.length})
+              </p>
+              {data.zones.length ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {data.zones.map((zone) => (
+                    <span
+                      key={zone.id}
+                      className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                    >
+                      {zone.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-slate-500">
+                  Todavía no hay zonas generadas.
+                </p>
+              )}
+            </div>
+          </article>
+
+          <article className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">3. Partidos</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Los partidos se generan automáticamente desde las zonas. Desde acá solo editás resultados, horario y cancha.
+            </p>
+
+            {data.editableMatches.length ? (
+              <div className="mt-3 space-y-2">
+                {data.editableMatches.map((match) => (
+                  <EditableMatchRow
+                    key={match.id}
+                    match={match}
+                    teams={data.teams}
+                    zones={data.zones}
+                    onRefresh={load}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
+                Cuando generes zonas, se crearán los partidos automáticamente.
+              </p>
+            )}
+          </article>
+
           {saving && (
-            <p className="mt-2 text-xs text-slate-500">Procesando...</p>
+            <p className="text-xs text-slate-500">Procesando...</p>
           )}
         </section>
       )}
@@ -512,52 +583,35 @@ const EditableMatchRow = ({
       .join(" "),
   });
 
+  const team1Name = teams.find((team) => team.id === local.team1Id)?.name ?? "Equipo 1";
+  const team2Name = teams.find((team) => team.id === local.team2Id)?.name ?? "Equipo 2";
+  const zoneName = zones.find((zone) => zone.id === local.groupId)?.name ?? "Sin zona";
+
   return (
-    <div className="rounded-lg border border-slate-200 p-2 text-xs">
-      <div className="grid gap-1 md:grid-cols-6">
-        <select
-          value={local.groupId ?? ""}
-          onChange={(e) =>
-            setLocal((p) => ({ ...p, groupId: e.target.value || null }))
-          }
-          className="rounded border border-slate-300 px-1 py-1"
-        >
-          <option value="">Sin zona</option>
-          {zones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {zone.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={local.stage}
-          onChange={(e) =>
-            setLocal((p) => ({
-              ...p,
-              stage: e.target.value as typeof local.stage,
-            }))
-          }
-          className="rounded border border-slate-300 px-1 py-1"
-        >
-          {stageOptions.map((stage) => (
-            <option key={stage} value={stage}>
-              {stage}
-            </option>
-          ))}
-        </select>
+    <div className="rounded-lg border border-slate-200 p-3 text-xs">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
+        <p className="font-semibold text-slate-700">
+          {team1Name} vs {team2Name}
+        </p>
+        <p className="text-slate-500">
+          {zoneName} · {local.stage}
+        </p>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-4">
         <input
           value={local.scheduledAt}
           type="datetime-local"
           onChange={(e) =>
             setLocal((p) => ({ ...p, scheduledAt: e.target.value }))
           }
-          className="rounded border border-slate-300 px-1 py-1"
+          className="rounded border border-slate-300 px-2 py-1.5"
         />
         <input
           value={local.court ?? ""}
           onChange={(e) => setLocal((p) => ({ ...p, court: e.target.value }))}
           placeholder="Cancha"
-          className="rounded border border-slate-300 px-1 py-1"
+          className="rounded border border-slate-300 px-2 py-1.5"
         />
         <input
           value={local.setsText}
@@ -565,19 +619,19 @@ const EditableMatchRow = ({
             setLocal((p) => ({ ...p, setsText: e.target.value }))
           }
           placeholder="Sets: 6-4 6-3"
-          className="rounded border border-slate-300 px-1 py-1"
+          className="rounded border border-slate-300 px-2 py-1.5"
         />
         <select
           value={local.winnerTeamId ?? ""}
           onChange={(e) =>
             setLocal((p) => ({ ...p, winnerTeamId: e.target.value || null }))
           }
-          className="rounded border border-slate-300 px-1 py-1"
+          className="rounded border border-slate-300 px-2 py-1.5"
         >
           <option value="">Sin ganador</option>
           {teams
             .filter(
-              (team) => team.id === local.team1Id || team.id === local.team2Id
+              (team) => team.id === local.team1Id || team.id === local.team2Id,
             )
             .map((team) => (
               <option key={team.id} value={team.id}>
@@ -591,8 +645,6 @@ const EditableMatchRow = ({
           onClick={() =>
             void (async () => {
               await updateMatch(match.id, {
-                group_id: local.groupId,
-                stage: local.stage,
                 scheduled_at: local.scheduledAt
                   ? new Date(local.scheduledAt).toISOString()
                   : null,
@@ -621,13 +673,7 @@ const EditableMatchRow = ({
           }
           className="rounded border border-slate-300 px-2 py-1"
         >
-          Guardar
-        </button>
-        <button
-          onClick={() => void deleteMatch(match.id).then(onRefresh)}
-          className="rounded border border-red-300 px-2 py-1 text-red-600"
-        >
-          Eliminar
+          Guardar cambios
         </button>
       </div>
     </div>
@@ -652,14 +698,14 @@ const ScheduleSection = ({
   const dayMatches = matches.filter((match) => match.day === day);
 
   const courts = Array.from(
-    new Set(dayMatches.map((match) => match.court ?? "-"))
+    new Set(dayMatches.map((match) => match.court ?? "-")),
   ).sort(sortCourts);
   const timeSlots = Array.from(
-    new Set(dayMatches.map((match) => match.time))
+    new Set(dayMatches.map((match) => match.time)),
   ).sort(sortTimes);
 
   const matchesByCell = new Map(
-    dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match])
+    dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match]),
   );
 
   return (
