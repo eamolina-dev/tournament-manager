@@ -122,7 +122,7 @@ export const generateFullTournament = async (
       teamsCount: safeTeams.length,
     })
 
-    const plannedGroups = buildGroups(safeTeams)
+    const plannedGroups = generateGroups(safeTeams)
     ensureGroupAssignments(plannedGroups)
     const preGroupMatchesCount = countGroupMatches(plannedGroups)
     const preEliminationMatches = buildEliminationMatches(
@@ -206,26 +206,15 @@ export const generateFullTournament = async (
     const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
     throwIfError(groupTeamsError)
 
-    const groupMatches = plannedGroups.flatMap((group) => {
-      const groupId = groupsByName.get(group.name)
-      if (!groupId) {
-        throw new Error(
-          `No se pudo crear partidos de grupo: falta el id de ${group.name}.`,
-        )
-      }
+    const groupMatches = generateGroupMatches(
+      tournamentCategoryId,
+      plannedGroups,
+      groupsByName,
+    )
 
-      if (group.teamIds.length === 3) {
-        return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
-      }
-      if (group.teamIds.length === 4) {
-        return buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
-      }
-      return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
-    })
-
-    if (groupMatches.some((match) => !match.group_id || !match.team1_id || !match.team2_id)) {
+    if (groupMatches.some((match) => !isValidGroupMatch(match))) {
       throw new Error(
-        "Se detectaron partidos de grupo incompletos (group_id/team_id). Se canceló la inserción.",
+        "Se detectaron partidos de grupo incompletos (group_id/team). Se canceló la inserción.",
       )
     }
 
@@ -299,7 +288,7 @@ const debugGeneration = (
 const countGroupMatches = (groups: PlannedGroup[]): number =>
   groups.reduce((total, group) => {
     if (group.teamIds.length === 3) return total + 3
-    if (group.teamIds.length === 4) return total + 6
+    if (group.teamIds.length === 4) return total + 4
     if (group.teamIds.length === 2) return total + 1
     return total
   }, 0)
@@ -542,7 +531,7 @@ const verifyGeneratedStructure = async (
   }
 }
 
-const buildGroups = (teams: TeamRef[]): PlannedGroup[] => {
+const generateGroups = (teams: TeamRef[]): PlannedGroup[] => {
   const totalTeams = teams.length
   const groupSizes: number[] = []
   let teamCursor = 0
@@ -571,14 +560,41 @@ const buildGroups = (teams: TeamRef[]): PlannedGroup[] => {
   })
 }
 
+const generateGroupMatches = (
+  tournamentCategoryId: string,
+  groups: PlannedGroup[],
+  groupsByName: Map<string, string>,
+): MatchInsert[] =>
+  groups.flatMap((group) => {
+    const groupId = groupsByName.get(group.name)
+    if (!groupId) {
+      throw new Error(`No se pudo crear partidos de grupo: falta el id de ${group.name}.`)
+    }
+
+    if (group.teamIds.length === 3) {
+      return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+    }
+    if (group.teamIds.length === 4) {
+      return buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+    }
+    return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+  })
+
+const isValidGroupMatch = (match: MatchInsert): boolean =>
+  Boolean(
+    match.group_id &&
+      (match.team1_id || match.team1_source) &&
+      (match.team2_id || match.team2_source),
+  )
+
 const buildThreeTeamGroupMatches = (
   tournamentCategoryId: string,
   groupId: string,
   teamIds: string[],
 ): MatchInsert[] => [
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[2] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 1, team1_id: teamIds[0], team2_id: teamIds[1] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 2, team1_id: teamIds[0], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 3, team1_id: teamIds[1], team2_id: teamIds[2] },
 ]
 
 const buildFourTeamGroupMatches = (
@@ -586,12 +602,42 @@ const buildFourTeamGroupMatches = (
   groupId: string,
   teamIds: string[],
 ): MatchInsert[] => [
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[2] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[3] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[2] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[3] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[2], team2_id: teamIds[3] },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    match_number: 1,
+    team1_id: teamIds[0],
+    team2_id: teamIds[1],
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    match_number: 2,
+    team1_id: teamIds[2],
+    team2_id: teamIds[3],
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    match_number: 3,
+    team1_id: teamIds[0],
+    team2_id: teamIds[2],
+    team1_source: "W1",
+    team2_source: "W2",
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    match_number: 4,
+    team1_id: teamIds[1],
+    team2_id: teamIds[3],
+    team1_source: "L1",
+    team2_source: "L2",
+  },
 ]
 
 const buildFallbackGroupMatches = (
