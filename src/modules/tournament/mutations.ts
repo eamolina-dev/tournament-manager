@@ -766,26 +766,47 @@ export const generateEliminationMatches = async (
     return 0
   }
 
-  const payload: MatchInsert[] = eliminationMatches.map((match) => ({
+  const basePayload: MatchInsert[] = eliminationMatches.map((match) => ({
     id: match.id,
     tournament_category_id: match.tournament_category_id,
     stage: match.stage,
+    group_id: null,
     match_number: match.match_number,
     team1_source: match.team1_source,
     team2_source: match.team2_source,
-    next_match_id: match.next_match_id,
-    next_match_slot: match.next_match_slot,
+    next_match_id: null,
+    next_match_slot: null,
   }))
 
-  const { error: insertError } = await supabase.from("matches").insert(payload)
+  const { error: insertError } = await supabase.from("matches").insert(basePayload)
   throwIfError(insertError)
 
-  return payload.length
+  const links = eliminationMatches.filter((match) => match.next_match_id && match.next_match_slot)
+  for (const link of links) {
+    const { error: linkError } = await supabase
+      .from("matches")
+      .update({
+        next_match_id: link.next_match_id,
+        next_match_slot: link.next_match_slot,
+      })
+      .eq("id", link.id)
+      .eq("tournament_category_id", tournamentCategoryId)
+    throwIfError(linkError)
+  }
+
+  return basePayload.length
 }
 
 export const generatePlayoffsAfterGroups = async (
   tournamentCategoryId: string
 ): Promise<void> => {
+  const { error: deletePreviousPlayoffsError } = await supabase
+    .from("matches")
+    .delete()
+    .eq("tournament_category_id", tournamentCategoryId)
+    .neq("stage", "group")
+  throwIfError(deletePreviousPlayoffsError)
+
   await generateEliminationMatches(tournamentCategoryId)
 }
 
