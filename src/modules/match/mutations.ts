@@ -9,6 +9,16 @@ import type {
 } from "../../shared/types/entities"
 
 export const createMatch = async (input: MatchInsert): Promise<Match> => {
+  if (!input.tournament_category_id) {
+    throw new Error("Falta tournament_category_id para crear el partido.")
+  }
+  if (!input.team1_id || !input.team2_id) {
+    throw new Error("Faltan team1_id/team2_id para crear el partido.")
+  }
+  if (input.stage === "group" && !input.group_id) {
+    throw new Error("Falta group_id para crear un partido de zona.")
+  }
+
   const { data, error } = await supabase
     .from("matches")
     .insert(input)

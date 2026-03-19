@@ -111,39 +111,36 @@ export const generateFullTournament = async (
 
     throwIfError(teamsError)
 
-    if ((teams?.length ?? 0) < 2) {
+    const safeTeams = validateTeamRefs(teams)
+    if (safeTeams.length < 2) {
       throw new Error("Se necesitan al menos 2 equipos para generar el torneo.")
     }
 
     debugGeneration(debugEnabled, "Inicio generación", {
       tournamentCategoryId,
       dryRun,
-      teamsCount: teams.length,
+      teamsCount: safeTeams.length,
     })
 
-    const plannedGroups = buildGroups(teams)
+    const plannedGroups = buildGroups(safeTeams)
+    ensureGroupAssignments(plannedGroups)
     const preGroupMatchesCount = countGroupMatches(plannedGroups)
-    const preEliminationPlan = buildEliminationPlan(
-      tournamentCategoryId,
-      buildQualifiedPlaceholders(plannedGroups),
-    )
 
     if (dryRun) {
       debugGeneration(debugEnabled, "Dry-run generado", {
         tournamentCategoryId,
         groupsCount: plannedGroups.length,
         groupMatchesCount: preGroupMatchesCount,
-        eliminationMatchesCount: preEliminationPlan.matches.length,
       })
 
       return {
         dryRun: true,
         tournamentCategoryId,
-        teamsCount: teams.length,
+        teamsCount: safeTeams.length,
         groupsCount: plannedGroups.length,
         groupMatchesCount: preGroupMatchesCount,
-        eliminationMatchesCount: preEliminationPlan.matches.length,
-        totalMatchesCount: preGroupMatchesCount + preEliminationPlan.matches.length,
+        eliminationMatchesCount: 0,
+        totalMatchesCount: preGroupMatchesCount,
       }
     }
 
@@ -160,7 +157,6 @@ export const generateFullTournament = async (
     throwIfError(groupsError)
 
     const existingGroupIds = (existingGroups ?? []).map((group) => group.id)
-
     if (existingGroupIds.length) {
       const { error: deleteGroupTeamsError } = await supabase
         .from("group_teams")
@@ -185,11 +181,6 @@ export const generateFullTournament = async (
       )
       .select("id, name")
     throwIfError(insertGroupsError)
-    debugGeneration(debugEnabled, "Zonas insertadas", {
-      tournamentCategoryId,
-      groupsCount: insertedGroups?.length ?? 0,
-      groupNames: (insertedGroups ?? []).map((group) => group.name),
-    })
 
     const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
 
@@ -208,10 +199,6 @@ export const generateFullTournament = async (
 
     const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
     throwIfError(groupTeamsError)
-    debugGeneration(debugEnabled, "Equipos asignados a zonas", {
-      tournamentCategoryId,
-      groupTeamsCount: groupTeams.length,
-    })
 
     const groupMatches = plannedGroups.flatMap((group) => {
       const groupId = groupsByName.get(group.name)
@@ -225,80 +212,38 @@ export const generateFullTournament = async (
         return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
       }
       if (group.teamIds.length === 4) {
-        return buildFourTeamGroupMatches(
-          tournamentCategoryId,
-          groupId,
-          group.name,
-          group.teamIds,
-        )
+        return buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
       }
       return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
     })
+
+    if (groupMatches.some((match) => !match.group_id || !match.team1_id || !match.team2_id)) {
+      throw new Error(
+        "Se detectaron partidos de grupo incompletos (group_id/team_id). Se canceló la inserción.",
+      )
+    }
 
     if (groupMatches.length) {
       const { error: groupMatchesError } = await supabase.from("matches").insert(groupMatches)
       throwIfError(groupMatchesError)
     }
-    debugGeneration(debugEnabled, "Partidos de grupos generados", {
-      tournamentCategoryId,
-      groupMatchesCount: groupMatches.length,
-    })
-
-    const qualifiers = buildQualifiedPlaceholders(plannedGroups)
-    const eliminationPlan = buildEliminationPlan(tournamentCategoryId, qualifiers)
-
-    if (eliminationPlan.matches.length) {
-      const { data: insertedEliminationMatches, error: eliminationError } = await supabase
-        .from("matches")
-        .insert(eliminationPlan.matches)
-        .select("id, match_number")
-      throwIfError(eliminationError)
-
-      const insertedByNumber = new Map(
-        (insertedEliminationMatches ?? []).map((match) => [match.match_number ?? 0, match.id]),
-      )
-
-      for (const link of eliminationPlan.nextLinks) {
-        const sourceId = insertedByNumber.get(link.matchNumber)
-        const targetId = insertedByNumber.get(link.nextMatchNumber)
-        if (!sourceId || !targetId) {
-          throw new Error(
-            `No se pudo vincular el cuadro: faltan partidos ${link.matchNumber} -> ${link.nextMatchNumber}.`,
-          )
-        }
-
-        const { error: updateError } = await supabase
-          .from("matches")
-          .update({
-            next_match_id: targetId,
-            next_match_slot: link.slot,
-          })
-          .eq("id", sourceId)
-        throwIfError(updateError)
-      }
-    }
-    debugGeneration(debugEnabled, "Partidos de eliminación generados", {
-      tournamentCategoryId,
-      eliminationMatchesCount: eliminationPlan.matches.length,
-      eliminationLinksCount: eliminationPlan.nextLinks.length,
-    })
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
-      teams.length,
+      safeTeams.length,
       plannedGroups,
       groupMatches.length,
-      eliminationPlan.matches.length,
+      0,
     )
 
     const result = {
       dryRun: false,
       tournamentCategoryId,
-      teamsCount: teams.length,
+      teamsCount: safeTeams.length,
       groupsCount: plannedGroups.length,
       groupMatchesCount: groupMatches.length,
-      eliminationMatchesCount: eliminationPlan.matches.length,
-      totalMatchesCount: groupMatches.length + eliminationPlan.matches.length,
+      eliminationMatchesCount: 0,
+      totalMatchesCount: groupMatches.length,
     }
     debugGeneration(debugEnabled, "Generación finalizada", result)
     return result
@@ -312,16 +257,9 @@ export const generateFullTournament = async (
   }
 }
 
-const STAGES_BY_SIZE = new Map<number, MatchInsert["stage"]>([
-  [2, "final"],
-  [4, "semi"],
-  [8, "quarter"],
-  [16, "round_of_16"],
-  [32, "round_of_32"],
-])
-
 type PlannedGroup = { name: string; teamIds: string[] }
 type InsertedGroup = { id: string; name: string }
+type TeamRef = Pick<Team, "id">
 
 const debugGeneration = (
   enabled: boolean,
@@ -335,10 +273,52 @@ const debugGeneration = (
 const countGroupMatches = (groups: PlannedGroup[]): number =>
   groups.reduce((total, group) => {
     if (group.teamIds.length === 3) return total + 3
-    if (group.teamIds.length === 4) return total + 4
+    if (group.teamIds.length === 4) return total + 6
     if (group.teamIds.length === 2) return total + 1
     return total
   }, 0)
+
+const validateTeamRefs = (teams: TeamRef[] | null): TeamRef[] => {
+  if (!teams?.length) {
+    throw new Error("No hay equipos cargados. Creá equipos antes de generar zonas y partidos.")
+  }
+
+  const teamIds = teams.map((team) => team.id).filter(Boolean)
+  if (teamIds.length !== teams.length) {
+    throw new Error(
+      "Hay equipos sin id válido. Se canceló la generación para evitar errores de integridad.",
+    )
+  }
+
+  const uniqueIds = new Set(teamIds)
+  if (uniqueIds.size !== teamIds.length) {
+    throw new Error(
+      "Hay equipos duplicados en la categoría. Se canceló la generación para evitar cruces inválidos.",
+    )
+  }
+
+  return teams
+}
+
+const ensureGroupAssignments = (groups: PlannedGroup[]): void => {
+  if (!groups.length) {
+    throw new Error("No se pudieron planificar zonas para esta categoría.")
+  }
+
+  for (const group of groups) {
+    if (!group.name?.trim()) {
+      throw new Error("Se detectó una zona sin nombre. Se canceló la operación.")
+    }
+
+    if (!group.teamIds?.length) {
+      throw new Error(`La zona ${group.name} no tiene equipos asignados.`)
+    }
+
+    if (group.teamIds.some((teamId) => !teamId)) {
+      throw new Error(`La zona ${group.name} tiene equipos sin id válido.`)
+    }
+  }
+}
 
 const ensureGroupIds = (
   plannedGroups: PlannedGroup[],
@@ -440,7 +420,7 @@ const verifyGeneratedStructure = async (
   }
 }
 
-const buildGroups = (teams: Pick<Team, "id">[]): PlannedGroup[] => {
+const buildGroups = (teams: TeamRef[]): PlannedGroup[] => {
   const totalTeams = teams.length
   const groupSizes: number[] = []
   let teamCursor = 0
@@ -482,13 +462,14 @@ const buildThreeTeamGroupMatches = (
 const buildFourTeamGroupMatches = (
   tournamentCategoryId: string,
   groupId: string,
-  groupName: string,
   teamIds: string[],
 ): MatchInsert[] => [
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1], team1_source: `A (${groupName})`, team2_source: `B (${groupName})` },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[2], team2_id: teamIds[3], team1_source: `C (${groupName})`, team2_source: `D (${groupName})` },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_source: "Ganador Partido 1", team2_source: "Ganador Partido 2" },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_source: "Perdedor Partido 1", team2_source: "Perdedor Partido 2" },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[3] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[3] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[2], team2_id: teamIds[3] },
 ]
 
 const buildFallbackGroupMatches = (
@@ -504,117 +485,6 @@ const buildFallbackGroupMatches = (
   return []
 }
 
-const buildQualifiedPlaceholders = (groups: PlannedGroup[]): string[] => {
-  return groups.flatMap((group) => {
-    const groupLetter = group.name.replace("Zona ", "")
-    if (group.teamIds.length === 4) {
-      return [`1${groupLetter}`, `2${groupLetter}`, `3${groupLetter}`]
-    }
-    return [`1${groupLetter}`, `2${groupLetter}`]
-  })
-}
-
-const nextPowerOfTwo = (value: number): number => {
-  let power = 1
-  while (power < value) power *= 2
-  return power
-}
-
-const bracketSeedOrder = (size: number): number[] => {
-  let order = [1, 2]
-  while (order.length < size) {
-    const roundSize = order.length * 2 + 1
-    order = order.flatMap((seed) => [seed, roundSize - seed])
-  }
-  return order
-}
-
-const buildEliminationPlan = (
-  tournamentCategoryId: string,
-  qualifiers: string[],
-): { matches: MatchInsert[]; nextLinks: { matchNumber: number; nextMatchNumber: number; slot: 1 | 2 }[] } => {
-  if (qualifiers.length < 2) return { matches: [], nextLinks: [] }
-
-  const idealBracketSize = 2 ** Math.floor(Math.log2(qualifiers.length))
-  const playInMatchesCount = qualifiers.length - idealBracketSize
-  const playInTeams = playInMatchesCount * 2
-  const directSeeds = qualifiers.length - playInTeams
-
-  let matchNumber = 1
-  const matches: MatchInsert[] = []
-  const nextLinks: { matchNumber: number; nextMatchNumber: number; slot: 1 | 2 }[] = []
-  const seedLabels = new Map<number, string>()
-
-  const playInCandidates = qualifiers.slice(directSeeds)
-  for (let index = 0; index < playInMatchesCount; index += 1) {
-    const left = playInCandidates[index]
-    const right = playInCandidates[playInCandidates.length - 1 - index]
-    const playInMatchNumber = matchNumber++
-    const targetSeed = directSeeds + 1 + index
-    seedLabels.set(targetSeed, `Ganador Partido ${playInMatchNumber}`)
-    matches.push({
-      tournament_category_id: tournamentCategoryId,
-      stage: STAGES_BY_SIZE.get(nextPowerOfTwo(idealBracketSize * 2)) ?? "round_of_32",
-      match_number: playInMatchNumber,
-      team1_source: left,
-      team2_source: right,
-    })
-  }
-
-  for (let seed = 1; seed <= directSeeds; seed += 1) {
-    seedLabels.set(seed, qualifiers[seed - 1])
-  }
-
-  const firstRoundSeedOrder = bracketSeedOrder(idealBracketSize)
-  const currentRoundMatchNumbers: number[] = []
-  const roundStage = STAGES_BY_SIZE.get(idealBracketSize) ?? "round_of_32"
-
-  for (let index = 0; index < firstRoundSeedOrder.length; index += 2) {
-    const topSeed = firstRoundSeedOrder[index]
-    const bottomSeed = firstRoundSeedOrder[index + 1]
-    const number = matchNumber++
-    currentRoundMatchNumbers.push(number)
-    matches.push({
-      tournament_category_id: tournamentCategoryId,
-      stage: roundStage,
-      match_number: number,
-      team1_source: seedLabels.get(topSeed) ?? `Seed ${topSeed}`,
-      team2_source: seedLabels.get(bottomSeed) ?? `Seed ${bottomSeed}`,
-    })
-  }
-
-  let previousRound = currentRoundMatchNumbers
-  let remainingSize = idealBracketSize / 2
-
-  while (previousRound.length > 1) {
-    const stage = STAGES_BY_SIZE.get(remainingSize) ?? "round_of_32"
-    const nextRound: number[] = []
-
-    for (let index = 0; index < previousRound.length; index += 2) {
-      const leftMatchNumber = previousRound[index]
-      const rightMatchNumber = previousRound[index + 1]
-      const targetMatchNumber = matchNumber++
-      nextRound.push(targetMatchNumber)
-
-      matches.push({
-        tournament_category_id: tournamentCategoryId,
-        stage,
-        match_number: targetMatchNumber,
-        team1_source: `Ganador Partido ${leftMatchNumber}`,
-        team2_source: `Ganador Partido ${rightMatchNumber}`,
-      })
-
-      nextLinks.push({ matchNumber: leftMatchNumber, nextMatchNumber: targetMatchNumber, slot: 1 })
-      nextLinks.push({ matchNumber: rightMatchNumber, nextMatchNumber: targetMatchNumber, slot: 2 })
-    }
-
-    previousRound = nextRound
-    remainingSize = Math.max(remainingSize / 2, 2)
-  }
-
-  return { matches, nextLinks }
-}
-
 export const generatePlayoffsAfterGroups = async (
   tournamentCategoryId: string
 ): Promise<void> => {
@@ -628,18 +498,5 @@ export const generatePlayoffsAfterGroups = async (
 export const generateGroupsAndMatches = async (
   tournamentCategoryId: string
 ): Promise<void> => {
-  const { error } = await supabase.rpc("generate_groups", {
-    p_tournament_category_id: tournamentCategoryId,
-  })
-  throwIfError(error)
-
-  const { error: assignError } = await supabase.rpc("assign_teams_to_groups", {
-    p_tournament_category_id: tournamentCategoryId,
-  })
-  throwIfError(assignError)
-
-  const { error: matchesError } = await supabase.rpc("generate_group_matches", {
-    p_tournament_category_id: tournamentCategoryId,
-  })
-  throwIfError(matchesError)
+  await generateFullTournament(tournamentCategoryId)
 }
