@@ -13,6 +13,16 @@ import type {
 export const createTournament = async (
   input: TournamentInsert
 ): Promise<Tournament> => {
+  if (!input.name?.trim()) {
+    throw new Error("Falta el nombre del torneo.")
+  }
+  if (!input.slug?.trim()) {
+    throw new Error("Falta el slug del torneo.")
+  }
+  if (!input.circuit_id) {
+    throw new Error("Falta circuit_id para crear el torneo.")
+  }
+
   const { data, error } = await supabase
     .from("tournaments")
     .insert(input)
@@ -26,6 +36,13 @@ export const createTournament = async (
 export const createCategory = async (
   input: TournamentCategoryInsert
 ): Promise<TournamentCategory> => {
+  if (!input.tournament_id) {
+    throw new Error("Falta tournament_id para vincular la categoría al torneo.")
+  }
+  if (!input.category_id) {
+    throw new Error("Falta category_id para crear la categoría del torneo.")
+  }
+
   const { data, error } = await supabase
     .from("tournament_categories")
     .insert(input)
@@ -70,6 +87,10 @@ export const deleteTournamentCategory = async (
 export const generateFullTournament = async (
   tournamentCategoryId: string
 ): Promise<void> => {
+  if (!tournamentCategoryId) {
+    throw new Error("Falta tournamentCategoryId para generar el torneo completo.")
+  }
+
   const { data: teams, error: teamsError } = await supabase
     .from("teams")
     .select("id, created_at")

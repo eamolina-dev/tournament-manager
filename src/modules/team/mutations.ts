@@ -3,6 +3,13 @@ import { throwIfError } from "../../lib/throw-if-error"
 import type { Team, TeamInsert, TeamUpdate } from "../../shared/types/entities"
 
 export const createTeam = async (input: TeamInsert): Promise<Team> => {
+  if (!input.tournament_category_id) {
+    throw new Error("Falta tournament_category_id para crear el equipo.")
+  }
+  if (!input.player1_id) {
+    throw new Error("Falta player1_id para crear el equipo.")
+  }
+
   const { data, error } = await supabase
     .from("teams")
     .insert(input)
