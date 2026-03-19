@@ -90,132 +90,149 @@ export const generateFullTournament = async (
   if (!tournamentCategoryId) {
     throw new Error("Falta tournamentCategoryId para generar el torneo completo.")
   }
+  try {
+    const { data: teams, error: teamsError } = await supabase
+      .from("teams")
+      .select("id, created_at")
+      .eq("tournament_category_id", tournamentCategoryId)
+      .order("created_at", { ascending: true })
 
-  const { data: teams, error: teamsError } = await supabase
-    .from("teams")
-    .select("id, created_at")
-    .eq("tournament_category_id", tournamentCategoryId)
-    .order("created_at", { ascending: true })
+    throwIfError(teamsError)
 
-  throwIfError(teamsError)
-
-  if ((teams?.length ?? 0) < 2) {
-    throw new Error("Se necesitan al menos 2 equipos para generar el torneo.")
-  }
-
-  const { error: deleteMatchesError } = await supabase
-    .from("matches")
-    .delete()
-    .eq("tournament_category_id", tournamentCategoryId)
-  throwIfError(deleteMatchesError)
-
-  const { data: existingGroups, error: groupsError } = await supabase
-    .from("groups")
-    .select("id")
-    .eq("tournament_category_id", tournamentCategoryId)
-  throwIfError(groupsError)
-
-  const existingGroupIds = (existingGroups ?? []).map((group) => group.id)
-
-  if (existingGroupIds.length) {
-    const { error: deleteGroupTeamsError } = await supabase
-      .from("group_teams")
-      .delete()
-      .in("group_id", existingGroupIds)
-    throwIfError(deleteGroupTeamsError)
-  }
-
-  const { error: deleteGroupsError } = await supabase
-    .from("groups")
-    .delete()
-    .eq("tournament_category_id", tournamentCategoryId)
-  throwIfError(deleteGroupsError)
-
-  const plannedGroups = buildGroups(teams)
-
-  const { data: insertedGroups, error: insertGroupsError } = await supabase
-    .from("groups")
-    .insert(
-      plannedGroups.map((group) => ({
-        tournament_category_id: tournamentCategoryId,
-        name: group.name,
-      })),
-    )
-    .select("id, name")
-  throwIfError(insertGroupsError)
-
-  const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
-
-  const groupTeams = plannedGroups.flatMap((group) => {
-    const groupId = groupsByName.get(group.name)
-    if (!groupId) {
-      throw new Error(`No se pudo asignar equipos: falta el id de ${group.name}.`)
+    if ((teams?.length ?? 0) < 2) {
+      throw new Error("Se necesitan al menos 2 equipos para generar el torneo.")
     }
 
-    return group.teamIds.map((teamId, index) => ({
-      group_id: groupId,
-      team_id: teamId,
-      position: index + 1,
-    }))
-  })
-
-  const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
-  throwIfError(groupTeamsError)
-
-  const groupMatches = plannedGroups.flatMap((group) => {
-    const groupId = groupsByName.get(group.name)
-    if (!groupId) {
-      throw new Error(
-        `No se pudo crear partidos de grupo: falta el id de ${group.name}.`,
-      )
-    }
-
-    if (group.teamIds.length === 3) {
-      return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
-    }
-    if (group.teamIds.length === 4) {
-      return buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.name, group.teamIds)
-    }
-    return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
-  })
-
-  if (groupMatches.length) {
-    const { error: groupMatchesError } = await supabase.from("matches").insert(groupMatches)
-    throwIfError(groupMatchesError)
-  }
-
-  const qualifiers = buildQualifiedPlaceholders(plannedGroups)
-  const eliminationPlan = buildEliminationPlan(tournamentCategoryId, qualifiers)
-
-  if (!eliminationPlan.matches.length) return
-
-  const { data: insertedEliminationMatches, error: eliminationError } = await supabase
-    .from("matches")
-    .insert(eliminationPlan.matches)
-    .select("id, match_number")
-  throwIfError(eliminationError)
-
-  const insertedByNumber = new Map(
-    (insertedEliminationMatches ?? []).map((match) => [match.match_number ?? 0, match.id]),
-  )
-
-  for (const link of eliminationPlan.nextLinks) {
-    const sourceId = insertedByNumber.get(link.matchNumber)
-    const targetId = insertedByNumber.get(link.nextMatchNumber)
-    if (!sourceId || !targetId) {
-      throw new Error(
-        `No se pudo vincular el cuadro: faltan partidos ${link.matchNumber} -> ${link.nextMatchNumber}.`,
-      )
-    }
-
-    const { error: updateError } = await supabase
+    const { error: deleteMatchesError } = await supabase
       .from("matches")
-      .update({
-        next_match_id: targetId,
-        next_match_slot: link.slot,
-      })
-      .eq("id", sourceId)
-    throwIfError(updateError)
+      .delete()
+      .eq("tournament_category_id", tournamentCategoryId)
+    throwIfError(deleteMatchesError)
+
+    const { data: existingGroups, error: groupsError } = await supabase
+      .from("groups")
+      .select("id")
+      .eq("tournament_category_id", tournamentCategoryId)
+    throwIfError(groupsError)
+
+    const existingGroupIds = (existingGroups ?? []).map((group) => group.id)
+
+    if (existingGroupIds.length) {
+      const { error: deleteGroupTeamsError } = await supabase
+        .from("group_teams")
+        .delete()
+        .in("group_id", existingGroupIds)
+      throwIfError(deleteGroupTeamsError)
+    }
+
+    const { error: deleteGroupsError } = await supabase
+      .from("groups")
+      .delete()
+      .eq("tournament_category_id", tournamentCategoryId)
+    throwIfError(deleteGroupsError)
+
+    const plannedGroups = buildGroups(teams)
+
+    const { data: insertedGroups, error: insertGroupsError } = await supabase
+      .from("groups")
+      .insert(
+        plannedGroups.map((group) => ({
+          tournament_category_id: tournamentCategoryId,
+          name: group.name,
+        })),
+      )
+      .select("id, name")
+    throwIfError(insertGroupsError)
+
+    const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
+
+    const groupTeams = plannedGroups.flatMap((group) => {
+      const groupId = groupsByName.get(group.name)
+      if (!groupId) {
+        throw new Error(`No se pudo asignar equipos: falta el id de ${group.name}.`)
+      }
+
+      return group.teamIds.map((teamId, index) => ({
+        group_id: groupId,
+        team_id: teamId,
+        position: index + 1,
+      }))
+    })
+
+    const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
+    throwIfError(groupTeamsError)
+
+    const groupMatches = plannedGroups.flatMap((group) => {
+      const groupId = groupsByName.get(group.name)
+      if (!groupId) {
+        throw new Error(
+          `No se pudo crear partidos de grupo: falta el id de ${group.name}.`,
+        )
+      }
+
+      if (group.teamIds.length === 3) {
+        return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+      }
+      if (group.teamIds.length === 4) {
+        return buildFourTeamGroupMatches(
+          tournamentCategoryId,
+          groupId,
+          group.name,
+          group.teamIds,
+        )
+      }
+      return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+    })
+
+    if (groupMatches.length) {
+      const { error: groupMatchesError } = await supabase.from("matches").insert(groupMatches)
+      throwIfError(groupMatchesError)
+    }
+
+    const qualifiers = buildQualifiedPlaceholders(plannedGroups)
+    const eliminationPlan = buildEliminationPlan(tournamentCategoryId, qualifiers)
+
+    if (eliminationPlan.matches.length) {
+      const { data: insertedEliminationMatches, error: eliminationError } = await supabase
+        .from("matches")
+        .insert(eliminationPlan.matches)
+        .select("id, match_number")
+      throwIfError(eliminationError)
+
+      const insertedByNumber = new Map(
+        (insertedEliminationMatches ?? []).map((match) => [match.match_number ?? 0, match.id]),
+      )
+
+      for (const link of eliminationPlan.nextLinks) {
+        const sourceId = insertedByNumber.get(link.matchNumber)
+        const targetId = insertedByNumber.get(link.nextMatchNumber)
+        if (!sourceId || !targetId) {
+          throw new Error(
+            `No se pudo vincular el cuadro: faltan partidos ${link.matchNumber} -> ${link.nextMatchNumber}.`,
+          )
+        }
+
+        const { error: updateError } = await supabase
+          .from("matches")
+          .update({
+            next_match_id: targetId,
+            next_match_slot: link.slot,
+          })
+          .eq("id", sourceId)
+        throwIfError(updateError)
+      }
+    }
+
+    await verifyGeneratedStructure(
+      tournamentCategoryId,
+      teams.length,
+      plannedGroups,
+      groupMatches.length,
+      eliminationPlan.matches.length,
+    )
+  } catch (error) {
+    await rollbackGeneratedTournamentData(tournamentCategoryId)
+    throw error
   }
 }
 
@@ -251,6 +268,83 @@ const ensureGroupIds = (
   }
 
   return groupsByName
+}
+
+const rollbackGeneratedTournamentData = async (
+  tournamentCategoryId: string,
+): Promise<void> => {
+  const { error: rollbackMatchesError } = await supabase
+    .from("matches")
+    .delete()
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(rollbackMatchesError)
+
+  const { data: groups, error: groupsError } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(groupsError)
+
+  const groupIds = (groups ?? []).map((group) => group.id)
+  if (groupIds.length) {
+    const { error: rollbackGroupTeamsError } = await supabase
+      .from("group_teams")
+      .delete()
+      .in("group_id", groupIds)
+    throwIfError(rollbackGroupTeamsError)
+  }
+
+  const { error: rollbackGroupsError } = await supabase
+    .from("groups")
+    .delete()
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(rollbackGroupsError)
+}
+
+const verifyGeneratedStructure = async (
+  tournamentCategoryId: string,
+  expectedGroupTeams: number,
+  plannedGroups: PlannedGroup[],
+  expectedGroupMatches: number,
+  expectedEliminationMatches: number,
+): Promise<void> => {
+  const { count: groupsCount, error: groupsCountError } = await supabase
+    .from("groups")
+    .select("*", { head: true, count: "exact" })
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(groupsCountError)
+
+  if ((groupsCount ?? 0) !== plannedGroups.length) {
+    throw new Error("Validación final fallida: cantidad de zonas generadas inválida.")
+  }
+
+  const { data: groups, error: groupsError } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(groupsError)
+
+  const groupIds = (groups ?? []).map((group) => group.id)
+  const { count: groupTeamsCount, error: groupTeamsCountError } = await supabase
+    .from("group_teams")
+    .select("*", { head: true, count: "exact" })
+    .in("group_id", groupIds.length ? groupIds : ["00000000-0000-0000-0000-000000000000"])
+  throwIfError(groupTeamsCountError)
+
+  if ((groupTeamsCount ?? 0) !== expectedGroupTeams) {
+    throw new Error("Validación final fallida: cantidad de equipos por zona inválida.")
+  }
+
+  const { count: matchesCount, error: matchesCountError } = await supabase
+    .from("matches")
+    .select("*", { head: true, count: "exact" })
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(matchesCountError)
+
+  const expectedTotalMatches = expectedGroupMatches + expectedEliminationMatches
+  if ((matchesCount ?? 0) !== expectedTotalMatches) {
+    throw new Error("Validación final fallida: cantidad de partidos generados inválida.")
+  }
 }
 
 const buildGroups = (teams: Pick<Team, "id">[]): PlannedGroup[] => {
