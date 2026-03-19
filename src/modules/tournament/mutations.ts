@@ -766,11 +766,13 @@ export const generateEliminationMatches = async (
     return 0
   }
 
-  const basePayload: MatchInsert[] = eliminationMatches.map((match) => ({
+  const basePayload = eliminationMatches.map((match) => ({
     id: match.id,
     tournament_category_id: match.tournament_category_id,
     stage: match.stage,
     group_id: null,
+    team1_id: null,
+    team2_id: null,
     match_number: match.match_number,
     team1_source: match.team1_source,
     team2_source: match.team2_source,
@@ -778,7 +780,9 @@ export const generateEliminationMatches = async (
     next_match_slot: null,
   }))
 
-  const { error: insertError } = await supabase.from("matches").insert(basePayload)
+  const { error: insertError } = await supabase
+    .from("matches")
+    .insert(basePayload as unknown as MatchInsert[])
   throwIfError(insertError)
 
   const links = eliminationMatches.filter((match) => match.next_match_id && match.next_match_slot)
