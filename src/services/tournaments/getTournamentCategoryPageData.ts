@@ -25,10 +25,11 @@ export type TournamentCategoryPageData = {
       score?: string
       day: "Viernes" | "Sabado" | "Domingo"
       time: string
-      court?: string
-      stage?: "quarter" | "semi" | "final"
-      zoneId?: string
-    }[]
+    court?: string
+    stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
+    nextMatchId?: string | null
+    zoneId?: string
+  }[]
   }[]
   bracketMatches: {
     id: string
@@ -38,7 +39,8 @@ export type TournamentCategoryPageData = {
     day: "Viernes" | "Sabado" | "Domingo"
     time: string
     court?: string
-    stage?: "quarter" | "semi" | "final"
+    stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
+    nextMatchId?: string | null
   }[]
   schedule: {
     id: string
@@ -80,7 +82,10 @@ const toTime = (iso?: string | null): string => {
 
 const normalizeStage = (
   stage?: string | null,
-): "quarter" | "semi" | "final" | undefined => {
+): "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8" | undefined => {
+  if (stage === "round_of_32") return "round_of_32"
+  if (stage === "round_of_16") return "round_of_16"
+  if (stage === "round_of_8") return "round_of_8"
   if (stage === "quarter") return "quarter"
   if (stage === "semi") return "semi"
   if (stage === "final") return "final"
@@ -138,13 +143,14 @@ export const getTournamentCategoryPageData = async (
 
   const allMatches = matches.map((match) => ({
     id: match.id,
-    team1: teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
-    team2: teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
+    team1: match.team1_source ?? teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
+    team2: match.team2_source ?? teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
     score: toScoreString(setsByMatch.get(match.id) ?? []),
     day: toDay(match.scheduled_at),
     time: toTime(match.scheduled_at),
     court: match.court ?? undefined,
     stage: normalizeStage(match.stage),
+    nextMatchId: match.next_match_id,
     zoneId: match.group_id ?? undefined,
   }))
 
@@ -196,10 +202,12 @@ export const getTournamentCategoryPageData = async (
         : undefined,
     zones,
     bracketMatches: allMatches.filter((match) =>
-      ["quarter", "semi", "final"].includes(match.stage ?? ""),
+      ["round_of_32", "round_of_16", "round_of_8", "quarter", "semi", "final"].includes(
+        match.stage ?? "",
+      ),
     ),
     schedule: allMatches.map(
-      ({ stage: _stage, zoneId: _zoneId, score: _score, ...schedule }) =>
+      ({ stage: _stage, zoneId: _zoneId, score: _score, nextMatchId: _nextMatchId, ...schedule }) =>
         schedule,
     ),
     results: resultRows,

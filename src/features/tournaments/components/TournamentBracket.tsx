@@ -5,7 +5,14 @@ import {
 import type { Match } from "../types"
 import { MatchCard } from "../../matches/components/MatchCard"
 
-const stageOrder = { quarter: 1, semi: 2, final: 3 }
+const stageOrder = {
+  round_of_32: 1,
+  round_of_16: 2,
+  round_of_8: 3,
+  quarter: 4,
+  semi: 5,
+  final: 6,
+}
 
 type BracketMatch = {
   id: string
@@ -39,29 +46,13 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
     (a, b) => stageOrder[a.stage ?? "final"] - stageOrder[b.stage ?? "final"],
   )
 
-  const finals = sorted.filter((item) => item.stage === "final")
-  const semis = sorted.filter((item) => item.stage === "semi")
-  const quarters = sorted.filter((item) => item.stage === "quarter")
-
-  const withTree = sorted.map((item, index) => {
-    const isQuarter = item.stage === "quarter"
-    const isSemi = item.stage === "semi"
-
-    let nextMatchId: string | null = null
-    if (isQuarter) {
-      const targetSemi = semis[Math.floor(index / 2)]
-      nextMatchId = targetSemi?.id ?? null
-    }
-    if (isSemi) {
-      nextMatchId = finals[0]?.id ?? null
-    }
-
+  const withTree = sorted.map((item) => {
     const winner = getWinner(item.score)
 
     return {
       id: item.id,
       name: item.stage?.toUpperCase() ?? "FINAL",
-      nextMatchId,
+      nextMatchId: item.nextMatchId ?? null,
       tournamentRoundText: item.stage ?? "final",
       state: "DONE" as const,
       participants: [

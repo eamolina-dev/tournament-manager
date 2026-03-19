@@ -345,7 +345,7 @@ export const TournamentCategoryPage = ({
           <article className="rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">2. Zonas</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Generá zonas automáticamente a partir de los equipos cargados.
+              Generá torneo automáticamente a partir de los equipos cargados (zonas + partidos + cruces).
             </p>
 
             <button
@@ -364,12 +364,12 @@ export const TournamentCategoryPage = ({
               }
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Generar zonas
+              Generar torneo
             </button>
 
             {!canGenerateZones && (
               <p className="mt-2 text-xs text-amber-600">
-                Necesitás al menos 2 equipos para generar zonas.
+                Necesitás al menos 2 equipos para generar el torneo.
               </p>
             )}
 

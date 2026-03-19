@@ -8,7 +8,8 @@ export type Match = {
   day: "Viernes" | "Sabado" | "Domingo"
   time: string
   court?: string
-  stage?: "quarter" | "semi" | "final"
+  stage?: "round_of_32" | "round_of_16" | "round_of_8" | "quarter" | "semi" | "final"
+  nextMatchId?: string | null
   zoneId?: string
 }
 
