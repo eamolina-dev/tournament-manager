@@ -271,6 +271,7 @@ type Qualifier = {
   source: string
   groupIndex: number
   place: number
+  teamId: string
 }
 type PlannedEliminationMatch = {
   id: string
@@ -278,10 +279,16 @@ type PlannedEliminationMatch = {
   stage: Match["stage"]
   round: string
   match_number: number
+  team1_id: string | null
+  team2_id: string | null
   team1_source: string | null
   team2_source: string | null
   next_match_id: string | null
   next_match_slot: 1 | 2 | null
+}
+type EliminationEntrant = {
+  source: string
+  teamId: string | null
 }
 
 const debugGeneration = (
@@ -567,16 +574,29 @@ const newMatchId = (): string => {
   return `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-const buildQualifiers = (groups: Array<{ name: string; size: number }>): Qualifier[] => {
+const buildQualifiers = (
+  groups: Array<{ name: string; size: number; positions: Map<number, string> }>,
+): Qualifier[] => {
   return groups.flatMap((group, index) => {
     const placeLimit = group.size === 4 ? 3 : group.size === 3 ? 2 : Math.min(2, group.size)
     const letter = parseGroupLetter(group.name)
 
-    return Array.from({ length: placeLimit }, (_, offset) => ({
-      source: `${offset + 1}${letter}`,
-      groupIndex: index,
-      place: offset + 1,
-    }))
+    return Array.from({ length: placeLimit }, (_, offset) => {
+      const place = offset + 1
+      const teamId = group.positions.get(place)
+      if (!teamId) {
+        throw new Error(
+          `Falta team_id para el puesto ${place} de la zona ${group.name}.`,
+        )
+      }
+
+      return {
+        source: `${place}${letter}`,
+        groupIndex: index,
+        place,
+        teamId,
+      }
+    })
   })
 }
 
@@ -603,7 +623,7 @@ const buildEliminationPlan = (
 
   const plan: PlannedEliminationMatch[] = []
   const preliminaryMatches: PlannedEliminationMatch[] = []
-  const preliminaryWinners: string[] = []
+  const preliminaryWinners: EliminationEntrant[] = []
   let order = 1
 
   if (preliminaryMatchesCount > 0) {
@@ -622,6 +642,8 @@ const buildEliminationPlan = (
         stage: getStageByBracketSize(virtualBracketSize),
         round: preliminaryRoundName,
         match_number: order,
+        team1_id: high.teamId,
+        team2_id: low.teamId,
         team1_source: high.source,
         team2_source: low.source,
         next_match_id: null,
@@ -630,31 +652,34 @@ const buildEliminationPlan = (
       order += 1
       preliminaryMatches.push(match)
       plan.push(match)
-      preliminaryWinners.push(`W${matchId}`)
+      preliminaryWinners.push({ source: `W${matchId}`, teamId: null })
     }
   }
 
-  const mainEntrants = [...directQualifiers.map((item) => item.source), ...preliminaryWinners]
+  const mainEntrants: EliminationEntrant[] = [
+    ...directQualifiers.map((item) => ({ source: item.source, teamId: item.teamId })),
+    ...preliminaryWinners,
+  ]
   const mainRoundSize = mainEntrants.length
   if (!mainRoundSize || (mainRoundSize & (mainRoundSize - 1)) !== 0) {
     throw new Error("El cuadro principal del playoff no quedó en potencia de 2.")
   }
 
   const seedingMap = new Map(ordered.map((item, index) => [item.source, index + 1]))
-  const entrantBySeed = new Map<number, string>()
+  const entrantBySeed = new Map<number, EliminationEntrant>()
   for (const entrant of mainEntrants) {
-    const seed = seedingMap.get(entrant)
+    const seed = seedingMap.get(entrant.source)
     if (seed) {
       entrantBySeed.set(seed, entrant)
     }
   }
 
-  let currentSources: string[] = []
+  let currentEntrants: EliminationEntrant[] = []
   const firstRoundSeedPositions = buildSeedPositions(mainRoundSize)
   for (const seedPosition of firstRoundSeedPositions) {
     const seeded = entrantBySeed.get(seedPosition)
     if (seeded) {
-      currentSources.push(seeded)
+      currentEntrants.push(seeded)
       continue
     }
 
@@ -662,7 +687,7 @@ const buildEliminationPlan = (
     if (!nextPreliminaryWinner) {
       throw new Error("No se pudieron ubicar todos los ganadores preliminares en el cuadro.")
     }
-    currentSources.push(nextPreliminaryWinner)
+    currentEntrants.push(nextPreliminaryWinner)
   }
 
   let currentRoundSize = mainRoundSize
@@ -678,8 +703,10 @@ const buildEliminationPlan = (
         stage: getStageByBracketSize(currentRoundSize),
         round: roundName,
         match_number: order,
-        team1_source: currentSources[index] ?? null,
-        team2_source: currentSources[index + 1] ?? null,
+        team1_id: currentEntrants[index]?.teamId ?? null,
+        team2_id: currentEntrants[index + 1]?.teamId ?? null,
+        team1_source: currentEntrants[index]?.source ?? null,
+        team2_source: currentEntrants[index + 1]?.source ?? null,
         next_match_id: null,
         next_match_slot: null,
       }
@@ -698,7 +725,7 @@ const buildEliminationPlan = (
     }
 
     previousRoundMatches = roundMatches
-    currentSources = roundMatches.map((match) => `W${match.id}`)
+    currentEntrants = roundMatches.map((match) => ({ source: `W${match.id}`, teamId: null }))
     currentRoundSize /= 2
   }
 
@@ -744,20 +771,31 @@ export const generateEliminationMatches = async (
   const groupIds = safeGroups.map((group) => group.id)
   const { data: groupTeams, error: groupTeamsError } = await supabase
     .from("group_teams")
-    .select("group_id")
+    .select("group_id, team_id, position")
     .in("group_id", groupIds)
   throwIfError(groupTeamsError)
 
   const teamsPerGroup = new Map<string, number>()
+  const teamByGroupPosition = new Map<string, Map<number, string>>()
   for (const entry of groupTeams ?? []) {
     const previous = teamsPerGroup.get(entry.group_id) ?? 0
     teamsPerGroup.set(entry.group_id, previous + 1)
+
+    if (typeof entry.position !== "number") {
+      continue
+    }
+    const perGroup = teamByGroupPosition.get(entry.group_id) ?? new Map<number, string>()
+    if (entry.team_id) {
+      perGroup.set(entry.position, entry.team_id)
+    }
+    teamByGroupPosition.set(entry.group_id, perGroup)
   }
 
   const qualifiers = buildQualifiers(
     safeGroups.map((group) => ({
       name: group.name,
       size: teamsPerGroup.get(group.id) ?? 0,
+      positions: teamByGroupPosition.get(group.id) ?? new Map<number, string>(),
     })),
   )
 
@@ -771,8 +809,8 @@ export const generateEliminationMatches = async (
     tournament_category_id: match.tournament_category_id,
     stage: match.stage,
     group_id: null,
-    team1_id: null,
-    team2_id: null,
+    team1_id: match.team1_id ?? undefined,
+    team2_id: match.team2_id ?? undefined,
     match_number: match.match_number,
     team1_source: match.team1_source,
     team2_source: match.team2_source,
