@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabase"
 import { throwIfError } from "../../lib/throw-if-error"
 import type {
+  Match,
   MatchInsert,
   Team,
   Tournament,
@@ -9,6 +10,8 @@ import type {
   TournamentInsert,
   TournamentUpdate,
 } from "../../shared/types/entities"
+
+const HARDCODED_CIRCUIT_ID = "54b31da0-56ac-4ac0-914e-84a9856ba3c8"
 
 export const createTournament = async (
   input: TournamentInsert
@@ -19,13 +22,12 @@ export const createTournament = async (
   if (!input.slug?.trim()) {
     throw new Error("Falta el slug del torneo.")
   }
-  if (!input.circuit_id) {
-    throw new Error("Falta circuit_id para crear el torneo.")
-  }
-
   const { data, error } = await supabase
     .from("tournaments")
-    .insert(input)
+    .insert({
+      ...input,
+      circuit_id: HARDCODED_CIRCUIT_ID,
+    })
     .select("*")
     .single()
 
@@ -59,7 +61,10 @@ export const updateTournament = async (
 ): Promise<Tournament> => {
   const { data, error } = await supabase
     .from("tournaments")
-    .update(input)
+    .update({
+      ...input,
+      circuit_id: HARDCODED_CIRCUIT_ID,
+    })
     .eq("id", tournamentId)
     .select("*")
     .single()
@@ -270,7 +275,7 @@ type Qualifier = {
 type PlannedEliminationMatch = {
   id: string
   tournament_category_id: string
-  stage: "playoff"
+  stage: Match["stage"]
   round: string
   match_number: number
   team1_source: string | null
@@ -535,6 +540,15 @@ const getRoundName = (bracketSize: number): string => {
   return `R${bracketSize}`
 }
 
+const getStageByBracketSize = (bracketSize: number): Match["stage"] => {
+  if (bracketSize <= 2) return "final"
+  if (bracketSize === 4) return "semi"
+  if (bracketSize === 8) return "quarter"
+  if (bracketSize === 16) return "round_of_8"
+  if (bracketSize === 32) return "round_of_16"
+  return "round_of_32"
+}
+
 const buildSeedPositions = (size: number): number[] => {
   if (size === 1) return [1]
   const previous = buildSeedPositions(size / 2)
@@ -605,7 +619,7 @@ const buildEliminationPlan = (
       const match: PlannedEliminationMatch = {
         id: matchId,
         tournament_category_id: tournamentCategoryId,
-        stage: "playoff",
+        stage: getStageByBracketSize(virtualBracketSize),
         round: preliminaryRoundName,
         match_number: order,
         team1_source: high.source,
@@ -661,7 +675,7 @@ const buildEliminationPlan = (
       const match: PlannedEliminationMatch = {
         id: newMatchId(),
         tournament_category_id: tournamentCategoryId,
-        stage: "playoff",
+        stage: getStageByBracketSize(currentRoundSize),
         round: roundName,
         match_number: order,
         team1_source: currentSources[index] ?? null,
