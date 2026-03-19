@@ -144,21 +144,32 @@ export const generateFullTournament = async (
     .select("id, name")
   throwIfError(insertGroupsError)
 
-  const groupsByName = new Map((insertedGroups ?? []).map((group) => [group.name, group.id]))
+  const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
 
-  const groupTeams = plannedGroups.flatMap((group) =>
-    group.teamIds.map((teamId, index) => ({
-      group_id: groupsByName.get(group.name),
+  const groupTeams = plannedGroups.flatMap((group) => {
+    const groupId = groupsByName.get(group.name)
+    if (!groupId) {
+      throw new Error(`No se pudo asignar equipos: falta el id de ${group.name}.`)
+    }
+
+    return group.teamIds.map((teamId, index) => ({
+      group_id: groupId,
       team_id: teamId,
       position: index + 1,
-    })),
-  )
+    }))
+  })
 
   const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
   throwIfError(groupTeamsError)
 
   const groupMatches = plannedGroups.flatMap((group) => {
-    const groupId = groupsByName.get(group.name) ?? ""
+    const groupId = groupsByName.get(group.name)
+    if (!groupId) {
+      throw new Error(
+        `No se pudo crear partidos de grupo: falta el id de ${group.name}.`,
+      )
+    }
+
     if (group.teamIds.length === 3) {
       return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
     }
@@ -191,7 +202,11 @@ export const generateFullTournament = async (
   for (const link of eliminationPlan.nextLinks) {
     const sourceId = insertedByNumber.get(link.matchNumber)
     const targetId = insertedByNumber.get(link.nextMatchNumber)
-    if (!sourceId || !targetId) continue
+    if (!sourceId || !targetId) {
+      throw new Error(
+        `No se pudo vincular el cuadro: faltan partidos ${link.matchNumber} -> ${link.nextMatchNumber}.`,
+      )
+    }
 
     const { error: updateError } = await supabase
       .from("matches")
@@ -213,6 +228,30 @@ const STAGES_BY_SIZE = new Map<number, MatchInsert["stage"]>([
 ])
 
 type PlannedGroup = { name: string; teamIds: string[] }
+type InsertedGroup = { id: string; name: string }
+
+const ensureGroupIds = (
+  plannedGroups: PlannedGroup[],
+  insertedGroups: InsertedGroup[] | null,
+): Map<string, string> => {
+  const resolvedGroups = insertedGroups ?? []
+  if (resolvedGroups.length !== plannedGroups.length) {
+    throw new Error(
+      "No se pudieron resolver todas las zonas generadas. Reintentá la operación.",
+    )
+  }
+
+  const groupsByName = new Map(resolvedGroups.map((group) => [group.name, group.id]))
+  for (const plannedGroup of plannedGroups) {
+    if (!groupsByName.get(plannedGroup.name)) {
+      throw new Error(
+        `No se encontró el id de la zona ${plannedGroup.name}. Se canceló para evitar inconsistencias.`,
+      )
+    }
+  }
+
+  return groupsByName
+}
 
 const buildGroups = (teams: Pick<Team, "id">[]): PlannedGroup[] => {
   const totalTeams = teams.length
