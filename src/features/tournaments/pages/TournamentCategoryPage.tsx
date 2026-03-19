@@ -7,7 +7,7 @@ import {
 import { createPlayer } from "../../../modules/player/mutations";
 import { getPlayers } from "../../../modules/player/queries";
 import { createTeam, deleteTeam } from "../../../modules/team/mutations";
-import { generateGroupsAndMatches } from "../../../modules/tournament/mutations";
+import { generateFullTournament } from "../../../modules/tournament/mutations";
 import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
 import { MatchCard } from "../../matches/components/MatchCard";
 import { TournamentBracket } from "../components/TournamentBracket";
@@ -355,7 +355,7 @@ export const TournamentCategoryPage = ({
                   if (!canGenerateZones) return;
                   setSaving(true);
                   try {
-                    await generateGroupsAndMatches(data.tournamentCategoryId);
+                    await generateFullTournament(data.tournamentCategoryId);
                     await load();
                   } finally {
                     setSaving(false);
