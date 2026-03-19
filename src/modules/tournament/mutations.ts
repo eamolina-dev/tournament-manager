@@ -1,5 +1,7 @@
 import { supabase } from "../../lib/supabase"
 import { throwIfError } from "../../lib/throw-if-error"
+import { templates } from "../../brackets/temp-mapping"
+import type { MatchTemplate } from "../../brackets/match-template"
 import type {
   MatchInsert,
   Team,
@@ -125,18 +127,15 @@ export const generateFullTournament = async (
     const plannedGroups = generateGroups(safeTeams)
     ensureGroupAssignments(plannedGroups)
     const preGroupMatchesCount = countGroupMatches(plannedGroups)
-    const preEliminationMatches = buildEliminationMatches(
-      tournamentCategoryId,
-      safeTeams,
-      plannedGroups,
-    )
+    const qualifiedTeamsCount = getQualifiedTeamsCount(plannedGroups)
+    const eliminationTemplate = getEliminationTemplate(qualifiedTeamsCount)
 
     if (dryRun) {
       debugGeneration(debugEnabled, "Dry-run generado", {
         tournamentCategoryId,
         groupsCount: plannedGroups.length,
         groupMatchesCount: preGroupMatchesCount,
-        eliminationMatchesCount: preEliminationMatches.length,
+        eliminationMatchesCount: eliminationTemplate.length,
       })
 
       return {
@@ -145,8 +144,8 @@ export const generateFullTournament = async (
         teamsCount: safeTeams.length,
         groupsCount: plannedGroups.length,
         groupMatchesCount: preGroupMatchesCount,
-        eliminationMatchesCount: preEliminationMatches.length,
-        totalMatchesCount: preGroupMatchesCount + preEliminationMatches.length,
+        eliminationMatchesCount: eliminationTemplate.length,
+        totalMatchesCount: preGroupMatchesCount + eliminationTemplate.length,
       }
     }
 
@@ -223,19 +222,17 @@ export const generateFullTournament = async (
       throwIfError(groupMatchesError)
     }
 
-    if (preEliminationMatches.length) {
-      const { error: eliminationMatchesError } = await supabase
-        .from("matches")
-        .insert(preEliminationMatches)
-      throwIfError(eliminationMatchesError)
-    }
+    const eliminationMatchesCount = await generateEliminationMatches({
+      tournamentCategoryId,
+      qualifiedTeamsCount,
+    })
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
       safeTeams.length,
       plannedGroups,
       groupMatches.length,
-      preEliminationMatches.length,
+      eliminationMatchesCount,
     )
 
     const result = {
@@ -244,8 +241,8 @@ export const generateFullTournament = async (
       teamsCount: safeTeams.length,
       groupsCount: plannedGroups.length,
       groupMatchesCount: groupMatches.length,
-      eliminationMatchesCount: preEliminationMatches.length,
-      totalMatchesCount: groupMatches.length + preEliminationMatches.length,
+      eliminationMatchesCount,
+      totalMatchesCount: groupMatches.length + eliminationMatchesCount,
     }
     debugGeneration(debugEnabled, "Generación finalizada", result)
     return result
@@ -262,19 +259,6 @@ export const generateFullTournament = async (
 type PlannedGroup = { name: string; teamIds: string[] }
 type InsertedGroup = { id: string; name: string }
 type TeamRef = Pick<Team, "id">
-type MatchStage = MatchInsert["stage"]
-type EliminationTemplateMatch = {
-  key: string
-  stage: MatchStage
-  team1Source: string
-  team2Source: string
-  nextKey?: string
-  nextSlot?: 1 | 2
-}
-type EliminationTemplate = {
-  groupSizes: number[]
-  matches: EliminationTemplateMatch[]
-}
 
 const debugGeneration = (
   enabled: boolean,
@@ -293,100 +277,70 @@ const countGroupMatches = (groups: PlannedGroup[]): number =>
     return total
   }, 0)
 
-const ELIMINATION_TEMPLATES: EliminationTemplate[] = [
-  {
-    // 6 zonas de 3 equipos (18 equipos)
-    groupSizes: [3, 3, 3, 3, 3, 3],
-    matches: [
-      { key: "R16-1", stage: "round_of_16", team1Source: "1E", team2Source: "2F", nextKey: "QF-1", nextSlot: 2 },
-      { key: "R16-2", stage: "round_of_16", team1Source: "1F", team2Source: "2E", nextKey: "QF-2", nextSlot: 2 },
-      { key: "R16-3", stage: "round_of_16", team1Source: "1C", team2Source: "2D", nextKey: "QF-3", nextSlot: 2 },
-      { key: "R16-4", stage: "round_of_16", team1Source: "1D", team2Source: "2C", nextKey: "QF-4", nextSlot: 2 },
-      { key: "QF-1", stage: "quarter", team1Source: "1A", team2Source: "W1", nextKey: "SF-1", nextSlot: 1 },
-      { key: "QF-2", stage: "quarter", team1Source: "1B", team2Source: "W2", nextKey: "SF-2", nextSlot: 1 },
-      { key: "QF-3", stage: "quarter", team1Source: "2A", team2Source: "W3", nextKey: "SF-1", nextSlot: 2 },
-      { key: "QF-4", stage: "quarter", team1Source: "2B", team2Source: "W4", nextKey: "SF-2", nextSlot: 2 },
-      { key: "SF-1", stage: "semi", team1Source: "W5", team2Source: "W7", nextKey: "F-1", nextSlot: 1 },
-      { key: "SF-2", stage: "semi", team1Source: "W6", team2Source: "W8", nextKey: "F-1", nextSlot: 2 },
-      { key: "F-1", stage: "final", team1Source: "W9", team2Source: "W10" },
-    ],
-  },
-  {
-    // 4 zonas de 3 + 1 zona de 4 (16 equipos)
-    groupSizes: [3, 3, 3, 3, 4],
-    matches: [
-      { key: "QF-1", stage: "quarter", team1Source: "1A", team2Source: "2C", nextKey: "SF-1", nextSlot: 1 },
-      { key: "QF-2", stage: "quarter", team1Source: "1D", team2Source: "2A", nextKey: "SF-1", nextSlot: 2 },
-      { key: "QF-3", stage: "quarter", team1Source: "1B", team2Source: "2B", nextKey: "SF-2", nextSlot: 1 },
-      { key: "QF-4", stage: "quarter", team1Source: "1C", team2Source: "1E", nextKey: "SF-2", nextSlot: 2 },
-      { key: "SF-1", stage: "semi", team1Source: "W1", team2Source: "W2", nextKey: "F-1", nextSlot: 1 },
-      { key: "SF-2", stage: "semi", team1Source: "W3", team2Source: "W4", nextKey: "F-1", nextSlot: 2 },
-      { key: "F-1", stage: "final", team1Source: "W5", team2Source: "W6" },
-    ],
-  },
-  {
-    // 3 zonas de 3 + 1 zona de 4 (13 equipos)
-    groupSizes: [3, 3, 3, 4],
-    matches: [
-      { key: "QF-1", stage: "quarter", team1Source: "1A", team2Source: "3D", nextKey: "SF-1", nextSlot: 1 },
-      { key: "QF-2", stage: "quarter", team1Source: "1C", team2Source: "2B", nextKey: "SF-1", nextSlot: 2 },
-      { key: "QF-3", stage: "quarter", team1Source: "1B", team2Source: "2C", nextKey: "SF-2", nextSlot: 1 },
-      { key: "QF-4", stage: "quarter", team1Source: "1D", team2Source: "2A", nextKey: "SF-2", nextSlot: 2 },
-      { key: "SF-1", stage: "semi", team1Source: "W1", team2Source: "W2", nextKey: "F-1", nextSlot: 1 },
-      { key: "SF-2", stage: "semi", team1Source: "W3", team2Source: "W4", nextKey: "F-1", nextSlot: 2 },
-      { key: "F-1", stage: "final", team1Source: "W5", team2Source: "W6" },
-    ],
-  },
-]
+const getQualifiedTeamsCount = (groups: PlannedGroup[]): number => groups.length * 2
 
-const findEliminationTemplate = (groups: PlannedGroup[]): EliminationTemplate | null => {
-  const groupSizes = groups.map((group) => group.teamIds.length)
-  return (
-    ELIMINATION_TEMPLATES.find(
-      (template) =>
-        template.groupSizes.length === groupSizes.length &&
-        template.groupSizes.every((size, index) => size === groupSizes[index]),
-    ) ?? null
-  )
+const getEliminationTemplate = (qualifiedTeamsCount: number): MatchTemplate[] => {
+  const template = templates[qualifiedTeamsCount]
+  if (!template) {
+    throw new Error(
+      `No existe un template de cruces para ${qualifiedTeamsCount} clasificados.`,
+    )
+  }
+  return template
 }
 
-const buildEliminationMatches = (
-  tournamentCategoryId: string,
-  safeTeams: TeamRef[],
-  groups: PlannedGroup[],
-): MatchInsert[] => {
-  const template = findEliminationTemplate(groups)
-  if (!template) return []
+const generateEliminationMatches = async ({
+  tournamentCategoryId,
+  qualifiedTeamsCount,
+}: {
+  tournamentCategoryId: string
+  qualifiedTeamsCount: number
+}): Promise<number> => {
+  const template = getEliminationTemplate(qualifiedTeamsCount)
+  if (!template.length) return 0
 
-  if (safeTeams.length < 2) {
-    throw new Error("No se pueden crear cruces sin equipos válidos.")
+  const eliminationMatches: MatchInsert[] = template.map((templateMatch) => ({
+    tournament_category_id: tournamentCategoryId,
+    stage: templateMatch.stage as MatchInsert["stage"],
+    match_number: templateMatch.matchNumber,
+    team1_source: templateMatch.team1,
+    team2_source: templateMatch.team2,
+    group_id: null,
+  }))
+
+  const { data: insertedMatches, error: insertError } = await supabase
+    .from("matches")
+    .insert(eliminationMatches)
+    .select("id, match_number")
+  throwIfError(insertError)
+
+  const matchNumberToId: Record<number, string> = {}
+  for (const match of insertedMatches ?? []) {
+    if (match.match_number != null) {
+      matchNumberToId[match.match_number] = match.id
+    }
   }
 
-  const matchIdsByKey = new Map<string, string>()
-  template.matches.forEach((match) => {
-    matchIdsByKey.set(match.key, crypto.randomUUID())
-  })
+  for (const templateMatch of template) {
+    if (!templateMatch.nextMatch || !templateMatch.nextSlot) continue
 
-  const fallbackTeam1Id = safeTeams[0].id
-  const fallbackTeam2Id = safeTeams[1].id
-
-  return template.matches.map((match, index) => {
-    const nextMatchId = match.nextKey ? matchIdsByKey.get(match.nextKey) ?? null : null
-
-    return {
-      id: matchIdsByKey.get(match.key),
-      tournament_category_id: tournamentCategoryId,
-      stage: match.stage,
-      match_number: index + 1,
-      next_match_id: nextMatchId,
-      next_match_slot: match.nextSlot ?? null,
-      team1_id: fallbackTeam1Id,
-      team2_id: fallbackTeam2Id,
-      team1_source: match.team1Source,
-      team2_source: match.team2Source,
-      group_id: null,
+    const matchId = matchNumberToId[templateMatch.matchNumber]
+    const nextMatchId = matchNumberToId[templateMatch.nextMatch]
+    if (!matchId || !nextMatchId) {
+      throw new Error("No se pudo vincular el cuadro de eliminación por ids faltantes.")
     }
-  })
+
+    const { error: updateError } = await supabase
+      .from("matches")
+      .update({
+        next_match_id: nextMatchId,
+        next_match_slot: templateMatch.nextSlot,
+      })
+      .eq("id", matchId)
+    throwIfError(updateError)
+  }
+
+  return template.length
 }
 
 const validateTeamRefs = (teams: TeamRef[] | null): TeamRef[] => {
