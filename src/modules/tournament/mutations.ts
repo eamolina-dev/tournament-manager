@@ -85,11 +85,23 @@ export const deleteTournamentCategory = async (
 }
 
 export const generateFullTournament = async (
+  tournamentCategoryId: string,
+  options?: { dryRun?: boolean; debug?: boolean },
+): Promise<{
+  dryRun: boolean
   tournamentCategoryId: string
-): Promise<void> => {
+  teamsCount: number
+  groupsCount: number
+  groupMatchesCount: number
+  eliminationMatchesCount: number
+  totalMatchesCount: number
+}> => {
   if (!tournamentCategoryId) {
     throw new Error("Falta tournamentCategoryId para generar el torneo completo.")
   }
+
+  const debugEnabled = Boolean(options?.debug)
+  const dryRun = Boolean(options?.dryRun)
   try {
     const { data: teams, error: teamsError } = await supabase
       .from("teams")
@@ -101,6 +113,38 @@ export const generateFullTournament = async (
 
     if ((teams?.length ?? 0) < 2) {
       throw new Error("Se necesitan al menos 2 equipos para generar el torneo.")
+    }
+
+    debugGeneration(debugEnabled, "Inicio generación", {
+      tournamentCategoryId,
+      dryRun,
+      teamsCount: teams.length,
+    })
+
+    const plannedGroups = buildGroups(teams)
+    const preGroupMatchesCount = countGroupMatches(plannedGroups)
+    const preEliminationPlan = buildEliminationPlan(
+      tournamentCategoryId,
+      buildQualifiedPlaceholders(plannedGroups),
+    )
+
+    if (dryRun) {
+      debugGeneration(debugEnabled, "Dry-run generado", {
+        tournamentCategoryId,
+        groupsCount: plannedGroups.length,
+        groupMatchesCount: preGroupMatchesCount,
+        eliminationMatchesCount: preEliminationPlan.matches.length,
+      })
+
+      return {
+        dryRun: true,
+        tournamentCategoryId,
+        teamsCount: teams.length,
+        groupsCount: plannedGroups.length,
+        groupMatchesCount: preGroupMatchesCount,
+        eliminationMatchesCount: preEliminationPlan.matches.length,
+        totalMatchesCount: preGroupMatchesCount + preEliminationPlan.matches.length,
+      }
     }
 
     const { error: deleteMatchesError } = await supabase
@@ -131,8 +175,6 @@ export const generateFullTournament = async (
       .eq("tournament_category_id", tournamentCategoryId)
     throwIfError(deleteGroupsError)
 
-    const plannedGroups = buildGroups(teams)
-
     const { data: insertedGroups, error: insertGroupsError } = await supabase
       .from("groups")
       .insert(
@@ -143,6 +185,11 @@ export const generateFullTournament = async (
       )
       .select("id, name")
     throwIfError(insertGroupsError)
+    debugGeneration(debugEnabled, "Zonas insertadas", {
+      tournamentCategoryId,
+      groupsCount: insertedGroups?.length ?? 0,
+      groupNames: (insertedGroups ?? []).map((group) => group.name),
+    })
 
     const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
 
@@ -161,6 +208,10 @@ export const generateFullTournament = async (
 
     const { error: groupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
     throwIfError(groupTeamsError)
+    debugGeneration(debugEnabled, "Equipos asignados a zonas", {
+      tournamentCategoryId,
+      groupTeamsCount: groupTeams.length,
+    })
 
     const groupMatches = plannedGroups.flatMap((group) => {
       const groupId = groupsByName.get(group.name)
@@ -188,6 +239,10 @@ export const generateFullTournament = async (
       const { error: groupMatchesError } = await supabase.from("matches").insert(groupMatches)
       throwIfError(groupMatchesError)
     }
+    debugGeneration(debugEnabled, "Partidos de grupos generados", {
+      tournamentCategoryId,
+      groupMatchesCount: groupMatches.length,
+    })
 
     const qualifiers = buildQualifiedPlaceholders(plannedGroups)
     const eliminationPlan = buildEliminationPlan(tournamentCategoryId, qualifiers)
@@ -222,6 +277,11 @@ export const generateFullTournament = async (
         throwIfError(updateError)
       }
     }
+    debugGeneration(debugEnabled, "Partidos de eliminación generados", {
+      tournamentCategoryId,
+      eliminationMatchesCount: eliminationPlan.matches.length,
+      eliminationLinksCount: eliminationPlan.nextLinks.length,
+    })
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
@@ -230,7 +290,23 @@ export const generateFullTournament = async (
       groupMatches.length,
       eliminationPlan.matches.length,
     )
+
+    const result = {
+      dryRun: false,
+      tournamentCategoryId,
+      teamsCount: teams.length,
+      groupsCount: plannedGroups.length,
+      groupMatchesCount: groupMatches.length,
+      eliminationMatchesCount: eliminationPlan.matches.length,
+      totalMatchesCount: groupMatches.length + eliminationPlan.matches.length,
+    }
+    debugGeneration(debugEnabled, "Generación finalizada", result)
+    return result
   } catch (error) {
+    debugGeneration(debugEnabled, "Error en generación, ejecutando rollback", {
+      tournamentCategoryId,
+      error: error instanceof Error ? error.message : "unknown",
+    })
     await rollbackGeneratedTournamentData(tournamentCategoryId)
     throw error
   }
@@ -246,6 +322,23 @@ const STAGES_BY_SIZE = new Map<number, MatchInsert["stage"]>([
 
 type PlannedGroup = { name: string; teamIds: string[] }
 type InsertedGroup = { id: string; name: string }
+
+const debugGeneration = (
+  enabled: boolean,
+  message: string,
+  data: Record<string, unknown>,
+): void => {
+  if (!enabled) return
+  console.info(`[generateFullTournament] ${message}`, data)
+}
+
+const countGroupMatches = (groups: PlannedGroup[]): number =>
+  groups.reduce((total, group) => {
+    if (group.teamIds.length === 3) return total + 3
+    if (group.teamIds.length === 4) return total + 4
+    if (group.teamIds.length === 2) return total + 1
+    return total
+  }, 0)
 
 const ensureGroupIds = (
   plannedGroups: PlannedGroup[],
