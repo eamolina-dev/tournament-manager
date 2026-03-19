@@ -228,12 +228,14 @@ export const generateFullTournament = async (
       throwIfError(groupMatchesError)
     }
 
+    const eliminationMatchesCount = await generateEliminationMatches(tournamentCategoryId)
+
     await verifyGeneratedStructure(
       tournamentCategoryId,
       safeTeams.length,
       plannedGroups,
       groupMatches.length,
-      0,
+      eliminationMatchesCount,
     )
 
     const result = {
@@ -242,8 +244,8 @@ export const generateFullTournament = async (
       teamsCount: safeTeams.length,
       groupsCount: plannedGroups.length,
       groupMatchesCount: groupMatches.length,
-      eliminationMatchesCount: 0,
-      totalMatchesCount: groupMatches.length,
+      eliminationMatchesCount,
+      totalMatchesCount: groupMatches.length + eliminationMatchesCount,
     }
     debugGeneration(debugEnabled, "Generación finalizada", result)
     return result
@@ -260,6 +262,22 @@ export const generateFullTournament = async (
 type PlannedGroup = { name: string; teamIds: string[] }
 type InsertedGroup = { id: string; name: string }
 type TeamRef = Pick<Team, "id">
+type Qualifier = {
+  source: string
+  groupIndex: number
+  place: number
+}
+type PlannedEliminationMatch = {
+  id: string
+  tournament_category_id: string
+  stage: "playoff"
+  round: string
+  match_number: number
+  team1_source: string | null
+  team2_source: string | null
+  next_match_id: string | null
+  next_match_slot: 1 | 2 | null
+}
 
 const debugGeneration = (
   enabled: boolean,
@@ -485,14 +503,276 @@ const buildFallbackGroupMatches = (
   return []
 }
 
+const parseGroupLetter = (groupName: string): string => {
+  const normalized = groupName.trim().toUpperCase()
+  const explicitLetter = normalized.match(/(?:ZONA|GROUP)\s*([A-Z])$/)
+  if (explicitLetter?.[1]) return explicitLetter[1]
+
+  const fallbackLetter = normalized.match(/([A-Z])$/)
+  if (fallbackLetter?.[1]) return fallbackLetter[1]
+
+  throw new Error(`No se pudo inferir la letra de la zona "${groupName}".`)
+}
+
+const nextPowerOfTwo = (value: number): number => {
+  if (value <= 1) return 1
+  let current = 1
+  while (current < value) current *= 2
+  return current
+}
+
+const floorPowerOfTwo = (value: number): number => {
+  if (value <= 1) return 1
+  let current = 1
+  while (current * 2 <= value) current *= 2
+  return current
+}
+
+const getRoundName = (bracketSize: number): string => {
+  if (bracketSize <= 2) return "F"
+  if (bracketSize === 4) return "SF"
+  if (bracketSize === 8) return "QF"
+  return `R${bracketSize}`
+}
+
+const buildSeedPositions = (size: number): number[] => {
+  if (size === 1) return [1]
+  const previous = buildSeedPositions(size / 2)
+  const result: number[] = []
+  for (const seed of previous) {
+    result.push(seed)
+    result.push(size + 1 - seed)
+  }
+  return result
+}
+
+const newMatchId = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+const buildQualifiers = (groups: Array<{ name: string; size: number }>): Qualifier[] => {
+  return groups.flatMap((group, index) => {
+    const placeLimit = group.size === 4 ? 3 : group.size === 3 ? 2 : Math.min(2, group.size)
+    const letter = parseGroupLetter(group.name)
+
+    return Array.from({ length: placeLimit }, (_, offset) => ({
+      source: `${offset + 1}${letter}`,
+      groupIndex: index,
+      place: offset + 1,
+    }))
+  })
+}
+
+const sortBySeedingPriority = (a: Qualifier, b: Qualifier): number => {
+  if (a.place !== b.place) return a.place - b.place
+  return a.groupIndex - b.groupIndex
+}
+
+const buildEliminationPlan = (
+  tournamentCategoryId: string,
+  qualifiers: Qualifier[],
+): PlannedEliminationMatch[] => {
+  if (!qualifiers.length) return []
+
+  const ordered = [...qualifiers].sort(sortBySeedingPriority)
+  const qualifiedCount = ordered.length
+  const baseMainBracketSize = floorPowerOfTwo(qualifiedCount)
+  const virtualBracketSize = nextPowerOfTwo(qualifiedCount)
+  const preliminaryMatchesCount = qualifiedCount - baseMainBracketSize
+  const directMainSpots = baseMainBracketSize - preliminaryMatchesCount
+
+  const directQualifiers = ordered.slice(0, Math.max(0, directMainSpots))
+  const preliminaryPool = ordered.slice(Math.max(0, directMainSpots))
+
+  const plan: PlannedEliminationMatch[] = []
+  const preliminaryMatches: PlannedEliminationMatch[] = []
+  const preliminaryWinners: string[] = []
+  let order = 1
+
+  if (preliminaryMatchesCount > 0) {
+    const preliminaryRoundName = getRoundName(virtualBracketSize)
+    for (let index = 0; index < preliminaryMatchesCount; index += 1) {
+      const high = preliminaryPool[index]
+      const low = preliminaryPool[preliminaryPool.length - 1 - index]
+      if (!high || !low) {
+        throw new Error("No se pudieron conformar cruces preliminares del playoff.")
+      }
+
+      const matchId = newMatchId()
+      const match: PlannedEliminationMatch = {
+        id: matchId,
+        tournament_category_id: tournamentCategoryId,
+        stage: "playoff",
+        round: preliminaryRoundName,
+        match_number: order,
+        team1_source: high.source,
+        team2_source: low.source,
+        next_match_id: null,
+        next_match_slot: null,
+      }
+      order += 1
+      preliminaryMatches.push(match)
+      plan.push(match)
+      preliminaryWinners.push(`W${matchId}`)
+    }
+  }
+
+  const mainEntrants = [...directQualifiers.map((item) => item.source), ...preliminaryWinners]
+  const mainRoundSize = mainEntrants.length
+  if (!mainRoundSize || (mainRoundSize & (mainRoundSize - 1)) !== 0) {
+    throw new Error("El cuadro principal del playoff no quedó en potencia de 2.")
+  }
+
+  const seedingMap = new Map(ordered.map((item, index) => [item.source, index + 1]))
+  const entrantBySeed = new Map<number, string>()
+  for (const entrant of mainEntrants) {
+    const seed = seedingMap.get(entrant)
+    if (seed) {
+      entrantBySeed.set(seed, entrant)
+    }
+  }
+
+  let currentSources: string[] = []
+  const firstRoundSeedPositions = buildSeedPositions(mainRoundSize)
+  for (const seedPosition of firstRoundSeedPositions) {
+    const seeded = entrantBySeed.get(seedPosition)
+    if (seeded) {
+      currentSources.push(seeded)
+      continue
+    }
+
+    const nextPreliminaryWinner = preliminaryWinners.shift()
+    if (!nextPreliminaryWinner) {
+      throw new Error("No se pudieron ubicar todos los ganadores preliminares en el cuadro.")
+    }
+    currentSources.push(nextPreliminaryWinner)
+  }
+
+  let currentRoundSize = mainRoundSize
+  let previousRoundMatches: PlannedEliminationMatch[] = []
+  while (currentRoundSize >= 2) {
+    const roundName = getRoundName(currentRoundSize)
+    const roundMatches: PlannedEliminationMatch[] = []
+
+    for (let index = 0; index < currentRoundSize; index += 2) {
+      const match: PlannedEliminationMatch = {
+        id: newMatchId(),
+        tournament_category_id: tournamentCategoryId,
+        stage: "playoff",
+        round: roundName,
+        match_number: order,
+        team1_source: currentSources[index] ?? null,
+        team2_source: currentSources[index + 1] ?? null,
+        next_match_id: null,
+        next_match_slot: null,
+      }
+      order += 1
+      roundMatches.push(match)
+      plan.push(match)
+    }
+
+    if (previousRoundMatches.length) {
+      for (let index = 0; index < previousRoundMatches.length; index += 1) {
+        const previous = previousRoundMatches[index]
+        const target = roundMatches[Math.floor(index / 2)]
+        previous.next_match_id = target?.id ?? null
+        previous.next_match_slot = index % 2 === 0 ? 1 : 2
+      }
+    }
+
+    previousRoundMatches = roundMatches
+    currentSources = roundMatches.map((match) => `W${match.id}`)
+    currentRoundSize /= 2
+  }
+
+  if (preliminaryMatches.length) {
+    const firstMainRound = plan.find((item) => item.round === getRoundName(mainRoundSize))
+    if (!firstMainRound) {
+      throw new Error("No se encontró la primera ronda principal para vincular preliminares.")
+    }
+
+    const firstMainRoundMatches = plan.filter((item) => item.round === firstMainRound.round)
+    const preliminaryByWinner = new Map(preliminaryMatches.map((match) => [`W${match.id}`, match]))
+    firstMainRoundMatches.forEach((match) => {
+      const sources = [match.team1_source, match.team2_source]
+      sources.forEach((source, slotIndex) => {
+        if (!source) return
+        const preliminary = preliminaryByWinner.get(source)
+        if (!preliminary) return
+        preliminary.next_match_id = match.id
+        preliminary.next_match_slot = slotIndex === 0 ? 1 : 2
+        preliminaryByWinner.delete(source)
+      })
+    })
+  }
+
+  return plan
+}
+
+export const generateEliminationMatches = async (
+  tournamentCategoryId: string,
+): Promise<number> => {
+  const { data: groups, error: groupsError } = await supabase
+    .from("groups")
+    .select("name, id")
+    .eq("tournament_category_id", tournamentCategoryId)
+    .order("name", { ascending: true })
+  throwIfError(groupsError)
+
+  const safeGroups = groups ?? []
+  if (!safeGroups.length) {
+    return 0
+  }
+
+  const groupIds = safeGroups.map((group) => group.id)
+  const { data: groupTeams, error: groupTeamsError } = await supabase
+    .from("group_teams")
+    .select("group_id")
+    .in("group_id", groupIds)
+  throwIfError(groupTeamsError)
+
+  const teamsPerGroup = new Map<string, number>()
+  for (const entry of groupTeams ?? []) {
+    const previous = teamsPerGroup.get(entry.group_id) ?? 0
+    teamsPerGroup.set(entry.group_id, previous + 1)
+  }
+
+  const qualifiers = buildQualifiers(
+    safeGroups.map((group) => ({
+      name: group.name,
+      size: teamsPerGroup.get(group.id) ?? 0,
+    })),
+  )
+
+  const eliminationMatches = buildEliminationPlan(tournamentCategoryId, qualifiers)
+  if (!eliminationMatches.length) {
+    return 0
+  }
+
+  const payload: MatchInsert[] = eliminationMatches.map((match) => ({
+    id: match.id,
+    tournament_category_id: match.tournament_category_id,
+    stage: match.stage,
+    match_number: match.match_number,
+    team1_source: match.team1_source,
+    team2_source: match.team2_source,
+    next_match_id: match.next_match_id,
+    next_match_slot: match.next_match_slot,
+  }))
+
+  const { error: insertError } = await supabase.from("matches").insert(payload)
+  throwIfError(insertError)
+
+  return payload.length
+}
+
 export const generatePlayoffsAfterGroups = async (
   tournamentCategoryId: string
 ): Promise<void> => {
-  const { error } = await supabase.rpc("generate_playoffs_after_groups", {
-    p_tournament_category_id: tournamentCategoryId,
-  })
-
-  throwIfError(error)
+  await generateEliminationMatches(tournamentCategoryId)
 }
 
 export const generateGroupsAndMatches = async (
