@@ -799,6 +799,13 @@ export type Database = {
             foreignKeyName: "tournament_categories_tournament_id_fkey"
             columns: ["tournament_id"]
             isOneToOne: false
+            referencedRelation: "home_tournaments_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_categories_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
             referencedRelation: "tournaments"
             referencedColumns: ["id"]
           },
@@ -850,6 +857,17 @@ export type Database = {
       }
     }
     Views: {
+      home_tournaments_view: {
+        Row: {
+          categories_data: Json | null
+          end_date: string | null
+          id: string | null
+          name: string | null
+          slug: string | null
+          start_date: string | null
+        }
+        Relationships: []
+      }
       v_bracket: {
         Row: {
           id: string | null
