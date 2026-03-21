@@ -1,11 +1,12 @@
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
-import { getRankingTableByCategory, getGroupTableFull } from "../../modules/ranking/queries"
+import { getRankingTableByCategory } from "../../modules/ranking/queries"
 import { getTeamPlayersByCategory } from "../../modules/team/queries"
 import {
   getGroupsByCategory,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
 } from "../../modules/tournament/queries"
+import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
@@ -17,7 +18,13 @@ export type TournamentCategoryPageData = {
   zones: {
     id: string
     name: string
-    standings: { pareja: string; pj: number; pg: number; sg: number; gg: number }[]
+    standings: {
+      teamId: string
+      teamName: string
+      pts: number
+      setsWon: number
+      gamesWon: number
+    }[]
     matches: {
       id: string
       team1: string
@@ -121,10 +128,9 @@ export const getTournamentCategoryPageData = async (
 
   const tournamentCategoryId = category.id
 
-  const [teams, groups, groupTable, matches, results] = await Promise.all([
+  const [teams, groups, matches, results] = await Promise.all([
     getTeamPlayersByCategory(tournamentCategoryId),
     getGroupsByCategory(tournamentCategoryId),
-    getGroupTableFull(),
     getMatchesByCategory(tournamentCategoryId),
     getRankingTableByCategory(tournamentCategoryId),
   ])
@@ -165,21 +171,42 @@ export const getTournamentCategoryPageData = async (
   }))
 
   const zones = groups.map((group) => {
-    const standings = groupTable
-      .filter((row) => row.group_id === group.id)
-      .map((row) => ({
-        pareja: teamsMap.get(row.team_id ?? "") ?? "Equipo",
-        pj: 0,
-        pg: row.matches_won ?? 0,
-        sg: row.sets_won ?? 0,
-        gg: row.games_won ?? 0,
-      }))
+    const groupMatches = allMatches.filter((match) => match.zoneId === group.id)
+    const groupTeams = Array.from(
+      new Map(
+        groupMatches.flatMap((match) => {
+          const entries: [string, string][] = []
+
+          if (match.team1Id) {
+            entries.push([match.team1Id, teamsMap.get(match.team1Id) ?? match.team1])
+          }
+
+          if (match.team2Id) {
+            entries.push([match.team2Id, teamsMap.get(match.team2Id) ?? match.team2])
+          }
+
+          return entries
+        }),
+      ),
+    ).map(([id, name]) => ({ id, name }))
+
+    const standings = computeGroupStandings(
+      groupMatches,
+      groupMatches.flatMap((match) =>
+        (match.sets ?? []).map((set) => ({
+          matchId: match.id,
+          team1_score: set.team1,
+          team2_score: set.team2,
+        })),
+      ),
+      groupTeams,
+    )
 
     return {
       id: group.id,
       name: group.name,
       standings,
-      matches: allMatches.filter((match) => match.zoneId === group.id),
+      matches: groupMatches,
     }
   })
 

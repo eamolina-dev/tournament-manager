@@ -492,24 +492,22 @@ export const TournamentCategoryPage = ({
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2">Pareja</th>
-                      <th className="py-2">PJ</th>
-                      <th className="py-2">PG</th>
-                      <th className="py-2">SG</th>
-                      <th className="py-2">GG</th>
+                      <th className="py-2">Equipo</th>
+                      <th className="py-2">PTS</th>
+                      <th className="py-2">Sets</th>
+                      <th className="py-2">Games</th>
                     </tr>
                   </thead>
                   <tbody>
                     {activeZone.standings.map((standing) => (
                       <tr
-                        key={standing.pareja}
+                        key={standing.teamId}
                         className="border-b border-slate-100 last:border-none"
                       >
-                        <td className="py-2">{standing.pareja}</td>
-                        <td className="py-2">{standing.pj}</td>
-                        <td className="py-2">{standing.pg}</td>
-                        <td className="py-2">{standing.sg}</td>
-                        <td className="py-2">{standing.gg}</td>
+                        <td className="py-2">{standing.teamName}</td>
+                        <td className="py-2">{standing.pts}</td>
+                        <td className="py-2">{standing.setsWon}</td>
+                        <td className="py-2">{standing.gamesWon}</td>
                       </tr>
                     ))}
                   </tbody>
