@@ -27,9 +27,9 @@ export default function App() {
   }, []);
 
   const navigate = (path: string) => {
-    if (path === pathname) return;
+    if (path === `${window.location.pathname}${window.location.search}`) return;
     window.history.pushState({}, "", path);
-    setPathname(path);
+    setPathname(window.location.pathname);
   };
 
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
@@ -44,6 +44,7 @@ export default function App() {
         <TournamentCategoryPage
           slug={tournamentRoute.slug}
           category={tournamentRoute.category}
+          isOwner={new URLSearchParams(window.location.search).get("owner") === "1"}
           navigate={navigate}
         />
       )}

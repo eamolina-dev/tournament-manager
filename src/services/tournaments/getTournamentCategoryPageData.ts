@@ -22,7 +22,10 @@ export type TournamentCategoryPageData = {
       id: string
       team1: string
       team2: string
+      team1Id?: string | null
+      team2Id?: string | null
       score?: string
+      sets?: { team1: number; team2: number }[]
       day: "Viernes" | "Sabado" | "Domingo"
       time: string
     court?: string
@@ -146,7 +149,13 @@ export const getTournamentCategoryPageData = async (
     id: match.id,
     team1: match.team1_source ?? teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
     team2: match.team2_source ?? teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
+    team1Id: match.team1_id,
+    team2Id: match.team2_id,
     score: toScoreString(setsByMatch.get(match.id) ?? []),
+    sets: (setsByMatch.get(match.id) ?? []).map((set) => ({
+      team1: set.team1_games ?? 0,
+      team2: set.team2_games ?? 0,
+    })),
     day: toDay(match.scheduled_at),
     time: toTime(match.scheduled_at),
     court: match.court ?? undefined,

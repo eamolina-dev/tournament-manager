@@ -15,6 +15,7 @@ type TournamentCategoryPageProps = {
   slug: string;
   category: string;
   isAdmin?: boolean;
+  isOwner?: boolean;
   navigate?: (path: string) => void;
 };
 
@@ -37,6 +38,7 @@ export const TournamentCategoryPage = ({
   slug,
   category,
   isAdmin = false,
+  isOwner = false,
   navigate,
 }: TournamentCategoryPageProps) => {
   const [activeTab, setActiveTab] = useState<SectionTab>("Zonas");
@@ -95,6 +97,29 @@ export const TournamentCategoryPage = ({
 
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
 
+  const saveMatchResult = async ({
+    matchId,
+    sets,
+    winnerTeamId,
+  }: {
+    matchId: string;
+    sets: { team1: number; team2: number }[];
+    winnerTeamId: string | null;
+  }) => {
+    await replaceMatchSets(
+      matchId,
+      sets.map((set, index) => ({
+        setNumber: index + 1,
+        team1Games: set.team1,
+        team2Games: set.team2,
+      })),
+    );
+    await updateMatch(matchId, {
+      winner_team_id: winnerTeamId,
+    });
+    await load();
+  };
+
   if (loading)
     return (
       <p className="rounded-xl bg-white p-4 text-sm text-slate-600">
@@ -126,7 +151,7 @@ export const TournamentCategoryPage = ({
 
           {isAdmin && navigate && (
             <button
-              onClick={() => navigate(`/tournament/${slug}/${category}`)}
+              onClick={() => navigate(`/tournament/${slug}/${category}?owner=1`)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               Ver vista pública
@@ -134,6 +159,11 @@ export const TournamentCategoryPage = ({
           )}
         </div>
         <p className="text-sm text-slate-500">Categoría {data.categoryName}</p>
+        {!isAdmin && isOwner && (
+          <p className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+            Modo edición activo
+          </p>
+        )}
 
         {data.champion && (
           <div className="mt-3 space-y-1 text-sm text-slate-700">
@@ -407,21 +437,6 @@ export const TournamentCategoryPage = ({
                   <MatchCard
                     key={match.id}
                     match={match}
-                    isEditable
-                    onSaveResult={async ({ matchId, sets, winnerTeamId }) => {
-                      await replaceMatchSets(
-                        matchId,
-                        sets.map((set, index) => ({
-                          setNumber: index + 1,
-                          team1Games: set.team1,
-                          team2Games: set.team2,
-                        })),
-                      );
-                      await updateMatch(matchId, {
-                        winner_team_id: winnerTeamId,
-                      });
-                      await load();
-                    }}
                   />
                 ))}
               </div>
@@ -503,7 +518,12 @@ export const TournamentCategoryPage = ({
               <div className="mt-4 grid gap-2">
                 {activeZone.matches.length ? (
                   activeZone.matches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      isEditable={isOwner}
+                      onSaveResult={isOwner ? saveMatchResult : undefined}
+                    />
                   ))
                 ) : (
                   <p className="text-sm text-slate-500">
