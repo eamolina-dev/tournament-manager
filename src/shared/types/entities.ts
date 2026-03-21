@@ -38,6 +38,8 @@ export type MatchSetInsert = TableInsert<"match_sets">
 export type MatchSetUpdate = TableUpdate<"match_sets">
 
 export type Ranking = TableRow<"team_results">
+export type RankingInsert = TableInsert<"team_results">
+export type RankingUpdate = TableUpdate<"team_results">
 export type RankingRule = TableRow<"ranking_rules">
 
 export type BracketMatch = ViewRow<"v_bracket">

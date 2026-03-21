@@ -1,5 +1,7 @@
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
 import { getPlayersByIds } from "../../modules/player/queries"
+import { persistTournamentResults } from "../../modules/ranking/mutations"
+import { getRankingTableByCategory } from "../../modules/ranking/queries"
 import { getTeamPlayersByCategory, getTeamsByCategory } from "../../modules/team/queries"
 import {
   getGroupsByCategory,
@@ -7,7 +9,6 @@ import {
   getTournamentCategoryBySlugs,
 } from "../../modules/tournament/queries"
 import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
-import { computeTournamentRanking } from "../../features/tournaments/utils/computeTournamentRanking"
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
@@ -143,6 +144,23 @@ export const getTournamentCategoryPageData = async (
   ) as string[]
   const players = await getPlayersByIds(uniquePlayerIds)
 
+  await persistTournamentResults({
+    tournamentCategoryId,
+    circuitId: tournament.circuit_id,
+    matches: matches.map((match) => ({
+      stage: match.stage ?? undefined,
+      team1Id: match.team1_id,
+      team2Id: match.team2_id,
+      winnerTeamId: match.winner_team_id,
+    })),
+    teams: rawTeams.map((team) => ({
+      id: team.id,
+      player1Id: team.player1_id,
+      player2Id: team.player2_id,
+    })),
+  })
+  const persistedResults = await getRankingTableByCategory(tournamentCategoryId)
+
   const matchSets = await getMatchSetsByMatchIds(matches.map((match) => match.id))
 
   const teamsMap = new Map(
@@ -245,22 +263,28 @@ export const getTournamentCategoryPageData = async (
       ) ?? "Equipo",
     )
 
-  const resultRows = computeTournamentRanking({
-    matches: matches.map((match) => ({
-      stage: match.stage ?? undefined,
-      team1Id: match.team1_id,
-      team2Id: match.team2_id,
-      winnerTeamId: match.winner_team_id,
-    })),
-    teams: rawTeams
-      .filter((team) => Boolean(team.id))
-      .map((team) => ({
-        id: team.id,
-        player1Id: team.player1_id,
-        player2Id: team.player2_id,
-      })),
-    playersById,
-  })
+  const teamsById = new Map(rawTeams.map((team) => [team.id, team]))
+  const pointsByPlayerId = new Map<string, number>()
+
+  for (const result of persistedResults) {
+    const team = teamsById.get(result.team_id)
+    if (!team) continue
+
+    const points = result.points_awarded ?? 0
+    const playerIds = [team.player1_id, team.player2_id].filter(Boolean)
+
+    for (const playerId of playerIds) {
+      pointsByPlayerId.set(playerId, (pointsByPlayerId.get(playerId) ?? 0) + points)
+    }
+  }
+
+  const resultRows = Array.from(pointsByPlayerId.entries())
+    .map(([playerId, points]) => ({
+      playerId,
+      playerName: playersById.get(playerId) ?? "Jugador",
+      points,
+    }))
+    .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
 
   return {
     tournamentCategoryId,

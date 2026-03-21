@@ -1,4 +1,4 @@
-type EliminationStage =
+export type EliminationStage =
   | "final"
   | "semi"
   | "quarter"
@@ -6,14 +6,14 @@ type EliminationStage =
   | "round_of_16"
   | "round_of_32"
 
-type RankingMatch = {
+export type RankingMatch = {
   stage?: string
   team1Id?: string | null
   team2Id?: string | null
   winnerTeamId?: string | null
 }
 
-type RankingTeam = {
+export type RankingTeam = {
   id: string
   player1Id?: string | null
   player2Id?: string | null
@@ -32,6 +32,15 @@ const STAGE_POINTS: Record<EliminationStage, number> = {
   round_of_8: 40,
   round_of_16: 30,
   round_of_32: 20,
+}
+
+const STAGE_POSITION: Record<EliminationStage, number> = {
+  final: 2,
+  semi: 3,
+  quarter: 5,
+  round_of_8: 5,
+  round_of_16: 9,
+  round_of_32: 17,
 }
 
 const isEliminationStage = (stage?: string): stage is EliminationStage => {
@@ -100,4 +109,46 @@ export const computeTournamentRanking = ({
       points,
     }))
     .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
+}
+
+export const computeTeamFinalPositions = ({
+  matches,
+  teams,
+}: {
+  matches: RankingMatch[]
+  teams: RankingTeam[]
+}): Map<string, number> => {
+  const playedEliminationMatches = matches.filter(
+    (match) =>
+      isEliminationStage(match.stage) &&
+      Boolean(match.team1Id) &&
+      Boolean(match.team2Id) &&
+      Boolean(match.winnerTeamId),
+  )
+
+  const positionsByTeamId = new Map<string, number>()
+
+  for (const team of teams) {
+    positionsByTeamId.set(team.id, 999)
+  }
+
+  for (const match of playedEliminationMatches) {
+    if (!match.team1Id || !match.team2Id || !match.winnerTeamId || !isEliminationStage(match.stage)) {
+      continue
+    }
+
+    const loserTeamId = match.team1Id === match.winnerTeamId ? match.team2Id : match.team1Id
+    const loserPosition = STAGE_POSITION[match.stage]
+    const currentLoserPosition = positionsByTeamId.get(loserTeamId) ?? 999
+
+    if (loserPosition < currentLoserPosition) {
+      positionsByTeamId.set(loserTeamId, loserPosition)
+    }
+
+    if (match.stage === "final") {
+      positionsByTeamId.set(match.winnerTeamId, 1)
+    }
+  }
+
+  return positionsByTeamId
 }

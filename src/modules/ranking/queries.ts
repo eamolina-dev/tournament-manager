@@ -7,19 +7,13 @@ import type {
   RankingRule,
 } from "../../shared/types/entities"
 
-export type TeamRanking = {
-  team_id: string;
-  points_awarded: number;
-  tournament_category_id: string;
-}
-
-export const getTeamResults = async (): Promise<TeamRanking[]> => {
+export const getTeamResults = async (): Promise<Ranking[]> => {
   const { data, error } = await supabase
     .from("team_results")
-    .select("team_id, points_awarded, tournament_category_id");
+    .select("*")
 
-  if (error) throw error;
-  return data as TeamRanking[];
+  throwIfError(error)
+  return data
 }
 
 export const getCategories = async (): Promise<{

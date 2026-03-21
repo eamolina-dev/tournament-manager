@@ -1,15 +1,9 @@
 import { getPlayers } from "../../modules/player/queries"
 import { getCategories, getTeamResults } from "../../modules/ranking/queries"
 import { getTeams } from "../../modules/team/queries"
-import type { CategoryCode, CategoryRankingDTO } from "../../types/ranking"
+import { computeGlobalRanking } from "../../features/rankings/utils/computeGlobalRanking"
+import type { CategoryRankingDTO } from "../../types/ranking"
 import { rankingCategories } from "../../types/ranking"
-
-const toCategoryCode = (value: string | null): CategoryCode | null => {
-  if (value === "4ta" || value === "5ta" || value === "6ta" || value === "7ma" || value === "8va") {
-    return value
-  }
-  return null
-}
 
 export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => {
   const [categories, results, teams, players] = await Promise.all([
@@ -19,52 +13,41 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
     getPlayers(),
   ])
 
-  console.log("cat")
-  console.log(categories)
-  console.log("res")
-  console.log(results)
-  console.log("teams")
-  console.log(teams)
-  console.log("players")
-  console.log(players)
+  const playerPointsByCategory = new Map<string, ReturnType<typeof computeGlobalRanking>>()
 
-  const categoryByTournamentCategory = new Map(
-    categories.tournamentCategories.map((item) => [item.id, item.category_id]),
-  )
-  const teamsById = new Map(teams.map((team) => [team.id, team]))
-  const playersById = new Map(players.map((player) => [player.id, player.name]))
-  const categorySlugById = new Map(categories.categories.map((category) => [category.id, category.slug]))
-
-  const pointsByCategoryAndPlayer = new Map<string, number>()
-
-  for (const result of results) {
-    const team = teamsById.get(result.team_id ?? "")
-    if (!team) continue
-
-    const categoryId = categoryByTournamentCategory.get(team.tournament_category_id ?? "")
-    if (!categoryId) continue
-
-    const slug = categorySlugById.get(categoryId)
-    const code = toCategoryCode(slug ?? null)
-    if (!code) continue
-
-    const points = result.points_awarded ?? 0
-    for (const playerId of [team.player1_id, team.player2_id]) {
-      if (!playerId) continue
-      const key = `${code}__${playerId}`
-      pointsByCategoryAndPlayer.set(key, (pointsByCategoryAndPlayer.get(key) ?? 0) + points)
+  for (const category of rankingCategories) {
+    const categoryId = categories.categories.find((item) => item.slug === category)?.id
+    if (!categoryId) {
+      playerPointsByCategory.set(category, [])
+      continue
     }
+
+    const tournamentCategoryIds = categories.tournamentCategories
+      .filter((item) => item.category_id === categoryId)
+      .map((item) => item.id)
+
+    const rows = computeGlobalRanking({
+      results: results.filter((result) =>
+        Boolean(result.tournament_category_id) &&
+        tournamentCategoryIds.includes(result.tournament_category_id ?? ""),
+      ),
+      teams: teams.map((team) => ({
+        id: team.id,
+        player1_id: team.player1_id,
+        player2_id: team.player2_id,
+        tournament_category_id: team.tournament_category_id,
+      })),
+      players: players.map((player) => ({
+        id: player.id,
+        name: player.name,
+      })),
+    })
+    playerPointsByCategory.set(category, rows)
   }
 
   return rankingCategories.map((category) => {
-    const rows = Array.from(pointsByCategoryAndPlayer.entries())
-      .filter(([key]) => key.startsWith(`${category}__`))
-      .map(([key, points]) => {
-        const [, playerId] = key.split("__")
-        return { player: playersById.get(playerId) ?? "Jugador", points }
-      })
-      .sort((a, b) => b.points - a.points)
-      .map((row, index) => ({ pos: index + 1, player: row.player, points: row.points }))
+    const rows = (playerPointsByCategory.get(category) ?? [])
+      .map((row, index) => ({ pos: index + 1, player: row.playerName, points: row.points }))
 
     return { category, rows }
   })
