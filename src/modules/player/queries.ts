@@ -18,3 +18,15 @@ export const getPlayersByCircuit = async (circuitId: string): Promise<Player[]> 
   throwIfError(error)
   return data
 }
+
+export const getPlayersByIds = async (playerIds: string[]): Promise<Player[]> => {
+  if (!playerIds.length) return []
+
+  const { data, error } = await supabase
+    .from("players")
+    .select("*")
+    .in("id", playerIds)
+
+  throwIfError(error)
+  return data
+}

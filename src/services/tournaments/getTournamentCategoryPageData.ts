@@ -1,12 +1,13 @@
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
-import { getRankingTableByCategory } from "../../modules/ranking/queries"
-import { getTeamPlayersByCategory } from "../../modules/team/queries"
+import { getPlayersByIds } from "../../modules/player/queries"
+import { getTeamPlayersByCategory, getTeamsByCategory } from "../../modules/team/queries"
 import {
   getGroupsByCategory,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
 } from "../../modules/tournament/queries"
 import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
+import { computeTournamentRanking } from "../../features/tournaments/utils/computeTournamentRanking"
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
@@ -60,7 +61,7 @@ export type TournamentCategoryPageData = {
     time: string
     court?: string
   }[]
-  results: { pos: 1 | 2 | 3; pareja: string; puntos: number }[]
+  results: { playerId: string; playerName: string; points: number }[]
   teams: { id: string; name: string }[]
   editableMatches: {
     id: string
@@ -128,17 +129,29 @@ export const getTournamentCategoryPageData = async (
 
   const tournamentCategoryId = category.id
 
-  const [teams, groups, matches, results] = await Promise.all([
+  const [teamPlayers, rawTeams, groups, matches] = await Promise.all([
     getTeamPlayersByCategory(tournamentCategoryId),
+    getTeamsByCategory(tournamentCategoryId),
     getGroupsByCategory(tournamentCategoryId),
     getMatchesByCategory(tournamentCategoryId),
-    getRankingTableByCategory(tournamentCategoryId),
   ])
+
+  const uniquePlayerIds = Array.from(
+    new Set(
+      rawTeams.flatMap((team) => [team.player1_id, team.player2_id].filter(Boolean)),
+    ),
+  ) as string[]
+  const players = await getPlayersByIds(uniquePlayerIds)
 
   const matchSets = await getMatchSetsByMatchIds(matches.map((match) => match.id))
 
   const teamsMap = new Map(
-    teams.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
+    teamPlayers.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
+  )
+  const playersById = new Map(
+    players
+      .filter((player) => Boolean(player.id))
+      .map((player) => [player.id ?? "", player.name?.trim() ?? "Jugador"]),
   )
   const setsByMatch = new Map<
     string,
@@ -210,22 +223,44 @@ export const getTournamentCategoryPageData = async (
     }
   })
 
-  const resultRows = results.flatMap((row) => {
-    if (![1, 2, 3].includes(row.final_position ?? 0)) return []
-    return [
-      {
-        pos: row.final_position as 1 | 2 | 3,
-        pareja: teamsMap.get(row.team_id ?? "") ?? "Equipo",
-        puntos: row.points_awarded ?? 0,
-      },
-    ]
-  })
+  const eliminationMatches = matches.filter((match) => match.stage !== "group")
+  const finalMatch = eliminationMatches.find((match) => match.stage === "final")
+  const champion = finalMatch?.winner_team_id
+    ? teamsMap.get(finalMatch.winner_team_id) ?? "Equipo"
+    : undefined
+  const finalist =
+    finalMatch?.winner_team_id && finalMatch.team1_id && finalMatch.team2_id
+      ? teamsMap.get(
+          finalMatch.team1_id === finalMatch.winner_team_id
+            ? finalMatch.team2_id
+            : finalMatch.team1_id,
+        ) ?? "Equipo"
+      : undefined
 
-  const champion = resultRows.find((row) => row.pos === 1)?.pareja
-  const finalist = resultRows.find((row) => row.pos === 2)?.pareja
-  const semifinalists = resultRows
-    .filter((row) => row.pos === 3)
-    .map((row) => row.pareja)
+  const semifinalists = eliminationMatches
+    .filter((match) => match.stage === "semi" && match.winner_team_id && match.team1_id && match.team2_id)
+    .map((match) =>
+      teamsMap.get(
+        match.team1_id === match.winner_team_id ? match.team2_id ?? "" : match.team1_id ?? "",
+      ) ?? "Equipo",
+    )
+
+  const resultRows = computeTournamentRanking({
+    matches: matches.map((match) => ({
+      stage: match.stage ?? undefined,
+      team1Id: match.team1_id,
+      team2Id: match.team2_id,
+      winnerTeamId: match.winner_team_id,
+    })),
+    teams: rawTeams
+      .filter((team) => Boolean(team.id))
+      .map((team) => ({
+        id: team.id,
+        player1Id: team.player1_id,
+        player2Id: team.player2_id,
+      })),
+    playersById,
+  })
 
   return {
     tournamentCategoryId,
@@ -248,7 +283,7 @@ export const getTournamentCategoryPageData = async (
         schedule,
     ),
     results: resultRows,
-    teams: teams
+    teams: teamPlayers
       .filter((team) => team.id)
       .map((team) => ({ id: team.id ?? "", name: team.team_name ?? "Equipo" })),
     editableMatches: matches.map((match) => ({
