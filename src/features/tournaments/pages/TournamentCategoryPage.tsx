@@ -6,7 +6,10 @@ import {
 import { createPlayer } from "../../../modules/player/mutations";
 import { getPlayers } from "../../../modules/player/queries";
 import { createTeam, deleteTeam } from "../../../modules/team/mutations";
-import { generateFullTournament } from "../../../modules/tournament/mutations";
+import {
+  generateFullTournament,
+  resolveEliminationTeamSources,
+} from "../../../modules/tournament/mutations";
 import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
 import { MatchCard } from "../../matches/components/MatchCard";
 import { TournamentBracket } from "../components/TournamentBracket";
@@ -445,6 +448,31 @@ export const TournamentCategoryPage = ({
                 Cuando generes zonas, se crearán los partidos automáticamente.
               </p>
             )}
+          </article>
+
+          <article className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">4. Cruces</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Resuelve los placeholders de cruces (ej: 1A, 2B) en base a la tabla actual de zonas.
+            </p>
+
+            <button
+              disabled={saving}
+              onClick={() =>
+                void (async () => {
+                  setSaving(true);
+                  try {
+                    await resolveEliminationTeamSources(data.tournamentCategoryId);
+                    await load();
+                  } finally {
+                    setSaving(false);
+                  }
+                })()
+              }
+              className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              Generar cruces
+            </button>
           </article>
 
           {saving && (
