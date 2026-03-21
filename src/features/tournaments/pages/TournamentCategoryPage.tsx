@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  propagateMatchWinner,
   replaceMatchSets,
   updateMatch,
 } from "../../../modules/match/mutations";
@@ -117,9 +118,14 @@ export const TournamentCategoryPage = ({
         team2Games: set.team2,
       })),
     );
-    await updateMatch(matchId, {
+    const updatedMatch = await updateMatch(matchId, {
       winner_team_id: winnerTeamId,
     });
+    try {
+      await propagateMatchWinner(updatedMatch);
+    } catch (error) {
+      console.error("No se pudo propagar el ganador del match:", error);
+    }
     await load();
   };
 

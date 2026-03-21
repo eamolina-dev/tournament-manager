@@ -103,6 +103,63 @@ export const updateMatchResult = async (
   return data
 }
 
+const toWinnerSourceToken = (matchNumber: number | null): string | null => {
+  if (!matchNumber) return null
+  return `W${matchNumber}`
+}
+
+const propagateMatchWinnerInternal = async (
+  match: Match,
+  visitedMatchIds: Set<string>
+): Promise<void> => {
+  if (!match.winner_team_id || !match.next_match_id) return
+  if (visitedMatchIds.has(match.id)) return
+
+  visitedMatchIds.add(match.id)
+
+  const winnerSourceToken = toWinnerSourceToken(match.match_number)
+  if (!winnerSourceToken) return
+
+  const { data: nextMatch, error: nextMatchError } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", match.next_match_id)
+    .single()
+
+  throwIfError(nextMatchError)
+
+  const updatePayload: MatchUpdate = {}
+
+  if (nextMatch.team1_source === winnerSourceToken) {
+    updatePayload.team1_id = match.winner_team_id
+  }
+  if (nextMatch.team2_source === winnerSourceToken) {
+    updatePayload.team2_id = match.winner_team_id
+  }
+
+  if (Object.keys(updatePayload).length) {
+    const { data: updatedNextMatch, error: updateError } = await supabase
+      .from("matches")
+      .update(updatePayload)
+      .eq("id", nextMatch.id)
+      .select("*")
+      .single()
+
+    throwIfError(updateError)
+
+    if (updatedNextMatch.winner_team_id) {
+      await propagateMatchWinnerInternal(updatedNextMatch, visitedMatchIds)
+    }
+  } else if (nextMatch.winner_team_id) {
+    await propagateMatchWinnerInternal(nextMatch, visitedMatchIds)
+  }
+}
+
+export const propagateMatchWinner = async (match: Match): Promise<void> => {
+  if (!match.winner_team_id) return
+  await propagateMatchWinnerInternal(match, new Set<string>())
+}
+
 export const advanceWinner = async (matchId: string): Promise<void> => {
   const { error } = await supabase.rpc("advance_winner", {
     p_match_id: matchId,
