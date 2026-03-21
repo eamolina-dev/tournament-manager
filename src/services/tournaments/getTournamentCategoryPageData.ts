@@ -153,8 +153,8 @@ export const getTournamentCategoryPageData = async (
 
   const allMatches = matches.map((match) => ({
     id: match.id,
-    team1: match.team1_source ?? teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
-    team2: match.team2_source ?? teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
+    team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
+    team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
     team1Id: match.team1_id,
     team2Id: match.team2_id,
     score: toScoreString(setsByMatch.get(match.id) ?? []),
@@ -253,8 +253,8 @@ export const getTournamentCategoryPageData = async (
       .map((team) => ({ id: team.id ?? "", name: team.team_name ?? "Equipo" })),
     editableMatches: matches.map((match) => ({
       id: match.id,
-      team1: match.team1_source ?? teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
-      team2: match.team2_source ?? teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
+      team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
+      team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
       team1Id: match.team1_id,
       team2Id: match.team2_id,
       day: toDay(match.scheduled_at),
