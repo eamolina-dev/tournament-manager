@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   replaceMatchSets,
   updateMatch,
-  updateMatchResult,
 } from "../../../modules/match/mutations";
 import { createPlayer } from "../../../modules/player/mutations";
 import { getPlayers } from "../../../modules/player/queries";
@@ -405,12 +404,24 @@ export const TournamentCategoryPage = ({
             {data.editableMatches.length ? (
               <div className="mt-3 space-y-2">
                 {data.editableMatches.map((match) => (
-                  <EditableMatchRow
+                  <MatchCard
                     key={match.id}
                     match={match}
-                    teams={data.teams}
-                    zones={data.zones}
-                    onRefresh={load}
+                    isEditable
+                    onSaveResult={async ({ matchId, sets, winnerTeamId }) => {
+                      await replaceMatchSets(
+                        matchId,
+                        sets.map((set, index) => ({
+                          setNumber: index + 1,
+                          team1Games: set.team1,
+                          team2Games: set.team2,
+                        })),
+                      );
+                      await updateMatch(matchId, {
+                        winner_team_id: winnerTeamId,
+                      });
+                      await load();
+                    }}
                   />
                 ))}
               </div>
@@ -542,141 +553,6 @@ export const TournamentCategoryPage = ({
         </>
       )}
     </section>
-  );
-};
-
-const EditableMatchRow = ({
-  match,
-  teams,
-  zones,
-  onRefresh,
-}: {
-  match: {
-    id: string;
-    team1Id: string;
-    team2Id: string;
-    groupId: string | null;
-    stage:
-      | "group"
-      | "quarter"
-      | "semi"
-      | "final"
-      | "round_of_32"
-      | "round_of_16"
-      | "round_of_8";
-    scheduledAt: string | null;
-    court: string | null;
-    sets: { setNumber: number; team1Games: number; team2Games: number }[];
-    winnerTeamId: string | null;
-  };
-  teams: { id: string; name: string }[];
-  zones: { id: string; name: string }[];
-  onRefresh: () => Promise<void>;
-}) => {
-  const [local, setLocal] = useState({
-    ...match,
-    scheduledAt: match.scheduledAt
-      ? new Date(match.scheduledAt).toISOString().slice(0, 16)
-      : "",
-    setsText: match.sets
-      .map((set) => `${set.team1Games}-${set.team2Games}`)
-      .join(" "),
-  });
-
-  const team1Name = teams.find((team) => team.id === local.team1Id)?.name ?? "Equipo 1";
-  const team2Name = teams.find((team) => team.id === local.team2Id)?.name ?? "Equipo 2";
-  const zoneName = zones.find((zone) => zone.id === local.groupId)?.name ?? "Sin zona";
-
-  return (
-    <div className="rounded-lg border border-slate-200 p-3 text-xs">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
-        <p className="font-semibold text-slate-700">
-          {team1Name} vs {team2Name}
-        </p>
-        <p className="text-slate-500">
-          {zoneName} · {local.stage}
-        </p>
-      </div>
-
-      <div className="grid gap-2 md:grid-cols-4">
-        <input
-          value={local.scheduledAt}
-          type="datetime-local"
-          onChange={(e) =>
-            setLocal((p) => ({ ...p, scheduledAt: e.target.value }))
-          }
-          className="rounded border border-slate-300 px-2 py-1.5"
-        />
-        <input
-          value={local.court ?? ""}
-          onChange={(e) => setLocal((p) => ({ ...p, court: e.target.value }))}
-          placeholder="Cancha"
-          className="rounded border border-slate-300 px-2 py-1.5"
-        />
-        <input
-          value={local.setsText}
-          onChange={(e) =>
-            setLocal((p) => ({ ...p, setsText: e.target.value }))
-          }
-          placeholder="Sets: 6-4 6-3"
-          className="rounded border border-slate-300 px-2 py-1.5"
-        />
-        <select
-          value={local.winnerTeamId ?? ""}
-          onChange={(e) =>
-            setLocal((p) => ({ ...p, winnerTeamId: e.target.value || null }))
-          }
-          className="rounded border border-slate-300 px-2 py-1.5"
-        >
-          <option value="">Sin ganador</option>
-          {teams
-            .filter(
-              (team) => team.id === local.team1Id || team.id === local.team2Id,
-            )
-            .map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-        </select>
-      </div>
-      <div className="mt-2 flex gap-2">
-        <button
-          onClick={() =>
-            void (async () => {
-              await updateMatch(match.id, {
-                scheduled_at: local.scheduledAt
-                  ? new Date(local.scheduledAt).toISOString()
-                  : null,
-                court: local.court || null,
-              });
-
-              const parsedSets = local.setsText
-                .split(" ")
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .map((part, index) => {
-                  const [team1Games, team2Games] = part.split("-").map(Number);
-                  return {
-                    setNumber: index + 1,
-                    team1Games: team1Games || 0,
-                    team2Games: team2Games || 0,
-                  };
-                });
-
-              await replaceMatchSets(match.id, parsedSets);
-              if (local.winnerTeamId) {
-                await updateMatchResult(match.id, local.winnerTeamId);
-              }
-              await onRefresh();
-            })()
-          }
-          className="rounded border border-slate-300 px-2 py-1"
-        >
-          Guardar cambios
-        </button>
-      </div>
-    </div>
   );
 };
 

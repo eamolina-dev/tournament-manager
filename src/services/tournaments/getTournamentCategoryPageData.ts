@@ -54,14 +54,15 @@ export type TournamentCategoryPageData = {
   teams: { id: string; name: string }[]
   editableMatches: {
     id: string
-    team1Id: string
-    team2Id: string
-    groupId: string | null
-    stage: "group" | "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
-    scheduledAt: string | null
-    court: string | null
-    sets: { setNumber: number; team1Games: number; team2Games: number }[]
-    winnerTeamId: string | null
+    team1: string
+    team2: string
+    team1Id: string | null
+    team2Id: string | null
+    day: "Viernes" | "Sabado" | "Domingo"
+    time: string
+    court?: string
+    score?: string
+    sets: { team1: number; team2: number }[]
   }[]
 }
 
@@ -216,17 +217,17 @@ export const getTournamentCategoryPageData = async (
       .map((team) => ({ id: team.id ?? "", name: team.team_name ?? "Equipo" })),
     editableMatches: matches.map((match) => ({
       id: match.id,
+      team1: match.team1_source ?? teamsMap.get(match.team1_id ?? "") ?? "Equipo 1",
+      team2: match.team2_source ?? teamsMap.get(match.team2_id ?? "") ?? "Equipo 2",
       team1Id: match.team1_id,
       team2Id: match.team2_id,
-      groupId: match.group_id,
-      stage: match.stage,
-      scheduledAt: match.scheduled_at,
-      court: match.court,
-      winnerTeamId: match.winner_team_id,
+      day: toDay(match.scheduled_at),
+      time: toTime(match.scheduled_at),
+      court: match.court ?? undefined,
+      score: toScoreString(setsByMatch.get(match.id) ?? []),
       sets: (setsByMatch.get(match.id) ?? []).map((set) => ({
-        setNumber: set.set_number ?? 1,
-        team1Games: set.team1_games ?? 0,
-        team2Games: set.team2_games ?? 0,
+        team1: set.team1_games ?? 0,
+        team2: set.team2_games ?? 0,
       })),
     })),
   }

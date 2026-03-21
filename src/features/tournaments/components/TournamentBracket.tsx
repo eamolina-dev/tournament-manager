@@ -78,6 +78,7 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
 const BracketCard = ({ topParty, bottomParty }: any) => (
   <MatchCard
     match={{
+      id: `${topParty.id}-${bottomParty.id}`,
       team1: topParty.name,
       team2: bottomParty.name,
       score: topParty.resultText,
