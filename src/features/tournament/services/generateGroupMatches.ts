@@ -4,10 +4,10 @@ import type { PlannedGroup } from "./generateGroups"
 export const generateGroupMatches = (
   tournamentCategoryId: string,
   groups: PlannedGroup[],
-  groupsByName: Map<string, string>,
+  groupsByKey: Map<string, string>,
 ): MatchInsert[] =>
   groups.flatMap((group) => {
-    const groupId = groupsByName.get(group.name)
+    const groupId = groupsByKey.get(group.groupKey)
     if (!groupId) {
       throw new Error(`No se pudo crear partidos de grupo: falta el id de ${group.name}.`)
     }

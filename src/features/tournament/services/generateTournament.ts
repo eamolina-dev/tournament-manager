@@ -11,7 +11,7 @@ import {
 } from "./generateGroups"
 import { generateGroupMatches, isValidGroupMatch } from "./generateGroupMatches"
 
-type InsertedGroup = { id: string; name: string }
+type InsertedGroup = { id: string; name: string; group_key: string }
 
 const debugGeneration = (
   enabled: boolean,
@@ -33,16 +33,16 @@ const ensureGroupIds = (
     )
   }
 
-  const groupsByName = new Map(resolvedGroups.map((group) => [group.name, group.id]))
+  const groupsByKey = new Map(resolvedGroups.map((group) => [group.group_key, group.id]))
   for (const plannedGroup of plannedGroups) {
-    if (!groupsByName.get(plannedGroup.name)) {
+    if (!groupsByKey.get(plannedGroup.groupKey)) {
       throw new Error(
-        `No se encontró el id de la zona ${plannedGroup.name}. Se canceló para evitar inconsistencias.`,
+        `No se encontró el id de la zona ${plannedGroup.groupKey}. Se canceló para evitar inconsistencias.`,
       )
     }
   }
 
-  return groupsByName
+  return groupsByKey
 }
 
 const rollbackGeneratedTournamentData = async (
@@ -218,15 +218,16 @@ export const generateFullTournament = async (
         plannedGroups.map((group) => ({
           tournament_category_id: tournamentCategoryId,
           name: group.name,
+          group_key: group.groupKey,
         })),
       )
-      .select("id, name")
+      .select("id, name, group_key")
     throwIfError(insertGroupsError)
 
-    const groupsByName = ensureGroupIds(plannedGroups, insertedGroups)
+    const groupsByKey = ensureGroupIds(plannedGroups, insertedGroups)
 
     const groupTeams = plannedGroups.flatMap((group) => {
-      const groupId = groupsByName.get(group.name)
+      const groupId = groupsByKey.get(group.groupKey)
       if (!groupId) {
         throw new Error(`No se pudo asignar equipos: falta el id de ${group.name}.`)
       }
@@ -244,7 +245,7 @@ export const generateFullTournament = async (
     const groupMatches = generateGroupMatches(
       tournamentCategoryId,
       plannedGroups,
-      groupsByName,
+      groupsByKey,
     )
 
     if (groupMatches.some((match) => !isValidGroupMatch(match))) {

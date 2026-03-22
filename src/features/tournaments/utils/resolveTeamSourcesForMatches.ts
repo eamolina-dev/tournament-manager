@@ -18,32 +18,26 @@ type ResolvedMatchUpdate = {
   team2_id: string | null
 }
 
-const parseTeamSource = (
-  source?: string | null,
-): { position: number; groupKey: string } | null => {
-  if (!source) return null
-
+const parseSource = (source: string): { position: number; group: string } | null => {
   const normalized = source.trim().toUpperCase()
-  const match = normalized.match(/^(\d+)([A-Z0-9_-]+)$/)
-  if (!match) return null
+  if (!normalized.length) return null
 
-  const position = Number(match[1])
-  if (!Number.isInteger(position) || position <= 0) return null
+  const position = Number.parseInt(normalized[0], 10)
+  const group = normalized.slice(1).trim()
+  if (!Number.isInteger(position) || position <= 0 || !group) return null
 
-  return {
-    position,
-    groupKey: match[2],
-  }
+  return { position, group }
 }
 
 const resolveTeamIdFromSource = (
   source: string | null | undefined,
   standingsByGroup: StandingsByGroup,
 ): string | null => {
-  const parsed = parseTeamSource(source)
+  if (!source) return null
+  const parsed = parseSource(source)
   if (!parsed) return null
 
-  const standing = standingsByGroup[parsed.groupKey]
+  const standing = standingsByGroup[parsed.group]
   if (!standing?.length) return null
 
   return standing[parsed.position - 1]?.teamId ?? null

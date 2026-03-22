@@ -143,7 +143,7 @@ const propagateGroupToPlayoffInternal = async (
 
   const { data: group, error: groupError } = await supabase
     .from("groups")
-    .select("name")
+    .select("group_key")
     .eq("id", match.group_id)
     .single()
 
@@ -191,7 +191,7 @@ const propagateGroupToPlayoffInternal = async (
     groupTeams,
   )
 
-  const groupKey = group.name.trim().toUpperCase()
+  const groupKey = group.group_key.trim().toUpperCase()
   const standingsByGroup: StandingsByGroup = {
     [groupKey]: standings.map((standing) => ({ teamId: standing.teamId })),
   }

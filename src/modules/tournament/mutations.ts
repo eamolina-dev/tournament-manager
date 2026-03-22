@@ -183,7 +183,8 @@ export const resolveEliminationTeamSources = async (
       groupTeams,
     )
 
-    standingsByGroup[group.name.trim().toUpperCase()] = standings.map((standing) => ({
+    const groupKey = (group.group_key ?? group.name).trim().toUpperCase()
+    standingsByGroup[groupKey] = standings.map((standing) => ({
       teamId: standing.teamId,
     }))
   }

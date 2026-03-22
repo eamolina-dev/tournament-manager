@@ -168,18 +168,21 @@ export type Database = {
       groups: {
         Row: {
           created_at: string
+          group_key: string
           id: string
           name: string
           tournament_category_id: string
         }
         Insert: {
           created_at?: string
+          group_key: string
           id?: string
           name: string
           tournament_category_id?: string
         }
         Update: {
           created_at?: string
+          group_key?: string
           id?: string
           name?: string
           tournament_category_id?: string

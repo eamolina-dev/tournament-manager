@@ -1,6 +1,6 @@
 import type { Team } from "../../../shared/types/entities"
 
-export type PlannedGroup = { name: string; teamIds: string[] }
+export type PlannedGroup = { name: string; groupKey: string; teamIds: string[] }
 export type TeamRef = Pick<Team, "id">
 
 export const validateTeamRefs = (teams: TeamRef[] | null): TeamRef[] => {
@@ -79,6 +79,7 @@ export const generateGroups = (teams: TeamRef[]): PlannedGroup[] => {
     teamCursor += size
     return {
       name: `Zona ${String.fromCharCode(65 + index)}`,
+      groupKey: String.fromCharCode(65 + index),
       teamIds: slice.map((team) => team.id),
     }
   })
