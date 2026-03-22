@@ -13,6 +13,21 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
     getPlayers(),
   ])
 
+  const globalRows = computeGlobalRanking({
+    results,
+    teams: teams.map((team) => ({
+      id: team.id,
+      player1_id: team.player1_id,
+      player2_id: team.player2_id,
+      tournament_category_id: team.tournament_category_id,
+    })),
+    players: players.map((player) => ({
+      id: player.id,
+      name: player.name,
+    })),
+  })
+  const pointsByPlayerId = new Map(globalRows.map((row) => [row.playerId, row.points]))
+
   const playerPointsByCategory = new Map<string, ReturnType<typeof computeGlobalRanking>>()
 
   for (const category of rankingCategories) {
@@ -22,26 +37,15 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
       continue
     }
 
-    const tournamentCategoryIds = categories.tournamentCategories
-      .filter((item) => item.category_id === categoryId)
-      .map((item) => item.id)
+    const rows = players
+      .filter((player) => player.current_category_id === categoryId)
+      .map((player) => ({
+        playerId: player.id,
+        playerName: player.name,
+        points: pointsByPlayerId.get(player.id) ?? 0,
+      }))
+      .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
 
-    const rows = computeGlobalRanking({
-      results: results.filter((result) =>
-        Boolean(result.tournament_category_id) &&
-        tournamentCategoryIds.includes(result.tournament_category_id ?? ""),
-      ),
-      teams: teams.map((team) => ({
-        id: team.id,
-        player1_id: team.player1_id,
-        player2_id: team.player2_id,
-        tournament_category_id: team.tournament_category_id,
-      })),
-      players: players.map((player) => ({
-        id: player.id,
-        name: player.name,
-      })),
-    })
     playerPointsByCategory.set(category, rows)
   }
 

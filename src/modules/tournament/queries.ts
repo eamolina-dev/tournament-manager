@@ -71,6 +71,9 @@ export const getTournamentCategoryBySlugs = async (
     .from("tournament_categories")
     .select(`
       id,
+      gender,
+      is_suma,
+      suma_value,
       tournament:tournaments!inner(slug),
       category:categories!inner(name, slug)
     `)

@@ -631,56 +631,56 @@ export type Database = {
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_bracket"
             referencedColumns: ["team1_id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_bracket"
             referencedColumns: ["team2_id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_matches_detailed"
             referencedColumns: ["team1"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_matches_detailed"
             referencedColumns: ["team2"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_matches_with_teams"
             referencedColumns: ["team1"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_matches_with_teams"
             referencedColumns: ["team2"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_teams_with_players"
             referencedColumns: ["id"]
           },

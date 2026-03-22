@@ -18,11 +18,19 @@ export const getTeamResults = async (): Promise<Ranking[]> => {
 
 export const getCategories = async (): Promise<{
   categories: { id: string; slug: string | null }[]
-  tournamentCategories: { id: string; category_id: string | null }[]
+  tournamentCategories: {
+    id: string
+    category_id: string | null
+    gender: string | null
+    is_suma: boolean | null
+    suma_value: number | null
+  }[]
 }> => {
   const [categoriesRes, tournamentCategoriesRes] = await Promise.all([
     supabase.from("categories").select("id, slug"),
-    supabase.from("tournament_categories").select("id, category_id"),
+    supabase
+      .from("tournament_categories")
+      .select("id, category_id, gender, is_suma, suma_value"),
   ])
 
   throwIfError(categoriesRes.error)
