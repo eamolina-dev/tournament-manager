@@ -1,5 +1,10 @@
 import { supabase } from "../../lib/supabase"
 import { throwIfError } from "../../lib/throw-if-error"
+import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
+import {
+  resolveTeamSourcesForMatches,
+  type StandingsByGroup,
+} from "../../features/tournaments/utils/resolveTeamSourcesForMatches"
 import type {
   Match,
   MatchInsert,
@@ -108,10 +113,155 @@ const toWinnerSourceToken = (matchNumber: number | null): string | null => {
   return `W${matchNumber}`
 }
 
+const propagateGroupToPlayoffInternal = async (
+  match: Match,
+  visitedMatchIds: Set<string>,
+): Promise<void> => {
+  if (!match.group_id || !match.tournament_category_id) return
+
+  const { data: groupMatches, error: groupMatchesError } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("group_id", match.group_id)
+    .eq("stage", "group")
+
+  throwIfError(groupMatchesError)
+
+  if (!groupMatches.length) return
+
+  const groupCompleted = groupMatches.every((groupMatch) => Boolean(groupMatch.winner_team_id))
+  if (!groupCompleted) return
+
+  const groupMatchIds = groupMatches.map((groupMatch) => groupMatch.id)
+
+  const { data: matchSets, error: matchSetsError } = await supabase
+    .from("match_sets")
+    .select("*")
+    .in("match_id", groupMatchIds)
+
+  throwIfError(matchSetsError)
+
+  const { data: group, error: groupError } = await supabase
+    .from("groups")
+    .select("name")
+    .eq("id", match.group_id)
+    .single()
+
+  throwIfError(groupError)
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("v_teams_with_players")
+    .select("id, team_name")
+    .eq("tournament_category_id", match.tournament_category_id)
+
+  throwIfError(teamsError)
+
+  const teamsMap = new Map(
+    teams.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
+  )
+
+  const groupTeams = Array.from(
+    new Map(
+      groupMatches.flatMap((groupMatch) => {
+        const entries: [string, string][] = []
+        if (groupMatch.team1_id) {
+          entries.push([groupMatch.team1_id, teamsMap.get(groupMatch.team1_id) ?? "Equipo 1"])
+        }
+        if (groupMatch.team2_id) {
+          entries.push([groupMatch.team2_id, teamsMap.get(groupMatch.team2_id) ?? "Equipo 2"])
+        }
+        return entries
+      }),
+    ),
+  ).map(([id, name]) => ({ id, name }))
+
+  if (!groupTeams.length) return
+
+  const standings = computeGroupStandings(
+    groupMatches.map((groupMatch) => ({
+      id: groupMatch.id,
+      team1Id: groupMatch.team1_id,
+      team2Id: groupMatch.team2_id,
+    })),
+    matchSets.map((set) => ({
+      matchId: set.match_id ?? "",
+      team1_score: set.team1_games ?? 0,
+      team2_score: set.team2_games ?? 0,
+    })),
+    groupTeams,
+  )
+
+  const groupKey = group.name.trim().toUpperCase()
+  const standingsByGroup: StandingsByGroup = {
+    [groupKey]: standings.map((standing) => ({ teamId: standing.teamId })),
+  }
+
+  const { data: playoffMatches, error: playoffMatchesError } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("tournament_category_id", match.tournament_category_id)
+    .neq("stage", "group")
+
+  throwIfError(playoffMatchesError)
+
+  const updates = resolveTeamSourcesForMatches(
+    playoffMatches.map((playoffMatch) => ({
+      id: playoffMatch.id,
+      team1_id: playoffMatch.team1_id,
+      team2_id: playoffMatch.team2_id,
+      team1_source: playoffMatch.team1_source,
+      team2_source: playoffMatch.team2_source,
+    })),
+    standingsByGroup,
+  )
+
+  if (!updates.length) return
+
+  for (const update of updates) {
+    const currentMatch = playoffMatches.find((playoffMatch) => playoffMatch.id === update.id)
+    if (!currentMatch) continue
+
+    const updatePayload: MatchUpdate = {}
+
+    if (
+      update.team1_id &&
+      (currentMatch.team1_id === null || currentMatch.team1_id === update.team1_id)
+    ) {
+      updatePayload.team1_id = update.team1_id
+    }
+    if (
+      update.team2_id &&
+      (currentMatch.team2_id === null || currentMatch.team2_id === update.team2_id)
+    ) {
+      updatePayload.team2_id = update.team2_id
+    }
+
+    if (!Object.keys(updatePayload).length) continue
+
+    const { data: updatedPlayoffMatch, error: updateError } = await supabase
+      .from("matches")
+      .update(updatePayload)
+      .eq("id", update.id)
+      .select("*")
+      .single()
+
+    throwIfError(updateError)
+
+    if (updatedPlayoffMatch.winner_team_id) {
+      await propagateMatchWinnerInternal(updatedPlayoffMatch, visitedMatchIds)
+    }
+  }
+}
+
 const propagateMatchWinnerInternal = async (
   match: Match,
   visitedMatchIds: Set<string>
 ): Promise<void> => {
+  if (match.group_id) {
+    await propagateGroupToPlayoffInternal(match, visitedMatchIds)
+    return
+  }
+
   if (!match.winner_team_id || !match.next_match_id) return
   if (visitedMatchIds.has(match.id)) return
 
@@ -135,6 +285,15 @@ const propagateMatchWinnerInternal = async (
   }
   if (nextMatch.team2_source === winnerSourceToken) {
     updatePayload.team2_id = match.winner_team_id
+  }
+  if (!Object.keys(updatePayload).length) {
+    if (nextMatch.team1_id === match.winner_team_id || nextMatch.team2_id === match.winner_team_id) {
+      // Already assigned.
+    } else if (!nextMatch.team1_id) {
+      updatePayload.team1_id = match.winner_team_id
+    } else if (!nextMatch.team2_id) {
+      updatePayload.team2_id = match.winner_team_id
+    }
   }
 
   if (Object.keys(updatePayload).length) {
