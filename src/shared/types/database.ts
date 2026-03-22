@@ -528,62 +528,39 @@ export type Database = {
           },
         ]
       }
-      player_categories: {
-        Row: {
-          category_id: string | null
-          created_at: string
-          id: string
-          player_id: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string
-          id?: string
-          player_id?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string
-          id?: string
-          player_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "player_categories_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "player_categories_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       players: {
         Row: {
           circuit_id: string | null
           created_at: string
+          current_category_id: string | null
+          gender: string | null
           id: string
           name: string
         }
         Insert: {
           circuit_id?: string | null
           created_at?: string
+          current_category_id?: string | null
+          gender?: string | null
           id?: string
           name: string
         }
         Update: {
           circuit_id?: string | null
           created_at?: string
+          current_category_id?: string | null
+          gender?: string | null
           id?: string
           name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "players_category_fkey"
+            columns: ["current_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "players_circuit_id_fkey"
             columns: ["circuit_id"]
@@ -639,7 +616,7 @@ export type Database = {
           final_position: number
           id?: string
           points_awarded?: number | null
-          team_id?: string
+          team_id: string
           tournament_category_id?: string | null
         }
         Update: {
@@ -772,19 +749,28 @@ export type Database = {
         Row: {
           category_id: string | null
           created_at: string
+          gender: string | null
           id: string
+          is_suma: boolean | null
+          suma_value: number | null
           tournament_id: string | null
         }
         Insert: {
           category_id?: string | null
           created_at?: string
+          gender?: string | null
           id?: string
+          is_suma?: boolean | null
+          suma_value?: number | null
           tournament_id?: string | null
         }
         Update: {
           category_id?: string | null
           created_at?: string
+          gender?: string | null
           id?: string
+          is_suma?: boolean | null
+          suma_value?: number | null
           tournament_id?: string | null
         }
         Relationships: [
