@@ -66,8 +66,6 @@ const buildFourTeamGroupMatches = (
     match_number: 3,
     team1_id: teamIds[0],
     team2_id: teamIds[2],
-    team1_source: "W1",
-    team2_source: "W2",
   },
   {
     tournament_category_id: tournamentCategoryId,
@@ -76,8 +74,6 @@ const buildFourTeamGroupMatches = (
     match_number: 4,
     team1_id: teamIds[1],
     team2_id: teamIds[3],
-    team1_source: "L1",
-    team2_source: "L2",
   },
 ]
 

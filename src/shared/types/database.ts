@@ -263,6 +263,8 @@ export type Database = {
           next_match_id: string | null
           next_match_slot: number | null
           order_in_day: number | null
+          round: number | null
+          round_order: number | null
           scheduled_at: string | null
           stage: Database["public"]["Enums"]["match_stage"]
           status: string | null
@@ -282,6 +284,8 @@ export type Database = {
           next_match_id?: string | null
           next_match_slot?: number | null
           order_in_day?: number | null
+          round?: number | null
+          round_order?: number | null
           scheduled_at?: string | null
           stage: Database["public"]["Enums"]["match_stage"]
           status?: string | null
@@ -301,6 +305,8 @@ export type Database = {
           next_match_id?: string | null
           next_match_slot?: number | null
           order_in_day?: number | null
+          round?: number | null
+          round_order?: number | null
           scheduled_at?: string | null
           stage?: Database["public"]["Enums"]["match_stage"]
           status?: string | null

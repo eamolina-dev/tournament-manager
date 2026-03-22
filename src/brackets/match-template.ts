@@ -1,5 +1,7 @@
 export type MatchTemplate = {
   matchNumber: number
+  round: number
+  order: number
   stage: string
 
   team1: string

@@ -2,6 +2,7 @@ import { supabase } from "../../lib/supabase"
 import { throwIfError } from "../../lib/throw-if-error"
 import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
 import {
+  parseSource,
   resolveTeamSourcesForMatches,
   type StandingsByGroup,
 } from "../../features/tournaments/utils/resolveTeamSourcesForMatches"
@@ -108,11 +109,6 @@ export const updateMatchResult = async (
   return data
 }
 
-const toWinnerSourceToken = (matchNumber: number | null): string | null => {
-  if (!matchNumber) return null
-  return `W${matchNumber}`
-}
-
 const propagateGroupToPlayoffInternal = async (
   match: Match,
   visitedMatchIds: Set<string>,
@@ -213,6 +209,12 @@ const propagateGroupToPlayoffInternal = async (
       team2_source: playoffMatch.team2_source,
     })),
     standingsByGroup,
+    playoffMatches.map((playoffMatch) => ({
+      id: playoffMatch.id,
+      round: playoffMatch.round,
+      round_order: playoffMatch.round_order,
+      winner_team_id: playoffMatch.winner_team_id,
+    })),
   )
 
   if (!updates.length) return
@@ -264,11 +266,9 @@ const propagateMatchWinnerInternal = async (
 
   if (!match.winner_team_id || !match.next_match_id) return
   if (visitedMatchIds.has(match.id)) return
+  if (!match.round || !match.round_order) return
 
   visitedMatchIds.add(match.id)
-
-  const winnerSourceToken = toWinnerSourceToken(match.match_number)
-  if (!winnerSourceToken) return
 
   const { data: nextMatch, error: nextMatchError } = await supabase
     .from("matches")
@@ -279,21 +279,26 @@ const propagateMatchWinnerInternal = async (
   throwIfError(nextMatchError)
 
   const updatePayload: MatchUpdate = {}
+  const winnerToken = `W-${match.round_order}-${match.round}`
 
-  if (nextMatch.team1_source === winnerSourceToken) {
+  const team1Source = nextMatch.team1_source ? parseSource(nextMatch.team1_source) : null
+  const team2Source = nextMatch.team2_source ? parseSource(nextMatch.team2_source) : null
+
+  if (
+    team1Source?.type === "playoff" &&
+    nextMatch.team1_source?.trim().toUpperCase() === winnerToken &&
+    (nextMatch.team1_id === null || nextMatch.team1_id === match.winner_team_id) &&
+    nextMatch.team2_id !== match.winner_team_id
+  ) {
     updatePayload.team1_id = match.winner_team_id
   }
-  if (nextMatch.team2_source === winnerSourceToken) {
+  if (
+    team2Source?.type === "playoff" &&
+    nextMatch.team2_source?.trim().toUpperCase() === winnerToken &&
+    (nextMatch.team2_id === null || nextMatch.team2_id === match.winner_team_id) &&
+    (updatePayload.team1_id ?? nextMatch.team1_id) !== match.winner_team_id
+  ) {
     updatePayload.team2_id = match.winner_team_id
-  }
-  if (!Object.keys(updatePayload).length) {
-    if (nextMatch.team1_id === match.winner_team_id || nextMatch.team2_id === match.winner_team_id) {
-      // Already assigned.
-    } else if (!nextMatch.team1_id) {
-      updatePayload.team1_id = match.winner_team_id
-    } else if (!nextMatch.team2_id) {
-      updatePayload.team2_id = match.winner_team_id
-    }
   }
 
   if (Object.keys(updatePayload).length) {

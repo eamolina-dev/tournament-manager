@@ -28,6 +28,8 @@ export const generateEliminationMatches = async ({
     tournament_category_id: tournamentCategoryId,
     stage: templateMatch.stage as MatchInsert["stage"],
     match_number: templateMatch.matchNumber,
+    round: templateMatch.round,
+    round_order: templateMatch.order,
     team1_source: templateMatch.team1,
     team2_source: templateMatch.team2,
     group_id: null,
