@@ -1,6 +1,5 @@
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
 import { getPlayersByIds } from "../../modules/player/queries"
-import { persistTournamentResults } from "../../modules/ranking/mutations"
 import { getRankingTableByCategory } from "../../modules/ranking/queries"
 import { getTeamPlayersByCategory, getTeamsByCategory } from "../../modules/team/queries"
 import {
@@ -144,21 +143,6 @@ export const getTournamentCategoryPageData = async (
   ) as string[]
   const players = await getPlayersByIds(uniquePlayerIds)
 
-  await persistTournamentResults({
-    tournamentCategoryId,
-    circuitId: tournament.circuit_id,
-    matches: matches.map((match) => ({
-      stage: match.stage ?? undefined,
-      team1Id: match.team1_id,
-      team2Id: match.team2_id,
-      winnerTeamId: match.winner_team_id,
-    })),
-    teams: rawTeams.map((team) => ({
-      id: team.id,
-      player1Id: team.player1_id,
-      player2Id: team.player2_id,
-    })),
-  })
   const persistedResults = await getRankingTableByCategory(tournamentCategoryId)
 
   const matchSets = await getMatchSetsByMatchIds(matches.map((match) => match.id))

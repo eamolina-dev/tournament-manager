@@ -47,16 +47,10 @@ export const persistTournamentResults = async ({
     }
   })
 
-  const { error: deleteError } = await supabase
-    .from("team_results")
-    .delete()
-    .eq("tournament_category_id", tournamentCategoryId)
-  throwIfError(deleteError)
-
   if (!rows.length) return
 
   const { error: insertError } = await supabase
     .from("team_results")
-    .insert(rows)
+    .upsert(rows, { onConflict: "team_id,tournament_category_id" })
   throwIfError(insertError)
 }
