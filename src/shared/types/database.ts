@@ -80,10 +80,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          group_id?: string
+          group_id: string
           id?: string
           position?: number | null
-          team_id?: string
+          team_id: string
         }
         Update: {
           created_at?: string
@@ -168,21 +168,21 @@ export type Database = {
       groups: {
         Row: {
           created_at: string
-          group_key: string
+          group_key: string | null
           id: string
           name: string
           tournament_category_id: string
         }
         Insert: {
           created_at?: string
-          group_key: string
+          group_key?: string | null
           id?: string
           name: string
-          tournament_category_id?: string
+          tournament_category_id: string
         }
         Update: {
           created_at?: string
-          group_key?: string
+          group_key?: string | null
           id?: string
           name?: string
           tournament_category_id?: string
@@ -209,7 +209,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          match_id?: string
+          match_id: string
           set_number: number
           team1_games: number
           team2_games: number
@@ -293,7 +293,7 @@ export type Database = {
           team1_source?: string | null
           team2_id?: string | null
           team2_source?: string | null
-          tournament_category_id?: string
+          tournament_category_id: string
           winner_team_id?: string | null
         }
         Update: {
@@ -588,7 +588,7 @@ export type Database = {
           position: number
         }
         Insert: {
-          circuit_id?: string
+          circuit_id: string
           created_at?: string
           id?: string
           points: number
@@ -640,56 +640,56 @@ export type Database = {
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_bracket"
             referencedColumns: ["team1_id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_bracket"
             referencedColumns: ["team2_id"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_matches_detailed"
             referencedColumns: ["team1"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_matches_detailed"
             referencedColumns: ["team2"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_matches_with_teams"
             referencedColumns: ["team1"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_matches_with_teams"
             referencedColumns: ["team2"]
           },
           {
             foreignKeyName: "team_results_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_teams_with_players"
             referencedColumns: ["id"]
           },
@@ -709,17 +709,15 @@ export type Database = {
           id: string
           player1_id: string
           player2_id: string
-          seed: number | null
           tournament_category_id: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           id?: string
-          player1_id?: string
-          player2_id?: string
-          seed?: number | null
-          tournament_category_id?: string
+          player1_id: string
+          player2_id: string
+          tournament_category_id: string
         }
         Update: {
           created_at?: string
@@ -727,7 +725,6 @@ export type Database = {
           id?: string
           player1_id?: string
           player2_id?: string
-          seed?: number | null
           tournament_category_id?: string
         }
         Relationships: [
