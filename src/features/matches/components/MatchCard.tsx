@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Match } from "../../tournaments/types";
 
+export type MatchSetScore = { team1: number; team2: number };
+
 type MatchCardProps = {
   match: Pick<
     Match,
@@ -13,9 +15,17 @@ type MatchCardProps = {
   isEditable?: boolean;
   onSaveResult?: (input: {
     matchId: string;
-    sets: { team1: number; team2: number }[];
+    sets: MatchSetScore[];
     winnerTeamId: string | null;
   }) => Promise<void>;
+  onEditStateChange?: (input: {
+    matchId: string;
+    sets: MatchSetScore[] | null;
+    error: string | null;
+  }) => void;
+  isModified?: boolean;
+  externalError?: string;
+  hideSaveButton?: boolean;
 };
 
 const EMPTY_SETS = [
@@ -51,14 +61,55 @@ const buildInitialSets = (match: MatchCardProps["match"]) => {
   return [...mapped, ...EMPTY_SETS.slice(mapped.length)];
 };
 
+const areEditableSetsEqual = (
+  left: { team1: string; team2: string }[],
+  right: { team1: string; team2: string }[],
+) =>
+  left.length === right.length &&
+  left.every(
+    (set, index) =>
+      set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2,
+  );
+
+export const validateMatchSets = (sets: { team1: string; team2: string }[]) => {
+  const cleanSets: MatchSetScore[] = [];
+  for (const set of sets) {
+    const bothEmpty = set.team1.trim() === "" && set.team2.trim() === "";
+    if (bothEmpty) continue;
+
+    if (set.team1.trim() === "" || set.team2.trim() === "") {
+      return { error: "Cada set cargado debe tener ambos scores." };
+    }
+
+    const team1 = Number(set.team1);
+    const team2 = Number(set.team2);
+    if (Number.isNaN(team1) || Number.isNaN(team2)) {
+      return { error: "Los scores deben ser números." };
+    }
+
+    cleanSets.push({ team1, team2 });
+  }
+
+  if (!cleanSets.length) {
+    return { error: "Debés cargar al menos un set." };
+  }
+
+  return { sets: cleanSets };
+};
+
 export const MatchCard = ({
   match,
   isEditable = false,
   onSaveResult,
+  onEditStateChange,
+  isModified = false,
+  externalError,
+  hideSaveButton = false,
 }: MatchCardProps) => {
   const [sets, setSets] = useState(buildInitialSets(match));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const initialSets = useMemo(() => buildInitialSets(match), [match]);
 
   const visibleScore = useMemo(() => {
     const cleanSets = sets
@@ -85,36 +136,32 @@ export const MatchCard = ({
   };
 
   useEffect(() => {
-    setSets(buildInitialSets(match));
-  }, [match]);
+    setSets(initialSets);
+  }, [initialSets]);
+
+  useEffect(() => {
+    if (!isEditable || !onEditStateChange) return;
+    if (areEditableSetsEqual(sets, initialSets)) {
+      onEditStateChange({ matchId: match.id, sets: null, error: null });
+      return;
+    }
+    const validation = validateMatchSets(sets);
+    onEditStateChange({
+      matchId: match.id,
+      sets: "sets" in validation ? validation.sets : null,
+      error: "error" in validation ? validation.error : null,
+    });
+  }, [initialSets, isEditable, match.id, onEditStateChange, sets]);
 
   const handleSave = async () => {
     if (!onSaveResult) return;
 
-    const cleanSets: { team1: number; team2: number }[] = [];
-    for (const set of sets) {
-      const bothEmpty = set.team1.trim() === "" && set.team2.trim() === "";
-      if (bothEmpty) continue;
-
-      if (set.team1.trim() === "" || set.team2.trim() === "") {
-        setError("Cada set cargado debe tener ambos scores.");
-        return;
-      }
-
-      const team1 = Number(set.team1);
-      const team2 = Number(set.team2);
-      if (Number.isNaN(team1) || Number.isNaN(team2)) {
-        setError("Los scores deben ser números.");
-        return;
-      }
-
-      cleanSets.push({ team1, team2 });
-    }
-
-    if (!cleanSets.length) {
-      setError("Debés cargar al menos un set.");
+    const validation = validateMatchSets(sets);
+    if (!("sets" in validation)) {
+      setError(validation.error);
       return;
     }
+    const cleanSets = validation.sets;
 
     let team1Won = 0;
     let team2Won = 0;
@@ -146,7 +193,11 @@ export const MatchCard = ({
   };
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-3">
+    <article
+      className={`rounded-xl border bg-white p-3 ${
+        isModified ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200"
+      }`}
+    >
       <div className="overflow-x-auto">
         <div className="min-w-[280px] rounded-lg border border-slate-100 bg-slate-50/60 p-2">
           <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(3rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
@@ -247,15 +298,19 @@ export const MatchCard = ({
 
       {isEditable && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {(externalError || error) && (
+            <p className="text-xs text-red-600">{externalError || error}</p>
+          )}
 
-          <button
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
-          >
-            {saving ? "Guardando..." : "Guardar resultado"}
-          </button>
+          {!hideSaveButton && (
+            <button
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
+            >
+              {saving ? "Guardando..." : "Guardar resultado"}
+            </button>
+          )}
         </div>
       )}
     </article>

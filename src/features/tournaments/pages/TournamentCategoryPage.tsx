@@ -12,7 +12,10 @@ import {
   resolveEliminationTeamSources,
 } from "../../../modules/tournament/mutations";
 import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
-import { MatchCard } from "../../matches/components/MatchCard";
+import {
+  MatchCard,
+  type MatchSetScore,
+} from "../../matches/components/MatchCard";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
@@ -38,6 +41,15 @@ type TeamFormState = {
   player2Id: string;
   player2NewName: string;
 };
+
+type EditedResultsState = Record<
+  string,
+  {
+    sets: MatchSetScore[];
+  }
+>;
+
+type MatchErrorState = Record<string, string>;
 
 const NEW_PLAYER_OPTION = "__new__";
 
@@ -71,6 +83,18 @@ export const TournamentCategoryPage = ({
   });
   const [playersQuery, setPlayersQuery] = useState("");
   const [resultsQuery, setResultsQuery] = useState("");
+  const [zoneEditedResults, setZoneEditedResults] = useState<
+    Record<string, EditedResultsState>
+  >({});
+  const [zoneMatchErrors, setZoneMatchErrors] = useState<
+    Record<string, MatchErrorState>
+  >({});
+  const [bracketEditedResults, setBracketEditedResults] = useState<EditedResultsState>(
+    {},
+  );
+  const [bracketMatchErrors, setBracketMatchErrors] = useState<MatchErrorState>({});
+  const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
+  const [savingBracket, setSavingBracket] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -115,14 +139,57 @@ export const TournamentCategoryPage = ({
   const filteredPlayers = useSearchFilter(players, playersQuery);
   const filteredResults = useSearchFilter(data?.results ?? [], resultsQuery);
 
+  const parseStoredSets = (
+    score?: string,
+    sets?: { team1: number; team2: number }[],
+  ): MatchSetScore[] => {
+    if (sets?.length) return sets;
+    if (!score) return [];
+    return score
+      .split(" ")
+      .map((set) => {
+        const [team1, team2] = set.split("-").map(Number);
+        if (Number.isNaN(team1) || Number.isNaN(team2)) return null;
+        return { team1, team2 };
+      })
+      .filter((set): set is MatchSetScore => Boolean(set));
+  };
+
+  const areSetsEqual = (left: MatchSetScore[], right: MatchSetScore[]) =>
+    left.length === right.length &&
+    left.every(
+      (set, index) =>
+        set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2,
+    );
+
+  const computeWinnerTeamId = (
+    team1Id: string | null | undefined,
+    team2Id: string | null | undefined,
+    sets: MatchSetScore[],
+  ) => {
+    let team1Won = 0;
+    let team2Won = 0;
+    sets.forEach((set) => {
+      if (set.team1 > set.team2) team1Won += 1;
+      if (set.team2 > set.team1) team2Won += 1;
+    });
+
+    if (!team1Id || !team2Id) return null;
+    if (team1Won > team2Won) return team1Id;
+    if (team2Won > team1Won) return team2Id;
+    return null;
+  };
+
   const saveMatchResult = async ({
     matchId,
     sets,
     winnerTeamId,
+    shouldReload = true,
   }: {
     matchId: string;
-    sets: { team1: number; team2: number }[];
+    sets: MatchSetScore[];
     winnerTeamId: string | null;
+    shouldReload?: boolean;
   }) => {
     await replaceMatchSets(
       matchId,
@@ -140,7 +207,158 @@ export const TournamentCategoryPage = ({
     } catch (error) {
       console.error("No se pudo propagar el ganador del match:", error);
     }
-    await load();
+    if (shouldReload) {
+      await load();
+    }
+  };
+
+  const handleZoneEditStateChange = (
+    zoneMatchId: string,
+    input: { sets: MatchSetScore[] | null; error: string | null },
+  ) => {
+    if (!activeZone) return;
+    const match = activeZone.matches.find((item) => item.id === zoneMatchId);
+    if (!match) return;
+
+    const baselineSets = parseStoredSets(match.score, match.sets);
+
+    setZoneMatchErrors((prev) => {
+      const zoneErrors = { ...(prev[activeZone.id] ?? {}) };
+      if (input.error) zoneErrors[zoneMatchId] = input.error;
+      else delete zoneErrors[zoneMatchId];
+      return { ...prev, [activeZone.id]: zoneErrors };
+    });
+
+    setZoneEditedResults((prev) => {
+      const zoneEdits = { ...(prev[activeZone.id] ?? {}) };
+      if (!input.sets || input.error || areSetsEqual(input.sets, baselineSets)) {
+        delete zoneEdits[zoneMatchId];
+      } else {
+        zoneEdits[zoneMatchId] = { sets: input.sets };
+      }
+      return { ...prev, [activeZone.id]: zoneEdits };
+    });
+  };
+
+  const handleBracketEditStateChange = (
+    matchId: string,
+    input: { sets: MatchSetScore[] | null; error: string | null },
+  ) => {
+    const match = data?.bracketMatches.find((item) => item.id === matchId);
+    if (!match) return;
+    const baselineSets = parseStoredSets(match.score, match.sets);
+
+    setBracketMatchErrors((prev) => {
+      const next = { ...prev };
+      if (input.error) next[matchId] = input.error;
+      else delete next[matchId];
+      return next;
+    });
+
+    setBracketEditedResults((prev) => {
+      const next = { ...prev };
+      if (!input.sets || input.error || areSetsEqual(input.sets, baselineSets)) {
+        delete next[matchId];
+      } else {
+        next[matchId] = { sets: input.sets };
+      }
+      return next;
+    });
+  };
+
+  const saveZoneResultsBatch = async () => {
+    if (!activeZone) return;
+    const editedMatches = zoneEditedResults[activeZone.id] ?? {};
+    const entries = Object.entries(editedMatches);
+    if (!entries.length) return;
+
+    setSavingZoneId(activeZone.id);
+    const nextErrors: MatchErrorState = {};
+
+    try {
+      for (const [matchId, payload] of entries) {
+        const match = activeZone.matches.find((item) => item.id === matchId);
+        if (!match) {
+          nextErrors[matchId] = "No se encontró el partido.";
+          continue;
+        }
+        if (!payload.sets.length) {
+          nextErrors[matchId] = "Debés cargar al menos un set.";
+          continue;
+        }
+
+        const winnerTeamId = computeWinnerTeamId(match.team1Id, match.team2Id, payload.sets);
+        try {
+          await saveMatchResult({
+            matchId,
+            sets: payload.sets,
+            winnerTeamId,
+            shouldReload: false,
+          });
+        } catch (error) {
+          nextErrors[matchId] =
+            error instanceof Error ? error.message : "Error al guardar.";
+        }
+      }
+
+      setZoneMatchErrors((prev) => ({ ...prev, [activeZone.id]: nextErrors }));
+      setZoneEditedResults((prev) => ({
+        ...prev,
+        [activeZone.id]: Object.fromEntries(
+          Object.entries(editedMatches).filter(([matchId]) => Boolean(nextErrors[matchId])),
+        ),
+      }));
+
+      await load();
+    } finally {
+      setSavingZoneId(null);
+    }
+  };
+
+  const saveBracketResultsBatch = async () => {
+    const entries = Object.entries(bracketEditedResults);
+    if (!entries.length) return;
+
+    setSavingBracket(true);
+    const nextErrors: MatchErrorState = {};
+
+    try {
+      for (const [matchId, payload] of entries) {
+        const match = data?.bracketMatches.find((item) => item.id === matchId);
+        if (!match) {
+          nextErrors[matchId] = "No se encontró el partido.";
+          continue;
+        }
+        if (!payload.sets.length) {
+          nextErrors[matchId] = "Debés cargar al menos un set.";
+          continue;
+        }
+
+        const winnerTeamId = computeWinnerTeamId(match.team1Id, match.team2Id, payload.sets);
+        try {
+          await saveMatchResult({
+            matchId,
+            sets: payload.sets,
+            winnerTeamId,
+            shouldReload: false,
+          });
+        } catch (error) {
+          nextErrors[matchId] =
+            error instanceof Error ? error.message : "Error al guardar.";
+        }
+      }
+
+      setBracketMatchErrors(nextErrors);
+      setBracketEditedResults((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(([matchId]) => Boolean(nextErrors[matchId])),
+        ),
+      );
+
+      await load();
+    } finally {
+      setSavingBracket(false);
+    }
   };
 
   if (loading)
@@ -573,14 +791,43 @@ export const TournamentCategoryPage = ({
               </div>
               <div className="mt-4 grid gap-2">
                 {activeZone.matches.length ? (
-                  activeZone.matches.map((match) => (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      isEditable={isOwner}
-                      onSaveResult={isOwner ? saveMatchResult : undefined}
-                    />
-                  ))
+                  <>
+                    {activeZone.matches.map((match) => (
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        isEditable={isOwner}
+                        hideSaveButton={isOwner}
+                        isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
+                        externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                        onEditStateChange={
+                          isOwner
+                            ? ({ sets, error }) =>
+                                handleZoneEditStateChange(match.id, { sets, error })
+                            : undefined
+                        }
+                      />
+                    ))}
+                    {isOwner && (
+                      <div className="mt-2 flex items-center gap-3">
+                        <button
+                          onClick={() => void saveZoneResultsBatch()}
+                          disabled={
+                            savingZoneId === activeZone.id ||
+                            !Object.keys(zoneEditedResults[activeZone.id] ?? {}).length
+                          }
+                          className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {savingZoneId === activeZone.id
+                            ? "Guardando..."
+                            : "Guardar resultados"}
+                        </button>
+                        <span className="text-xs text-slate-500">
+                          Editados: {Object.keys(zoneEditedResults[activeZone.id] ?? {}).length}
+                        </span>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-sm text-slate-500">
                     No hay partidos cargados en esta zona.
@@ -590,7 +837,47 @@ export const TournamentCategoryPage = ({
             </section>
           )}
           {activeTab === "Cruces" && (
-            <TournamentBracket matches={data.bracketMatches} />
+            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <TournamentBracket matches={data.bracketMatches} />
+
+              {data.bracketMatches.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Edición de cruces
+                  </p>
+                  {data.bracketMatches.map((match) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      isEditable={isOwner}
+                      hideSaveButton={isOwner}
+                      isModified={Boolean(bracketEditedResults[match.id])}
+                      externalError={bracketMatchErrors[match.id]}
+                      onEditStateChange={
+                        isOwner
+                          ? ({ sets, error }) =>
+                              handleBracketEditStateChange(match.id, { sets, error })
+                          : undefined
+                      }
+                    />
+                  ))}
+                  {isOwner && (
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        onClick={() => void saveBracketResultsBatch()}
+                        disabled={savingBracket || !Object.keys(bracketEditedResults).length}
+                        className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingBracket ? "Guardando..." : "Guardar resultados"}
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        Editados: {Object.keys(bracketEditedResults).length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </section>
           )}
           {activeTab === "Resultados" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
