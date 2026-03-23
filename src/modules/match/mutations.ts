@@ -1,6 +1,7 @@
 import { supabase } from "../../lib/supabase"
 import { throwIfError } from "../../lib/throw-if-error"
 import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
+import { recalculateProgressiveTeamResults } from "../ranking/mutations"
 import {
   parseSource,
   resolveTeamSourcesForMatches,
@@ -60,6 +61,9 @@ export const updateMatch = async (
     .single()
 
   throwIfError(error)
+  if ("winner_team_id" in input && data.tournament_category_id) {
+    await recalculateProgressiveTeamResults(data.tournament_category_id)
+  }
   return data
 }
 
@@ -106,6 +110,9 @@ export const updateMatchResult = async (
     .single()
 
   throwIfError(error)
+  if (data.tournament_category_id) {
+    await recalculateProgressiveTeamResults(data.tournament_category_id)
+  }
   return data
 }
 
