@@ -142,7 +142,7 @@ export const MatchCard = ({
     <article className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="overflow-x-auto">
         <div className="min-w-[280px] rounded-lg border border-slate-100 bg-slate-50/60 p-2">
-          <div className="grid grid-cols-[minmax(112px,1fr)_repeat(3,minmax(2rem,1fr))] items-center gap-y-1 text-center">
+          <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(1.9rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
             <div />
             {SET_COLUMNS.map((setNumber) => (
               <div
@@ -159,15 +159,18 @@ export const MatchCard = ({
             {setGridData.map((set, index) => (
               <div
                 key={`team1-${index}`}
-                className="text-base font-semibold text-slate-800"
+                className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
               >
                 {set.team1 || "—"}
               </div>
             ))}
 
-            <div className="col-span-4 py-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="py-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               vs
             </div>
+            {SET_COLUMNS.map((setNumber) => (
+              <div key={`vs-${setNumber}`} className="h-px bg-slate-200" />
+            ))}
 
             <div className="pr-2 text-left text-sm font-semibold text-slate-900">
               {match.team2}
@@ -175,7 +178,7 @@ export const MatchCard = ({
             {setGridData.map((set, index) => (
               <div
                 key={`team2-${index}`}
-                className="text-base font-semibold text-slate-800"
+                className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
               >
                 {set.team2 || "—"}
               </div>
