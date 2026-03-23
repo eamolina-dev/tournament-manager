@@ -15,6 +15,8 @@ import { getTournamentCategoryPageData } from "../../../services/tournaments/get
 import { MatchCard } from "../../matches/components/MatchCard";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
+import { SearchInput } from "../../../shared/components/SearchInput";
+import { useSearchFilter } from "../../../shared/hooks/useSearchFilter";
 
 type TournamentCategoryPageProps = {
   slug: string;
@@ -67,6 +69,8 @@ export const TournamentCategoryPage = ({
     player2Id: "",
     player2NewName: "",
   });
+  const [playersQuery, setPlayersQuery] = useState("");
+  const [resultsQuery, setResultsQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -108,6 +112,8 @@ export const TournamentCategoryPage = ({
   }, [data]);
 
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
+  const filteredPlayers = useSearchFilter(players, playersQuery);
+  const filteredResults = useSearchFilter(data?.results ?? [], resultsQuery);
 
   const saveMatchResult = async ({
     matchId,
@@ -210,6 +216,16 @@ export const TournamentCategoryPage = ({
             <p className="mt-1 text-xs text-slate-500">
               Seleccioná jugadores existentes o crealos en el momento.
             </p>
+            <div className="mt-3">
+              <SearchInput
+                value={playersQuery}
+                onChange={setPlayersQuery}
+                placeholder="Buscar jugador para armar equipo..."
+              />
+              {!filteredPlayers.length && (
+                <p className="mt-2 text-xs text-slate-500">No se encontraron jugadores.</p>
+              )}
+            </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -230,7 +246,7 @@ export const TournamentCategoryPage = ({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   <option value="">Seleccionar jugador</option>
-                  {players.map((player) => (
+                  {filteredPlayers.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
                     </option>
@@ -270,7 +286,7 @@ export const TournamentCategoryPage = ({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   <option value="">Sin segundo jugador</option>
-                  {players.map((player) => (
+                  {filteredPlayers.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
                     </option>
@@ -578,6 +594,13 @@ export const TournamentCategoryPage = ({
           )}
           {activeTab === "Resultados" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-3">
+                <SearchInput
+                  value={resultsQuery}
+                  onChange={setResultsQuery}
+                  placeholder="Buscar jugador en resultados..."
+                />
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -587,17 +610,25 @@ export const TournamentCategoryPage = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {data.results.map((row) => (
-                      <tr
-                        key={row.playerId}
-                        className="border-b border-slate-100 last:border-none"
-                      >
-                        <td className="py-2 text-slate-700">{row.playerName}</td>
-                        <td className="py-2 text-right font-semibold text-slate-900">
-                          {row.points}
+                    {filteredResults.length ? (
+                      filteredResults.map((row) => (
+                        <tr
+                          key={row.playerId}
+                          className="border-b border-slate-100 last:border-none"
+                        >
+                          <td className="py-2 text-slate-700">{row.playerName}</td>
+                          <td className="py-2 text-right font-semibold text-slate-900">
+                            {row.points}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={2} className="py-4 text-center text-slate-500">
+                          No se encontraron jugadores.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

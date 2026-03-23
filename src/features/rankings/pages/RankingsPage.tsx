@@ -6,10 +6,13 @@ import {
   rankingCategories,
   type CategoryCode,
 } from "../../../types/ranking"
+import { SearchInput } from "../../../shared/components/SearchInput"
+import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
 
 export const RankingsPage = () => {
   const [selected, setSelected] = useState<CategoryCode>("6ta")
   const [rankings, setRankings] = useState(createEmptyCategoryRankingMap)
+  const [query, setQuery] = useState("")
 
   useEffect(() => {
     const load = async () => {
@@ -27,6 +30,7 @@ export const RankingsPage = () => {
   }, [])
 
   const rows = useMemo(() => rankings[selected], [rankings, selected])
+  const filteredRows = useSearchFilter(rows, query)
 
   return (
     <section className="flex flex-col gap-3">
@@ -46,7 +50,19 @@ export const RankingsPage = () => {
         ))}
       </div>
 
-      <RankingTable rows={rows} />
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Buscar jugador en ranking..."
+      />
+
+      {filteredRows.length ? (
+        <RankingTable rows={filteredRows} />
+      ) : (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          No se encontraron jugadores.
+        </section>
+      )}
     </section>
   )
 }
