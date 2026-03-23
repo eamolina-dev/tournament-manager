@@ -23,6 +23,7 @@ const EMPTY_SETS = [
   { team1: "", team2: "" },
   { team1: "", team2: "" },
 ];
+const SET_COLUMNS = [1, 2, 3] as const;
 
 const parseScore = (score?: string) => {
   if (!score) return [];
@@ -62,6 +63,15 @@ export const MatchCard = ({
     if (cleanSets.length) return cleanSets.join(" ");
     return match.score;
   }, [match.score, sets]);
+
+  const setGridData = useMemo(
+    () =>
+      SET_COLUMNS.map((_, index) => ({
+        team1: sets[index]?.team1 ?? "",
+        team2: sets[index]?.team2 ?? "",
+      })),
+    [sets],
+  );
 
   const updateSet = (index: number, key: "team1" | "team2", value: string) => {
     setSets((prev) =>
@@ -130,13 +140,51 @@ export const MatchCard = ({
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-sm font-semibold text-slate-900">{match.team1}</div>
-      <div className="my-1 text-xs text-slate-500">vs</div>
-      <div className="text-sm font-semibold text-slate-900">{match.team2}</div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[280px] rounded-lg border border-slate-100 bg-slate-50/60 p-2">
+          <div className="grid grid-cols-[minmax(112px,1fr)_repeat(3,minmax(2rem,1fr))] items-center gap-y-1 text-center">
+            <div />
+            {SET_COLUMNS.map((setNumber) => (
+              <div
+                key={`header-${setNumber}`}
+                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+              >
+                {setNumber}
+              </div>
+            ))}
 
-      {visibleScore && (
-        <p className="mt-2 text-sm font-medium text-slate-700">{visibleScore}</p>
-      )}
+            <div className="pr-2 text-left text-sm font-semibold text-slate-900">
+              {match.team1}
+            </div>
+            {setGridData.map((set, index) => (
+              <div
+                key={`team1-${index}`}
+                className="text-base font-semibold text-slate-800"
+              >
+                {set.team1 || "—"}
+              </div>
+            ))}
+
+            <div className="col-span-4 py-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+              vs
+            </div>
+
+            <div className="pr-2 text-left text-sm font-semibold text-slate-900">
+              {match.team2}
+            </div>
+            {setGridData.map((set, index) => (
+              <div
+                key={`team2-${index}`}
+                className="text-base font-semibold text-slate-800"
+              >
+                {set.team2 || "—"}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {visibleScore && <p className="mt-2 text-xs text-slate-500">Score: {visibleScore}</p>}
 
       <p className="mt-2 text-xs text-slate-500">
         {match.day} · {match.time}
@@ -145,7 +193,7 @@ export const MatchCard = ({
 
       {isEditable && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-          {[1, 2, 3].map((setNumber, index) => (
+          {SET_COLUMNS.map((setNumber, index) => (
             <div key={setNumber} className="flex items-center gap-2 text-xs">
               <span className="w-10 text-slate-500">Set {setNumber}</span>
               <input
