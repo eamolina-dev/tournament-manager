@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Match } from "../../tournaments/types";
 
 export type MatchSetScore = { team1: number; team2: number };
@@ -110,6 +110,7 @@ export const MatchCard = ({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
+  const onEditStateChangeRef = useRef(onEditStateChange);
 
   const visibleScore = useMemo(() => {
     const cleanSets = sets
@@ -140,18 +141,23 @@ export const MatchCard = ({
   }, [initialSets]);
 
   useEffect(() => {
-    if (!isEditable || !onEditStateChange) return;
+    onEditStateChangeRef.current = onEditStateChange;
+  }, [onEditStateChange]);
+
+  useEffect(() => {
+    const editStateHandler = onEditStateChangeRef.current;
+    if (!isEditable || !editStateHandler) return;
     if (areEditableSetsEqual(sets, initialSets)) {
-      onEditStateChange({ matchId: match.id, sets: null, error: null });
+      editStateHandler({ matchId: match.id, sets: null, error: null });
       return;
     }
     const validation = validateMatchSets(sets);
-    onEditStateChange({
+    editStateHandler({
       matchId: match.id,
       sets: "sets" in validation ? validation.sets : null,
       error: "error" in validation ? validation.error : null,
     });
-  }, [initialSets, isEditable, match.id, onEditStateChange, sets]);
+  }, [initialSets, isEditable, match.id, sets]);
 
   const handleSave = async () => {
     if (!onSaveResult) return;
