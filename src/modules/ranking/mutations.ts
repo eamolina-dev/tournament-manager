@@ -113,23 +113,13 @@ const resolveGroupQualifyingPositions = (
 export const recalculateProgressiveTeamResults = async (
   tournamentCategoryId: string,
 ): Promise<void> => {
-  const [{ data: teamsData, error: teamsError }, { data: matchesData, error: matchesError }] = await Promise.all([
-    supabase
-      .from("teams")
-      .select("id")
-      .eq("tournament_category_id", tournamentCategoryId),
-    supabase
-      .from("matches")
-      .select("id, stage, group_id, team1_id, team2_id, winner_team_id, round, team1_source, team2_source")
-      .eq("tournament_category_id", tournamentCategoryId),
-  ])
+  const { data: matchesData, error: matchesError } = await supabase
+    .from("matches")
+    .select("id, stage, group_id, team1_id, team2_id, winner_team_id, round, team1_source, team2_source")
+    .eq("tournament_category_id", tournamentCategoryId)
 
-  throwIfError(teamsError)
   throwIfError(matchesError)
-  const teams = teamsData ?? []
   const matches = matchesData ?? []
-
-  if (!teams.length) return
 
   const { data: categoryWithCircuit, error: categoryError } = await supabase
     .from("tournament_categories")
@@ -290,27 +280,37 @@ export const recalculateProgressiveTeamResults = async (
     }
   }
 
-  for (const team of teams) {
-    if (resultsByTeamId.has(team.id)) continue
-    resultsByTeamId.set(team.id, {
-      finalPosition: DEFAULT_FINAL_POSITION,
-      points: 0,
-    })
-  }
-
-  const rows: RankingInsert[] = teams.map((team) => {
-    const progressive = resultsByTeamId.get(team.id)
+  const rows: RankingInsert[] = Array.from(resultsByTeamId.entries()).map(([teamId, progressive]) => {
     return {
-      team_id: team.id,
+      team_id: teamId,
       tournament_category_id: tournamentCategoryId,
-      final_position: progressive?.finalPosition ?? DEFAULT_FINAL_POSITION,
-      points_awarded: progressive?.points ?? 0,
+      final_position: progressive.finalPosition,
+      points_awarded: progressive.points,
     }
   })
+
+  if (!rows.length) {
+    const { error: clearError } = await supabase
+      .from("team_results")
+      .delete()
+      .eq("tournament_category_id", tournamentCategoryId)
+
+    throwIfError(clearError)
+    return
+  }
 
   const { error: upsertError } = await supabase
     .from("team_results")
     .upsert(rows, { onConflict: "team_id,tournament_category_id" })
 
   throwIfError(upsertError)
+
+  const scopedTeamIds = rows.map((row) => row.team_id)
+  const { error: cleanupError } = await supabase
+    .from("team_results")
+    .delete()
+    .eq("tournament_category_id", tournamentCategoryId)
+    .not("team_id", "in", `(${scopedTeamIds.map((teamId) => `"${teamId}"`).join(",")})`)
+
+  throwIfError(cleanupError)
 }
