@@ -27,7 +27,7 @@ const SET_COLUMNS = [1, 2, 3] as const;
 const REGULAR_SET_OPTIONS = Array.from({ length: 8 }, (_, index) => `${index}`);
 const SUPER_TIE_BREAK_OPTIONS = Array.from(
   { length: 21 },
-  (_, index) => `${index}`,
+  (_, index) => `${index}`
 );
 
 const parseScore = (score?: string) => {
@@ -75,12 +75,12 @@ export const MatchCard = ({
         team1: sets[index]?.team1 ?? "",
         team2: sets[index]?.team2 ?? "",
       })),
-    [sets],
+    [sets]
   );
 
   const updateSet = (index: number, key: "team1" | "team2", value: string) => {
     setSets((prev) =>
-      prev.map((set, idx) => (idx === index ? { ...set, [key]: value } : set)),
+      prev.map((set, idx) => (idx === index ? { ...set, [key]: value } : set))
     );
   };
 
@@ -128,8 +128,8 @@ export const MatchCard = ({
         ? team1Won > team2Won
           ? match.team1Id
           : team2Won > team1Won
-            ? match.team2Id
-            : null
+          ? match.team2Id
+          : null
         : null;
 
     setError("");
@@ -137,7 +137,9 @@ export const MatchCard = ({
     try {
       await onSaveResult({ matchId: match.id, sets: cleanSets, winnerTeamId });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Error al guardar.");
+      setError(
+        saveError instanceof Error ? saveError.message : "Error al guardar."
+      );
     } finally {
       setSaving(false);
     }
@@ -147,7 +149,7 @@ export const MatchCard = ({
     <article className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="overflow-x-auto">
         <div className="min-w-[280px] rounded-lg border border-slate-100 bg-slate-50/60 p-2">
-          <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(1.9rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
+          <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(3rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
             <div />
             {SET_COLUMNS.map((setNumber) => (
               <div
@@ -172,7 +174,9 @@ export const MatchCard = ({
                   {isEditable ? (
                     <select
                       value={set.team1}
-                      onChange={(event) => updateSet(index, "team1", event.target.value)}
+                      onChange={(event) =>
+                        updateSet(index, "team1", event.target.value)
+                      }
                       className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
                     >
                       <option value="">-</option>
@@ -210,7 +214,9 @@ export const MatchCard = ({
                   {isEditable ? (
                     <select
                       value={set.team2}
-                      onChange={(event) => updateSet(index, "team2", event.target.value)}
+                      onChange={(event) =>
+                        updateSet(index, "team2", event.target.value)
+                      }
                       className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
                     >
                       <option value="">-</option>
@@ -230,7 +236,9 @@ export const MatchCard = ({
         </div>
       </div>
 
-      {visibleScore && <p className="mt-2 text-xs text-slate-500">Score: {visibleScore}</p>}
+      {visibleScore && (
+        <p className="mt-2 text-xs text-slate-500">Score: {visibleScore}</p>
+      )}
 
       <p className="mt-2 text-xs text-slate-500">
         {match.day} · {match.time}
