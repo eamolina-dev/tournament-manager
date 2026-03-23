@@ -24,6 +24,11 @@ const EMPTY_SETS = [
   { team1: "", team2: "" },
 ];
 const SET_COLUMNS = [1, 2, 3] as const;
+const REGULAR_SET_OPTIONS = Array.from({ length: 8 }, (_, index) => `${index}`);
+const SUPER_TIE_BREAK_OPTIONS = Array.from(
+  { length: 21 },
+  (_, index) => `${index}`,
+);
 
 const parseScore = (score?: string) => {
   if (!score) return [];
@@ -156,14 +161,33 @@ export const MatchCard = ({
             <div className="pr-2 text-left text-sm font-semibold text-slate-900">
               {match.team1}
             </div>
-            {setGridData.map((set, index) => (
-              <div
-                key={`team1-${index}`}
-                className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
-              >
-                {set.team1 || "—"}
-              </div>
-            ))}
+            {setGridData.map((set, index) => {
+              const options =
+                index === 2 ? SUPER_TIE_BREAK_OPTIONS : REGULAR_SET_OPTIONS;
+              return (
+                <div
+                  key={`team1-${index}`}
+                  className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
+                >
+                  {isEditable ? (
+                    <select
+                      value={set.team1}
+                      onChange={(event) => updateSet(index, "team1", event.target.value)}
+                      className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
+                    >
+                      <option value="">-</option>
+                      {options.map((option) => (
+                        <option key={`team1-${index}-${option}`} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    set.team1 || "—"
+                  )}
+                </div>
+              );
+            })}
 
             <div className="py-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               vs
@@ -175,14 +199,33 @@ export const MatchCard = ({
             <div className="pr-2 text-left text-sm font-semibold text-slate-900">
               {match.team2}
             </div>
-            {setGridData.map((set, index) => (
-              <div
-                key={`team2-${index}`}
-                className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
-              >
-                {set.team2 || "—"}
-              </div>
-            ))}
+            {setGridData.map((set, index) => {
+              const options =
+                index === 2 ? SUPER_TIE_BREAK_OPTIONS : REGULAR_SET_OPTIONS;
+              return (
+                <div
+                  key={`team2-${index}`}
+                  className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
+                >
+                  {isEditable ? (
+                    <select
+                      value={set.team2}
+                      onChange={(event) => updateSet(index, "team2", event.target.value)}
+                      className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
+                    >
+                      <option value="">-</option>
+                      {options.map((option) => (
+                        <option key={`team2-${index}-${option}`} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    set.team2 || "—"
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -196,27 +239,6 @@ export const MatchCard = ({
 
       {isEditable && (
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-          {SET_COLUMNS.map((setNumber, index) => (
-            <div key={setNumber} className="flex items-center gap-2 text-xs">
-              <span className="w-10 text-slate-500">Set {setNumber}</span>
-              <input
-                type="number"
-                min={0}
-                value={sets[index]?.team1 ?? ""}
-                onChange={(event) => updateSet(index, "team1", event.target.value)}
-                className="w-14 rounded border border-slate-300 px-2 py-1 text-center"
-              />
-              <span className="text-slate-400">-</span>
-              <input
-                type="number"
-                min={0}
-                value={sets[index]?.team2 ?? ""}
-                onChange={(event) => updateSet(index, "team2", event.target.value)}
-                className="w-14 rounded border border-slate-300 px-2 py-1 text-center"
-              />
-            </div>
-          ))}
-
           {error && <p className="text-xs text-red-600">{error}</p>}
 
           <button
