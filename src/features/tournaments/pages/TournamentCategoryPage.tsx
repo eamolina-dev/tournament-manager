@@ -13,6 +13,7 @@ import {
 } from "../../../modules/tournament/mutations";
 import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
 import { MatchCard } from "../../matches/components/MatchCard";
+import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
 
 type TournamentCategoryPageProps = {
@@ -45,12 +46,20 @@ export const TournamentCategoryPage = ({
   isOwner = false,
   navigate,
 }: TournamentCategoryPageProps) => {
-  const [activeTab, setActiveTab] = useState<SectionTab>("Zonas");
+  const [activeTab, setActiveTab] = usePersistentTab<SectionTab>({
+    storageKey: `tournament:${slug}:${category}:section-tab`,
+    tabs: sectionTabs,
+    defaultTab: "Zonas",
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
-  const [zoneId, setZoneId] = useState("");
+  const zoneTabs = useMemo(() => data?.zones.map((zone) => zone.id) ?? [], [data?.zones]);
+  const [zoneId, setZoneId] = usePersistentTab<string>({
+    storageKey: `tournament:${slug}:${category}:zone-tab`,
+    tabs: zoneTabs,
+  });
   const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
   const [teamForm, setTeamForm] = useState<TeamFormState>({
     player1Id: "",
@@ -64,7 +73,6 @@ export const TournamentCategoryPage = ({
     try {
       const response = await getTournamentCategoryPageData(slug, category);
       setData(response);
-      setZoneId(response?.zones[0]?.id ?? "");
     } finally {
       setLoading(false);
     }
@@ -596,7 +604,10 @@ export const TournamentCategoryPage = ({
             </section>
           )}
           {activeTab === "Horarios" && (
-            <ScheduleSection matches={data.schedule} />
+            <ScheduleSection
+              matches={data.schedule}
+              storageKey={`tournament:${slug}:${category}:schedule-day-tab`}
+            />
           )}
         </>
       )}
@@ -608,6 +619,7 @@ const dayTabs = ["Viernes", "Sabado", "Domingo"] as const;
 
 const ScheduleSection = ({
   matches,
+  storageKey,
 }: {
   matches: {
     id: string;
@@ -617,8 +629,13 @@ const ScheduleSection = ({
     team1: string;
     team2: string;
   }[];
+  storageKey: string;
 }) => {
-  const [day, setDay] = useState<(typeof dayTabs)[number]>("Viernes");
+  const [day, setDay] = usePersistentTab<(typeof dayTabs)[number]>({
+    storageKey,
+    tabs: dayTabs,
+    defaultTab: "Viernes",
+  });
   const dayMatches = matches.filter((match) => match.day === day);
 
   const courts = Array.from(
