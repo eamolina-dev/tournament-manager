@@ -61,7 +61,7 @@ export type TournamentCategoryPageData = {
     time: string
     court?: string
   }[]
-  results: { playerId: string; playerName: string; points: number }[]
+  results: { playerId: string; playerName: string; points: number; isInCompetition: boolean }[]
   teams: { id: string; name: string }[]
   editableMatches: {
     id: string
@@ -249,6 +249,7 @@ export const getTournamentCategoryPageData = async (
 
   const teamsById = new Map(rawTeams.map((team) => [team.id, team]))
   const pointsByPlayerId = new Map<string, number>()
+  const competitionByPlayerId = new Map<string, boolean>()
 
   for (const result of persistedResults) {
     const team = teamsById.get(result.team_id)
@@ -256,9 +257,14 @@ export const getTournamentCategoryPageData = async (
 
     const points = result.points_awarded ?? 0
     const playerIds = [team.player1_id, team.player2_id].filter(Boolean)
+    const teamInCompetition = result.final_position === 999
 
     for (const playerId of playerIds) {
       pointsByPlayerId.set(playerId, (pointsByPlayerId.get(playerId) ?? 0) + points)
+      competitionByPlayerId.set(
+        playerId,
+        (competitionByPlayerId.get(playerId) ?? false) || teamInCompetition,
+      )
     }
   }
 
@@ -267,6 +273,7 @@ export const getTournamentCategoryPageData = async (
       playerId,
       playerName: playersById.get(playerId) ?? "Jugador",
       points,
+      isInCompetition: competitionByPlayerId.get(playerId) ?? false,
     }))
     .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
 

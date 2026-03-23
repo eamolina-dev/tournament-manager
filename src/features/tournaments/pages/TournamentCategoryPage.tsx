@@ -1010,6 +1010,7 @@ export const TournamentCategoryPage = ({
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2">Jugador</th>
+                      <th className="py-2 text-center">Estado</th>
                       <th className="py-2 text-right">Puntos</th>
                     </tr>
                   </thead>
@@ -1021,6 +1022,16 @@ export const TournamentCategoryPage = ({
                           className="border-b border-slate-100 last:border-none"
                         >
                           <td className="py-2 text-slate-700">{row.playerName}</td>
+                          <td className="py-2 text-center">
+                            {row.isInCompetition ? (
+                              <span
+                                className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
+                                title="En competencia"
+                              />
+                            ) : (
+                              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
+                            )}
+                          </td>
                           <td className="py-2 text-right font-semibold text-slate-900">
                             {row.points}
                           </td>
@@ -1028,7 +1039,7 @@ export const TournamentCategoryPage = ({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={2} className="py-4 text-center text-slate-500">
+                        <td colSpan={3} className="py-4 text-center text-slate-500">
                           No se encontraron jugadores.
                         </td>
                       </tr>

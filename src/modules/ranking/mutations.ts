@@ -64,6 +64,7 @@ type ProgressiveResult = {
 
 const GROUP_ELIMINATION_POINTS = 10
 const DEFAULT_FINAL_POSITION = 999
+const GROUP_ELIMINATED_POSITION = 1000
 
 const mergeResult = (
   results: Map<string, ProgressiveResult>,
@@ -140,7 +141,6 @@ export const recalculateProgressiveTeamResults = async (
 
   const circuitId = (categoryWithCircuit?.tournament as { circuit_id?: string | null } | null)?.circuit_id
   const rules = circuitId ? await getRankingRulesByCircuit(circuitId) : []
-  const pointsByPosition = new Map(rules.map((rule) => [rule.position, rule.points]))
   const resultsByTeamId = new Map<string, ProgressiveResult>()
 
   const groupMatches = matches.filter((match) => match.stage === "group")
@@ -227,34 +227,74 @@ export const recalculateProgressiveTeamResults = async (
 
     for (const [index, standing] of standings.entries()) {
       const position = index + 1
-      if (qualifyingPositions.includes(position)) continue
+      const isQualified = qualifyingPositions.includes(position)
 
       mergeResult(resultsByTeamId, standing.teamId, {
-        finalPosition: DEFAULT_FINAL_POSITION,
+        finalPosition: isQualified ? DEFAULT_FINAL_POSITION : GROUP_ELIMINATED_POSITION,
         points: GROUP_ELIMINATION_POINTS,
       })
     }
   }
 
-  for (const match of playoffMatches) {
-    if (!match.team1_id || !match.team2_id || !match.winner_team_id || !match.round) continue
-    const loserTeamId = match.team1_id === match.winner_team_id ? match.team2_id : match.team1_id
-    if (!loserTeamId) continue
-
-    mergeResult(resultsByTeamId, loserTeamId, {
-      finalPosition: match.round,
-      points: pointsByPosition.get(match.round) ?? 0,
-    })
+  const playoffMatchesByRound = new Map<number, typeof playoffMatches>()
+  for (const playoffMatch of playoffMatches) {
+    if (!playoffMatch.round) continue
+    const roundMatches = playoffMatchesByRound.get(playoffMatch.round) ?? []
+    roundMatches.push(playoffMatch)
+    playoffMatchesByRound.set(playoffMatch.round, roundMatches)
   }
 
-  const completedFinal = playoffMatches.find(
-    (match) => match.stage === "final" && Boolean(match.winner_team_id) && match.round === 1,
-  )
+  for (const [round, roundMatches] of playoffMatchesByRound) {
+    const roundCompleted = roundMatches.every(
+      (match) => Boolean(match.team1_id) && Boolean(match.team2_id) && Boolean(match.winner_team_id),
+    )
+    if (!roundCompleted) continue
 
-  if (completedFinal?.winner_team_id) {
-    mergeResult(resultsByTeamId, completedFinal.winner_team_id, {
-      finalPosition: 1,
-      points: pointsByPosition.get(1) ?? 0,
+    const isFinalRound = roundMatches.some((match) => match.stage === "final")
+    if (isFinalRound) {
+      for (const match of roundMatches) {
+        if (!match.team1_id || !match.team2_id || !match.winner_team_id) continue
+        const loserTeamId = match.team1_id === match.winner_team_id ? match.team2_id : match.team1_id
+
+        mergeResult(resultsByTeamId, loserTeamId, {
+          finalPosition: 2,
+          points: resolvePointsByPosition(2, rules) ?? 0,
+        })
+        mergeResult(resultsByTeamId, match.winner_team_id, {
+          finalPosition: 1,
+          points: resolvePointsByPosition(1, rules) ?? 0,
+        })
+      }
+      continue
+    }
+
+    const stagePosition = round * 2
+    const stagePoints = resolvePointsByPosition(stagePosition, rules) ?? 0
+
+    for (const match of roundMatches) {
+      if (!match.team1_id || !match.team2_id || !match.winner_team_id) continue
+      const loserTeamId = match.team1_id === match.winner_team_id ? match.team2_id : match.team1_id
+
+      mergeResult(resultsByTeamId, match.team1_id, {
+        finalPosition: DEFAULT_FINAL_POSITION,
+        points: stagePoints,
+      })
+      mergeResult(resultsByTeamId, match.team2_id, {
+        finalPosition: DEFAULT_FINAL_POSITION,
+        points: stagePoints,
+      })
+      mergeResult(resultsByTeamId, loserTeamId, {
+        finalPosition: stagePosition,
+        points: stagePoints,
+      })
+    }
+  }
+
+  for (const team of teams) {
+    if (resultsByTeamId.has(team.id)) continue
+    resultsByTeamId.set(team.id, {
+      finalPosition: DEFAULT_FINAL_POSITION,
+      points: 0,
     })
   }
 
