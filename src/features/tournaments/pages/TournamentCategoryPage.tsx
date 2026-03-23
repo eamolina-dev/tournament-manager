@@ -42,6 +42,14 @@ type TeamFormState = {
   player2NewName: string;
 };
 
+type DraftTeam = {
+  id: string;
+  key: string;
+  name: string;
+  player1Id: string;
+  player2Id?: string;
+};
+
 type EditedResultsState = Record<
   string,
   {
@@ -81,6 +89,9 @@ export const TournamentCategoryPage = ({
     player2Id: "",
     player2NewName: "",
   });
+  const [draftTeams, setDraftTeams] = useState<DraftTeam[]>([]);
+  const [savingDraftTeams, setSavingDraftTeams] = useState(false);
+  const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
   const [playersQuery, setPlayersQuery] = useState("");
   const [resultsQuery, setResultsQuery] = useState("");
   const [zoneEditedResults, setZoneEditedResults] = useState<
@@ -138,6 +149,48 @@ export const TournamentCategoryPage = ({
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
   const filteredPlayers = useSearchFilter(players, playersQuery);
   const filteredResults = useSearchFilter(data?.results ?? [], resultsQuery);
+  const playersById = useMemo(
+    () => new Map(players.map((player) => [player.id, player.name])),
+    [players],
+  );
+
+  const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
+    [player1Id, player2Id ?? ""]
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+      .join("__");
+
+  const resolvePlayerId = async ({
+    selectedId,
+    newName,
+    required,
+  }: {
+    selectedId: string;
+    newName: string;
+    required: boolean;
+  }): Promise<string | null> => {
+    if (selectedId && selectedId !== NEW_PLAYER_OPTION) {
+      return selectedId;
+    }
+
+    const normalizedName = newName.trim();
+    if (!normalizedName) {
+      if (required) {
+        throw new Error("Debe seleccionar o crear el Jugador/a 1.");
+      }
+      return null;
+    }
+
+    const existing = players.find(
+      (player) =>
+        player.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase(),
+    );
+    if (existing) return existing.id;
+
+    const created = await createPlayer({ name: normalizedName });
+    await loadPlayers();
+    return created.id;
+  };
 
   const parseStoredSets = (
     score?: string,
@@ -530,61 +583,60 @@ export const TournamentCategoryPage = ({
             <button
               onClick={() =>
                 void (async () => {
-                  const resolvePlayerId = async (
-                    selectedId: string,
-                    newName: string,
-                    required: boolean,
-                  ): Promise<string | null> => {
-                    if (selectedId && selectedId !== NEW_PLAYER_OPTION) {
-                      return selectedId;
-                    }
-
-                    const normalizedName = newName.trim();
-                    if (!normalizedName) {
-                      if (required) {
-                        throw new Error("Debe seleccionar o crear el Jugador/a 1.");
-                      }
-                      return null;
-                    }
-
-                    const existing = players.find(
-                      (player) =>
-                        player.name.toLocaleLowerCase() ===
-                        normalizedName.toLocaleLowerCase(),
-                    );
-                    if (existing) return existing.id;
-
-                    const created = await createPlayer({ name: normalizedName });
-                    return created.id;
-                  };
-
+                  if (!data) return;
                   setSaving(true);
+                  setTeamDraftError(null);
                   try {
-                    const player1Id = await resolvePlayerId(
-                      teamForm.player1Id,
-                      teamForm.player1NewName,
-                      true,
-                    );
-                    const player2Id = await resolvePlayerId(
-                      teamForm.player2Id,
-                      teamForm.player2NewName,
-                      false,
-                    );
-
+                    const player1Id = await resolvePlayerId({
+                      selectedId: teamForm.player1Id,
+                      newName: teamForm.player1NewName,
+                      required: true,
+                    });
+                    const player2Id = await resolvePlayerId({
+                      selectedId: teamForm.player2Id,
+                      newName: teamForm.player2NewName,
+                      required: false,
+                    });
                     if (!player1Id) return;
 
-                    await createTeam({
-                      tournament_category_id: data.tournamentCategoryId,
-                      player1_id: player1Id,
-                      player2_id: player2Id ?? undefined,
-                    });
+                    const player1Name = playersById.get(player1Id) ?? "Jugador/a 1";
+                    const player2Name = player2Id ? playersById.get(player2Id) : null;
+                    const teamName = [player1Name, player2Name].filter(Boolean).join(" / ");
+                    const teamKey = buildTeamKey(player1Id, player2Id);
+
+                    if (draftTeams.some((team) => team.key === teamKey)) {
+                      setTeamDraftError("Ese equipo ya está agregado en el borrador.");
+                      return;
+                    }
+
+                    const isAlreadySaved = data.teams.some(
+                      (team) => team.name.trim().toLocaleLowerCase() === teamName.toLocaleLowerCase(),
+                    );
+                    if (isAlreadySaved) {
+                      setTeamDraftError("Ese equipo ya está guardado en el torneo.");
+                      return;
+                    }
+
+                    setDraftTeams((prev) => [
+                      ...prev,
+                      {
+                        id: `${teamKey}-${Date.now()}`,
+                        key: teamKey,
+                        name: teamName,
+                        player1Id,
+                        player2Id: player2Id ?? undefined,
+                      },
+                    ]);
                     setTeamForm({
                       player1Id: "",
                       player1NewName: "",
                       player2Id: "",
                       player2NewName: "",
                     });
-                    await Promise.all([load(), loadPlayers()]);
+                  } catch (error) {
+                    setTeamDraftError(
+                      error instanceof Error ? error.message : "No se pudo agregar el equipo.",
+                    );
                   } finally {
                     setSaving(false);
                   }
@@ -592,8 +644,43 @@ export const TournamentCategoryPage = ({
               }
               className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
             >
-              Crear equipo
+              Agregar al borrador
             </button>
+
+            <button
+              disabled={!draftTeams.length || savingDraftTeams}
+              onClick={() =>
+                void (async () => {
+                  if (!data || !draftTeams.length) return;
+                  setSavingDraftTeams(true);
+                  setTeamDraftError(null);
+                  try {
+                    await Promise.all(
+                      draftTeams.map((team) =>
+                        createTeam({
+                          tournament_category_id: data.tournamentCategoryId,
+                          player1_id: team.player1Id,
+                          player2_id: team.player2Id,
+                        }),
+                      ),
+                    );
+                    setDraftTeams([]);
+                    await load();
+                  } catch (error) {
+                    setTeamDraftError(
+                      error instanceof Error ? error.message : "No se pudieron guardar los equipos.",
+                    );
+                  } finally {
+                    setSavingDraftTeams(false);
+                  }
+                })()
+              }
+              className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              {savingDraftTeams ? "Guardando equipos..." : "Guardar equipos"}
+            </button>
+
+            {teamDraftError && <p className="mt-2 text-xs text-red-600">{teamDraftError}</p>}
 
             <div className="mt-4 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -618,6 +705,36 @@ export const TournamentCategoryPage = ({
                 </div>
               ) : (
                 <p className="text-sm text-slate-500">Aún no hay equipos creados.</p>
+              )}
+            </div>
+
+            <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Equipos en borrador ({draftTeams.length})
+              </p>
+              {draftTeams.length ? (
+                <div className="max-h-48 space-y-2 overflow-auto">
+                  {draftTeams.map((team) => (
+                    <div
+                      key={team.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm"
+                    >
+                      <span>{team.name}</span>
+                      <button
+                        onClick={() =>
+                          setDraftTeams((prev) => prev.filter((item) => item.id !== team.id))
+                        }
+                        className="rounded border border-amber-300 px-2 py-0.5 text-xs text-amber-700"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-amber-700">
+                  Agregá equipos al borrador y guardalos juntos cuando quieras.
+                </p>
               )}
             </div>
           </article>
