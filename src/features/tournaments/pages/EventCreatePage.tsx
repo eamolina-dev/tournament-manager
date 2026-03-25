@@ -146,7 +146,7 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-slate-900">
             {isEditMode ? "Editar evento" : "Crear evento"}

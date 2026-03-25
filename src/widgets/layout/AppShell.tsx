@@ -11,9 +11,9 @@ const navItems = [
 ];
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => (
-  <div className="min-h-screen bg-slate-50">
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
+  <div className="min-h-screen">
+    <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -22,8 +22,8 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => (
               onClick={() => navigate(item.href)}
               className={`rounded-full px-4 py-2 text-sm font-medium ${
                 isActive
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 bg-white text-slate-700"
+                  ? "bg-[var(--tm-accent)] text-white"
+                  : "border border-[var(--tm-border)] bg-[#0f2439] text-[var(--tm-muted)]"
               }`}
             >
               {item.label}
@@ -33,6 +33,6 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => (
       </div>
     </header>
 
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4">{children}</main>
+    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 py-5">{children}</main>
   </div>
 );

@@ -1,7 +1,7 @@
 import type { RankingRow } from "../../../shared/types/ranking"
 
 export const RankingTable = ({ rows }: { rows: RankingRow[] }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-4">
+  <section className="tm-card">
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>

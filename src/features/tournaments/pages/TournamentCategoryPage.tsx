@@ -18,7 +18,7 @@ import {
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
 import {
-  MatchCard,
+  MatchCardFull,
   type MatchSetScore,
 } from "../../matches/components/MatchCard";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
@@ -576,7 +576,7 @@ export const TournamentCategoryPage = ({
 
   return (
     <section className="flex flex-col gap-4">
-      <header className="rounded-2xl border border-slate-200 bg-white p-4">
+      <header className="tm-card">
         {eventId && navigate && (
           <button
             onClick={() => navigate(`/eventos/${eventId}/edit`)}
@@ -624,7 +624,7 @@ export const TournamentCategoryPage = ({
       </header>
 
       {isAdmin && (
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <section className="space-y-4 tm-card">
           <header className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Flujo de carga
@@ -969,7 +969,7 @@ export const TournamentCategoryPage = ({
             {orderedEditableMatches.length ? (
               <div className="mt-3 space-y-2">
                 {orderedEditableMatches.map((match) => (
-                  <MatchCard
+                  <MatchCardFull
                     key={match.id}
                     match={match}
                   />
@@ -1023,7 +1023,7 @@ export const TournamentCategoryPage = ({
           </div>
 
           {activeTab === "Zonas" && activeZone && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+            <section className="tm-card">
               <div className="mb-3 flex flex-wrap gap-2">
                 {orderedZones.map((zone) => (
                   <button
@@ -1068,7 +1068,7 @@ export const TournamentCategoryPage = ({
                 {orderedZoneMatches.length ? (
                   <>
                     {orderedZoneMatches.map((match) => (
-                      <MatchCard
+                      <MatchCardFull
                         key={match.id}
                         match={match}
                         isEditable={isOwner}
@@ -1112,7 +1112,7 @@ export const TournamentCategoryPage = ({
             </section>
           )}
           {activeTab === "Cruces" && (
-            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <section className="space-y-4 tm-card">
               <TournamentBracket matches={orderedBracketMatches} />
 
               {orderedBracketMatches.length ? (
@@ -1121,7 +1121,7 @@ export const TournamentCategoryPage = ({
                     Edición de cruces
                   </p>
                   {orderedBracketMatches.map((match) => (
-                    <MatchCard
+                    <MatchCardFull
                       key={match.id}
                       match={match}
                       isEditable={isOwner}
@@ -1155,7 +1155,7 @@ export const TournamentCategoryPage = ({
             </section>
           )}
           {activeTab === "Resultados" && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+            <section className="tm-card">
               <div className="mb-3">
                 <SearchInput
                   value={resultsQuery}
@@ -1382,7 +1382,7 @@ const ScheduleSection = ({
   );
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+    <section className="tm-card">
       <div className="mb-3 flex gap-2">
         {dayTabs.map((item) => (
           <button

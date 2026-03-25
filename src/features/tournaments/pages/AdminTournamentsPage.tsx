@@ -160,14 +160,14 @@ export const AdminTournamentsPage = ({
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-[var(--tm-text)]">
             Gestión de torneos
           </h1>
           <button
             onClick={() => navigate("/")}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
           >
             Ver home pública
           </button>
@@ -179,7 +179,7 @@ export const AdminTournamentsPage = ({
               setForm((prev) => ({ ...prev, name: event.target.value }))
             }
             placeholder="Nombre"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="tm-input px-3 py-2 text-sm"
           />
           <input
             type="date"
@@ -187,7 +187,7 @@ export const AdminTournamentsPage = ({
             onChange={(event) =>
               setForm((prev) => ({ ...prev, startDate: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="tm-input px-3 py-2 text-sm"
           />
           <input
             type="date"
@@ -195,11 +195,11 @@ export const AdminTournamentsPage = ({
             onChange={(event) =>
               setForm((prev) => ({ ...prev, endDate: event.target.value }))
             }
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="tm-input px-3 py-2 text-sm"
           />
           <button
             onClick={() => void createOrUpdateTournament()}
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+            className="tm-btn-primary px-3 py-2 text-sm"
           >
             {editingId ? "Guardar cambios" : "Crear torneo"}
           </button>
@@ -207,19 +207,20 @@ export const AdminTournamentsPage = ({
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {loading ? <p className="rounded-xl bg-white p-4">Cargando...</p> : null}
+      {loading ? <p className="tm-card text-sm text-[var(--tm-muted)]">Cargando...</p> : null}
 
+      <div className="grid gap-3 lg:grid-cols-2">
       {tournaments.map((tournament) => (
         <article
           key={tournament.id}
-          className="rounded-2xl border border-slate-200 bg-white p-4"
+          className="tm-card"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-lg font-semibold text-[var(--tm-text)]">
                 {tournament.name}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--tm-muted)]">
                 {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
               </p>
             </div>
@@ -233,13 +234,13 @@ export const AdminTournamentsPage = ({
                     endDate: tournament.end_date ?? "",
                   });
                 }}
-                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+                className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
               >
                 Editar
               </button>
               <button
                 onClick={() => void deleteTournament(tournament.id).then(load)}
-                className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-600"
+                className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
               >
                 Eliminar
               </button>
@@ -261,7 +262,7 @@ export const AdminTournamentsPage = ({
                       }`
                     );
                   }}
-                  className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                  className="rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"
                 >
                   {cat.name}
                 </button>
@@ -271,7 +272,7 @@ export const AdminTournamentsPage = ({
                       cat.tournamentCategoryId
                     ).then(load)
                   }
-                  className="rounded-full border border-red-300 px-2 py-1 text-xs text-red-600"
+                  className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
                 >
                   x
                 </button>
@@ -289,7 +290,7 @@ export const AdminTournamentsPage = ({
                     event.target.value === "suma" ? "suma" : "normal",
                 }))
               }
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              className="tm-input px-3 py-1 text-sm"
               disabled={(categoryMode[tournament.id] ?? "normal") === "suma"}
             >
               <option value="normal">Categoría normal</option>
@@ -304,7 +305,7 @@ export const AdminTournamentsPage = ({
                     [tournament.id]: Number(event.target.value),
                   }))
                 }
-                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+                className="tm-input px-3 py-1 text-sm"
               >
                 {Array.from({ length: 13 }, (_, index) => index + 3).map(
                   (sumValue) => (
@@ -324,7 +325,7 @@ export const AdminTournamentsPage = ({
                     [tournament.id]: event.target.value,
                   }))
                 }
-                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+                className="tm-input px-3 py-1 text-sm"
               >
                 <option value="">Agregar categoría...</option>
                 {(availableCategoriesByTournament[tournament.id] ?? []).map(
@@ -358,13 +359,14 @@ export const AdminTournamentsPage = ({
                   suma_value: null,
                 }).then(load);
               }}
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"
             >
               Asociar
             </button>
           </div>
         </article>
       ))}
+      </div>
     </section>
   );
 };

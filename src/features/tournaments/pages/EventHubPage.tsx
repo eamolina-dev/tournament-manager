@@ -132,7 +132,7 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <button
           onClick={() => navigate("/")}
           className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -143,7 +143,7 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
         <p className="text-sm text-slate-500">Fecha: {eventDate ?? "-"}</p>
       </article>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <h2 className="text-lg font-semibold text-slate-900">Categorías</h2>
         {loading ? <p className="mt-2 text-sm text-slate-600">Cargando...</p> : null}
 
@@ -171,7 +171,7 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
         </div>
       </article>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <h2 className="text-lg font-semibold text-slate-900">+ Agregar categoría</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <select

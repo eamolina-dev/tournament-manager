@@ -59,7 +59,7 @@ export const RankingsPage = () => {
       {filteredRows.length ? (
         <RankingTable rows={filteredRows} />
       ) : (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+        <section className="tm-card text-sm text-slate-500">
           No se encontraron jugadores.
         </section>
       )}

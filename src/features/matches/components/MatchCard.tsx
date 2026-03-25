@@ -3,7 +3,7 @@ import type { Match } from "../../tournaments/types";
 
 export type MatchSetScore = { team1: number; team2: number };
 
-type MatchCardProps = {
+export type MatchCardProps = {
   match: Pick<
     Match,
     "id" | "team1" | "team2" | "score" | "day" | "time" | "court"
@@ -200,24 +200,24 @@ export const MatchCard = ({
 
   return (
     <article
-      className={`rounded-xl border bg-white p-3 ${
-        isModified ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200"
+      className={`tm-card ${
+        isModified ? "border-emerald-400/60 bg-emerald-950/30" : ""
       }`}
     >
       <div className="overflow-x-auto">
-        <div className="min-w-[280px] rounded-lg border border-slate-100 bg-slate-50/60 p-2">
+        <div className="min-w-[280px] rounded-lg border border-[var(--tm-border)] bg-[var(--tm-surface-soft)] p-2">
           <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(3rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
             <div />
             {SET_COLUMNS.map((setNumber) => (
               <div
                 key={`header-${setNumber}`}
-                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                className="text-xs font-semibold uppercase tracking-wide text-[var(--tm-muted)]"
               >
                 {setNumber}
               </div>
             ))}
 
-            <div className="pr-2 text-left text-sm font-semibold text-slate-900">
+            <div className="pr-2 text-left text-sm font-semibold text-[var(--tm-text)]">
               {match.team1}
             </div>
             {setGridData.map((set, index) => {
@@ -226,7 +226,7 @@ export const MatchCard = ({
               return (
                 <div
                   key={`team1-${index}`}
-                  className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
+                  className="rounded border border-[var(--tm-border)] bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-[var(--tm-text)]"
                 >
                   {isEditable ? (
                     <select
@@ -234,7 +234,7 @@ export const MatchCard = ({
                       onChange={(event) =>
                         updateSet(index, "team1", event.target.value)
                       }
-                      className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
+                      className="w-full bg-transparent text-center text-sm font-medium text-[var(--tm-text)] focus:outline-none"
                     >
                       <option value="">-</option>
                       {options.map((option) => (
@@ -250,14 +250,14 @@ export const MatchCard = ({
               );
             })}
 
-            <div className="py-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="py-1 text-left text-xs font-semibold uppercase tracking-wide text-[var(--tm-muted)]">
               vs
             </div>
             {SET_COLUMNS.map((setNumber) => (
-              <div key={`vs-${setNumber}`} className="h-px bg-slate-200" />
+              <div key={`vs-${setNumber}`} className="h-px bg-[var(--tm-border)]" />
             ))}
 
-            <div className="pr-2 text-left text-sm font-semibold text-slate-900">
+            <div className="pr-2 text-left text-sm font-semibold text-[var(--tm-text)]">
               {match.team2}
             </div>
             {setGridData.map((set, index) => {
@@ -266,7 +266,7 @@ export const MatchCard = ({
               return (
                 <div
                   key={`team2-${index}`}
-                  className="rounded bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-slate-700"
+                  className="rounded border border-[var(--tm-border)] bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-[var(--tm-text)]"
                 >
                   {isEditable ? (
                     <select
@@ -274,7 +274,7 @@ export const MatchCard = ({
                       onChange={(event) =>
                         updateSet(index, "team2", event.target.value)
                       }
-                      className="w-full bg-transparent text-center text-sm font-medium text-slate-700 focus:outline-none"
+                      className="w-full bg-transparent text-center text-sm font-medium text-[var(--tm-text)] focus:outline-none"
                     >
                       <option value="">-</option>
                       {options.map((option) => (
@@ -294,31 +294,58 @@ export const MatchCard = ({
       </div>
 
       {visibleScore && (
-        <p className="mt-2 text-xs text-slate-500">Score: {visibleScore}</p>
+        <p className="mt-2 text-xs text-[var(--tm-muted)]">Score: {visibleScore}</p>
       )}
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-[var(--tm-muted)]">
         {match.day} · {match.time}
         {match.court ? ` · ${match.court}` : ""}
       </p>
 
       {isEditable && (
-        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+        <div className="mt-3 space-y-2 border-t border-[var(--tm-border)] pt-3">
           {(externalError || error) && (
             <p className="text-xs text-red-600">{externalError || error}</p>
           )}
 
           {!hideSaveButton && (
             <button
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="rounded border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
-            >
-              {saving ? "Guardando..." : "Guardar resultado"}
-            </button>
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="rounded border border-[var(--tm-border)] px-2 py-1 text-xs text-[var(--tm-text)] disabled:opacity-60"
+              >
+                {saving ? "Guardando..." : "Guardar resultado"}
+              </button>
           )}
         </div>
       )}
     </article>
   );
 };
+
+const buildCompactSummary = (score?: string) => {
+  const sets = parseScore(score);
+  if (!sets.length) return "Sin resultado";
+  let team1Wins = 0;
+  let team2Wins = 0;
+  sets.forEach((set) => {
+    if (set.team1 > set.team2) team1Wins += 1;
+    if (set.team2 > set.team1) team2Wins += 1;
+  });
+  return `${team1Wins}-${team2Wins} · ${score}`;
+};
+
+export const MatchCardCompact = ({ match }: Pick<MatchCardProps, "match">) => (
+  <article className="tm-card-compact flex min-h-[74px] w-[230px] flex-col justify-center px-3 py-2">
+    <div className="flex items-center justify-between gap-2 text-sm font-semibold text-[var(--tm-text)]">
+      <span className="truncate">{match.team1}</span>
+      <span className="text-[var(--tm-muted)]">vs</span>
+      <span className="truncate text-right">{match.team2}</span>
+    </div>
+    <p className="mt-1 text-center text-xs font-semibold text-[var(--tm-primary)]">
+      {buildCompactSummary(match.score)}
+    </p>
+  </article>
+);
+
+export const MatchCardFull = MatchCard;

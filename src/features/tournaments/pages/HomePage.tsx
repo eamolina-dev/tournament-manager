@@ -85,12 +85,12 @@ export const HomePage = ({ navigate }: HomePageProps) => {
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-2xl border border-slate-200 bg-white p-4">
+      <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">Torneos</h1>
+          <h1 className="text-2xl font-bold text-[var(--tm-text)]">Torneos</h1>
           <button
             onClick={() => navigate("/eventos/new")}
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+            className="tm-btn-primary px-3 py-2 text-sm"
           >
             Crear torneo
           </button>
@@ -98,62 +98,65 @@ export const HomePage = ({ navigate }: HomePageProps) => {
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {loading ? <p className="rounded-xl bg-white p-4">Cargando...</p> : null}
+      {loading ? <p className="tm-card text-sm text-[var(--tm-muted)]">Cargando...</p> : null}
 
-      {tournaments.map((tournament) => (
-        <article key={tournament.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{tournament.name}</h2>
-            <p className="text-sm text-slate-500">
-              {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
-            </p>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate(`/eventos/${tournament.id}/edit`)}
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
-            >
-              ✏️ Editar
-            </button>
-            <button
-              onClick={() =>
-                void (async () => {
-                  const confirmed = window.confirm(
-                    `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`,
-                  )
-                  if (!confirmed) return
-                  try {
-                    await deleteTournament(tournament.id)
-                    await load()
-                  } catch (deleteError) {
-                    setError(
-                      deleteError instanceof Error
-                        ? deleteError.message
-                        : "No se pudo eliminar el torneo",
-                    )
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {tournaments.map((tournament) => (
+          <article key={tournament.id} className="tm-card">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--tm-text)]">{tournament.name}</h2>
+                <p className="text-sm text-[var(--tm-muted)]">
+                  {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate(`/eventos/${tournament.id}/edit`)}
+                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() =>
+                    void (async () => {
+                      const confirmed = window.confirm(
+                        `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`,
+                      )
+                      if (!confirmed) return
+                      try {
+                        await deleteTournament(tournament.id)
+                        await load()
+                      } catch (deleteError) {
+                        setError(
+                          deleteError instanceof Error
+                            ? deleteError.message
+                            : "No se pudo eliminar el torneo",
+                        )
+                      }
+                    })()
                   }
-                })()
-              }
-              className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-700"
-            >
-              🗑️ Eliminar
-            </button>
-          </div>
+                  className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
 
-          <div className="mt-2 flex flex-wrap gap-2">
-            {tournament.categories.map((cat) => (
-              <button
-                key={cat.tournamentCategoryId}
-                onClick={() => navigate(`/tournament/${tournament.slug}/${cat.slug ?? cat.id}`)}
-                className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </article>
-      ))}
+            <div className="mt-3 flex flex-wrap justify-between gap-2">
+              {tournament.categories.map((cat) => (
+                <button
+                  key={cat.tournamentCategoryId}
+                  onClick={() => navigate(`/tournament/${tournament.slug}/${cat.slug ?? cat.id}`)}
+                  className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-text)]"
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   )
 }

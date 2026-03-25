@@ -3,7 +3,7 @@ import {
   SVGViewer,
 } from "@g-loot/react-tournament-brackets"
 import type { Match } from "../types"
-import { MatchCard } from "../../matches/components/MatchCard"
+import { MatchCardCompact } from "../../matches/components/MatchCard"
 
 const stageOrder = {
   round_of_32: 1,
@@ -78,7 +78,7 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
 }
 
 const BracketCard = ({ topParty, bottomParty }: any) => (
-  <MatchCard
+  <MatchCardCompact
     match={{
       id: `${topParty.id}-${bottomParty.id}`,
       team1: topParty.name,
@@ -92,20 +92,22 @@ const BracketCard = ({ topParty, bottomParty }: any) => (
 
 export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
   if (!matches.length) {
-    return <p className="text-sm text-slate-500">Sin cruces cargados.</p>
+    return <p className="text-sm text-[var(--tm-muted)]">Sin cruces cargados.</p>
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-2">
-      <SingleEliminationBracket
-        matches={mapMatches(matches)}
-        matchComponent={(props: any) => <BracketCard {...props} />}
-        svgWrapper={({ children, ...props }: any) => (
-          <SVGViewer width={900} height={500} {...props}>
-            {children}
-          </SVGViewer>
-        )}
-      />
+    <div className="tm-card min-h-[70vh] w-full overflow-auto">
+      <div className="flex min-h-[66vh] min-w-fit items-center justify-center">
+        <SingleEliminationBracket
+          matches={mapMatches(matches)}
+          matchComponent={(props: any) => <BracketCard {...props} />}
+          svgWrapper={({ children, ...props }: any) => (
+            <SVGViewer width={1200} height={620} {...props}>
+              {children}
+            </SVGViewer>
+          )}
+        />
+      </div>
     </div>
   )
 }

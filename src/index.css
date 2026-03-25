@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+:root {
+  --tm-bg: #061320;
+  --tm-surface: #f7fbff;
+  --tm-surface-soft: #edf4ff;
+  --tm-border: #c8d7e8;
+  --tm-text: #0f2338;
+  --tm-muted: #5a738d;
+  --tm-primary: #1ea86c;
+  --tm-primary-strong: #178152;
+  --tm-accent: #2f8cff;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #123252 0%, var(--tm-bg) 58%);
+  color: var(--tm-text);
+}
+
+.tm-card {
+  border-radius: 1rem;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  padding: 1rem;
+}
+
+.tm-card-compact {
+  border-radius: 0.875rem;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface-soft);
+}
+
+.tm-input {
+  border-radius: 0.65rem;
+  border: 1px solid var(--tm-border);
+  background: #ffffff;
+  color: #0f2338;
+}
+
+.tm-btn-primary {
+  border-radius: 0.7rem;
+  background: linear-gradient(90deg, var(--tm-primary) 0%, var(--tm-accent) 100%);
+  color: #ffffff;
+  font-weight: 700;
+}

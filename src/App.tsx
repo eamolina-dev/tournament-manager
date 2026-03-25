@@ -112,8 +112,8 @@ export default function App() {
         pathname !== "/rankings" &&
         pathname !== "/admin/tournaments" &&
         pathname !== "/eventos/new" && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-600">Ruta no encontrada.</p>
+        <section className="tm-card">
+          <p className="text-sm text-[var(--tm-muted)]">Ruta no encontrada.</p>
         </section>
       )}
     </AppShell>
