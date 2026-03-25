@@ -2,6 +2,7 @@ export type CategoryCode = "4ta" | "5ta" | "6ta" | "7ma" | "8va"
 
 export type Match = {
   id: string
+  matchNumber?: number
   team1: string
   team2: string
   score?: string

@@ -11,6 +11,7 @@ import { computeGroupStandings } from "../../features/tournaments/utils/computeG
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
+  categoryId: string | null
   tournamentName: string
   categoryName: string
   isSuma: boolean
@@ -43,6 +44,7 @@ export type TournamentCategoryPageData = {
     stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
     nextMatchId?: string | null
     zoneId?: string
+    matchNumber: number
   }[]
   }[]
   bracketMatches: {
@@ -55,6 +57,7 @@ export type TournamentCategoryPageData = {
     court?: string
     stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
     nextMatchId?: string | null
+    matchNumber: number
   }[]
   schedule: {
     id: string
@@ -63,6 +66,7 @@ export type TournamentCategoryPageData = {
     day: "Viernes" | "Sabado" | "Domingo"
     time: string
     court?: string
+    matchNumber: number
   }[]
   results: { playerId: string; playerName: string; points: number; isInCompetition: boolean }[]
   teams: { id: string; name: string; player1Id: string | null; player2Id: string | null }[]
@@ -77,6 +81,7 @@ export type TournamentCategoryPageData = {
     court?: string
     score?: string
     sets: { team1: number; team2: number }[]
+    matchNumber: number
   }[]
 }
 
@@ -106,6 +111,9 @@ const normalizeStage = (
   if (stage === "final") return "final"
   return undefined
 }
+
+const sortByMatchNumber = <T extends { matchNumber: number }>(matches: T[]): T[] =>
+  [...matches].sort((a, b) => a.matchNumber - b.matchNumber)
 
 const toScoreString = (
   sets: { set_number: number | null; team1_games: number | null; team2_games: number | null }[],
@@ -169,7 +177,8 @@ export const getTournamentCategoryPageData = async (
     setsByMatch.set(set.match_id ?? "", list)
   }
 
-  const allMatches = matches.map((match) => ({
+  const allMatches = sortByMatchNumber(
+    matches.map((match) => ({
     id: match.id,
     team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
     team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
@@ -186,10 +195,16 @@ export const getTournamentCategoryPageData = async (
     stage: normalizeStage(match.stage),
     nextMatchId: match.next_match_id,
     zoneId: match.group_id ?? undefined,
-  }))
+    matchNumber: match.match_number ?? Number.MAX_SAFE_INTEGER,
+  })),
+  )
 
-  const zones = groups.map((group) => {
-    const groupMatches = allMatches.filter((match) => match.zoneId === group.id)
+  const zones = [...groups]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((group) => {
+    const groupMatches = sortByMatchNumber(
+      allMatches.filter((match) => match.zoneId === group.id),
+    )
     const groupTeams = Array.from(
       new Map(
         groupMatches.flatMap((match) => {
@@ -220,13 +235,13 @@ export const getTournamentCategoryPageData = async (
       groupTeams,
     )
 
-    return {
-      id: group.id,
-      name: group.name,
-      standings,
-      matches: groupMatches,
-    }
-  })
+      return {
+        id: group.id,
+        name: group.name,
+        standings,
+        matches: groupMatches,
+      }
+    })
 
   const eliminationMatches = matches.filter((match) => match.stage !== "group")
   const finalMatch = eliminationMatches.find((match) => match.stage === "final")
@@ -282,6 +297,7 @@ export const getTournamentCategoryPageData = async (
 
   return {
     tournamentCategoryId,
+    categoryId: category.category_id ?? null,
     tournamentName: tournament.name ?? "Torneo",
     categoryName:
       category.is_suma && category.suma_value != null
@@ -297,15 +313,15 @@ export const getTournamentCategoryPageData = async (
         ? [semifinalists[0], semifinalists[1]]
         : undefined,
     zones,
-    bracketMatches: allMatches.filter((match) =>
+    bracketMatches: sortByMatchNumber(allMatches.filter((match) =>
       ["round_of_32", "round_of_16", "round_of_8", "quarter", "semi", "final"].includes(
         match.stage ?? "",
       ),
-    ),
-    schedule: allMatches.map(
+    )),
+    schedule: sortByMatchNumber(allMatches.map(
       ({ stage: _stage, zoneId: _zoneId, score: _score, nextMatchId: _nextMatchId, ...schedule }) =>
         schedule,
-    ),
+    )),
     results: resultRows,
     teams: teamPlayers
       .filter((team) => team.id)
@@ -315,7 +331,7 @@ export const getTournamentCategoryPageData = async (
         player1Id: team.player1_id ?? null,
         player2Id: team.player2_id ?? null,
       })),
-    editableMatches: matches.map((match) => ({
+    editableMatches: sortByMatchNumber(matches.map((match) => ({
       id: match.id,
       team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
       team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
@@ -329,6 +345,7 @@ export const getTournamentCategoryPageData = async (
         team1: set.team1_games ?? 0,
         team2: set.team2_games ?? 0,
       })),
-    })),
+      matchNumber: match.match_number ?? Number.MAX_SAFE_INTEGER,
+    }))),
   }
 }

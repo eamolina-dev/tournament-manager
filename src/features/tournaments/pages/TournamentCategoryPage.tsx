@@ -24,7 +24,6 @@ import {
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
-import { useSearchFilter } from "../../../shared/hooks/useSearchFilter";
 
 type TournamentCategoryPageProps = {
   slug: string;
@@ -44,9 +43,15 @@ type FlowStatus = "draft" | "teams_ready" | "groups_ready" | "matches_ready";
 
 type TeamFormState = {
   player1Id: string;
-  player1NewName: string;
   player2Id: string;
-  player2NewName: string;
+};
+
+type PlayerModalState = {
+  open: boolean;
+  name: string;
+  categoryId: string;
+  saving: boolean;
+  error: string | null;
 };
 
 type DraftTeam = {
@@ -66,7 +71,6 @@ type EditedResultsState = Record<
 
 type MatchErrorState = Record<string, string>;
 
-const NEW_PLAYER_OPTION = "__new__";
 const DAY_TO_DATE: Record<"Viernes" | "Sabado" | "Domingo", string> = {
   Viernes: "2026-01-02",
   Sabado: "2026-01-03",
@@ -96,7 +100,14 @@ export const TournamentCategoryPage = ({
   const [saving, setSaving] = useState(false);
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
-  const zoneTabs = useMemo(() => data?.zones.map((zone) => zone.id) ?? [], [data?.zones]);
+  const orderedZones = useMemo(
+    () => [...(data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [data?.zones],
+  );
+  const zoneTabs = useMemo(
+    () => orderedZones.map((zone) => zone.id),
+    [orderedZones],
+  );
   const [zoneId, setZoneId] = usePersistentTab<string>({
     storageKey: `tournament:${slug}:${category}:zone-tab`,
     tabs: zoneTabs,
@@ -106,15 +117,22 @@ export const TournamentCategoryPage = ({
   >([]);
   const [teamForm, setTeamForm] = useState<TeamFormState>({
     player1Id: "",
-    player1NewName: "",
     player2Id: "",
-    player2NewName: "",
   });
   const [draftTeams, setDraftTeams] = useState<DraftTeam[]>([]);
   const [savingDraftTeams, setSavingDraftTeams] = useState(false);
   const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
-  const [playersQuery, setPlayersQuery] = useState("");
   const [resultsQuery, setResultsQuery] = useState("");
+  const [categoriesCatalog, setCategoriesCatalog] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [playerModal, setPlayerModal] = useState<PlayerModalState>({
+    open: false,
+    name: "",
+    categoryId: "",
+    saving: false,
+    error: null,
+  });
   const [zoneEditedResults, setZoneEditedResults] = useState<
     Record<string, EditedResultsState>
   >({});
@@ -187,8 +205,9 @@ export const TournamentCategoryPage = ({
   };
 
   const loadPlayers = async () => {
-    const [response, categories] = await Promise.all([getPlayers(), getAllCategories()]);
+      const [response, categories] = await Promise.all([getPlayers(), getAllCategories()]);
     const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
+    setCategoriesCatalog(categories.map((item) => ({ id: item.id, name: item.name })));
 
     setPlayers(
       response
@@ -212,20 +231,34 @@ export const TournamentCategoryPage = ({
   }, [slug, category, eventId, categoryId, isAdmin]);
 
   const activeZone = useMemo(() => {
-    if (!data?.zones.length) return null;
-    return data.zones.find((zone) => zone.id === zoneId) ?? data.zones[0];
-  }, [data, zoneId]);
+    if (!orderedZones.length) return null;
+    return orderedZones.find((zone) => zone.id === zoneId) ?? orderedZones[0];
+  }, [orderedZones, zoneId]);
+  const orderedEditableMatches = useMemo(
+    () => [...(data?.editableMatches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
+    [data?.editableMatches],
+  );
+  const orderedBracketMatches = useMemo(
+    () => [...(data?.bracketMatches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
+    [data?.bracketMatches],
+  );
+  const orderedZoneMatches = useMemo(
+    () =>
+      [...(activeZone?.matches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
+    [activeZone?.matches],
+  );
 
   const flowStatus = useMemo<FlowStatus>(() => {
     if (!data?.teams.length) return "draft";
-    if (!data.zones.length) return "teams_ready";
-    if (!data.editableMatches.length) return "groups_ready";
+    if (!orderedZones.length) return "teams_ready";
+    if (!orderedEditableMatches.length) return "groups_ready";
     return "matches_ready";
-  }, [data]);
+  }, [data, orderedZones.length, orderedEditableMatches.length]);
 
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
-  const filteredPlayers = useSearchFilter(players, playersQuery);
-  const filteredResults = useSearchFilter(data?.results ?? [], resultsQuery);
+  const filteredResults = (data?.results ?? []).filter((row) =>
+    row.playerName.toLocaleLowerCase().includes(resultsQuery.trim().toLocaleLowerCase()),
+  );
   const playersById = useMemo(
     () => new Map(players.map((player) => [player.id, player.name])),
     [players],
@@ -254,12 +287,31 @@ export const TournamentCategoryPage = ({
     return player.categoryLevel >= data.categoryLevel;
   };
 
+  const defaultPlayerCategoryId = useMemo(() => {
+    if (data?.categoryId) return data.categoryId;
+    return categoriesCatalog[0]?.id ?? "";
+  }, [data?.categoryId, categoriesCatalog]);
+
+  const openCreatePlayerModal = () => {
+    setPlayerModal({
+      open: true,
+      name: "",
+      categoryId: defaultPlayerCategoryId,
+      saving: false,
+      error: null,
+    });
+  };
+
+  const closeCreatePlayerModal = () => {
+    setPlayerModal((prev) => ({ ...prev, open: false, error: null, saving: false }));
+  };
+
   const selectablePlayers = useMemo(
     () =>
-      filteredPlayers.filter(
+      players.filter(
         (player) => !blockedPlayerIds.has(player.id) && canPlayerEnterByCategory(player.id),
       ),
-    [filteredPlayers, blockedPlayerIds, data, playersByIdWithCategory],
+    [players, blockedPlayerIds, data, playersByIdWithCategory],
   );
   const player1Options = selectablePlayers.filter(
     (player) => player.id === teamForm.player1Id || player.id !== teamForm.player2Id,
@@ -267,7 +319,6 @@ export const TournamentCategoryPage = ({
   const player2Options = selectablePlayers.filter(
     (player) => player.id === teamForm.player2Id || player.id !== teamForm.player1Id,
   );
-
   const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
     [player1Id, player2Id ?? ""]
       .filter(Boolean)
@@ -276,34 +327,16 @@ export const TournamentCategoryPage = ({
 
   const resolvePlayerId = async ({
     selectedId,
-    newName,
     required,
   }: {
     selectedId: string;
-    newName: string;
     required: boolean;
   }): Promise<string | null> => {
-    if (selectedId && selectedId !== NEW_PLAYER_OPTION) {
+    if (selectedId) {
       return selectedId;
     }
-
-    const normalizedName = newName.trim();
-    if (!normalizedName) {
-      if (required) {
-        throw new Error("Debe seleccionar o crear el Jugador/a 1.");
-      }
-      return null;
-    }
-
-    const existing = players.find(
-      (player) =>
-        player.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase(),
-    );
-    if (existing) return existing.id;
-
-    const created = await createPlayer({ name: normalizedName });
-    await loadPlayers();
-    return created.id;
+    if (required) throw new Error("Debe seleccionar un Jugador/a 1.");
+    return null;
   };
 
   const parseStoredSets = (
@@ -411,7 +444,7 @@ export const TournamentCategoryPage = ({
     matchId: string,
     input: { sets: MatchSetScore[] | null; error: string | null },
   ) => {
-    const match = data?.bracketMatches.find((item) => item.id === matchId);
+    const match = orderedBracketMatches.find((item) => item.id === matchId);
     if (!match) return;
     const baselineSets = parseStoredSets(match.score, match.sets);
 
@@ -491,7 +524,7 @@ export const TournamentCategoryPage = ({
 
     try {
       for (const [matchId, payload] of entries) {
-        const match = data?.bracketMatches.find((item) => item.id === matchId);
+        const match = orderedBracketMatches.find((item) => item.id === matchId);
         if (!match) {
           nextErrors[matchId] = "No se encontró el partido.";
           continue;
@@ -619,16 +652,18 @@ export const TournamentCategoryPage = ({
                 Solo se muestran jugadores de esta categoría o inferiores.
               </p>
             )}
-            <div className="mt-3">
-              <SearchInput
-                value={playersQuery}
-                onChange={setPlayersQuery}
-                placeholder="Buscar jugador para armar equipo..."
-              />
-              {!selectablePlayers.length && (
-                <p className="mt-2 text-xs text-slate-500">No se encontraron jugadores.</p>
-              )}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={openCreatePlayerModal}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700"
+              >
+                + Crear jugador
+              </button>
             </div>
+            {!selectablePlayers.length && (
+              <p className="mt-2 text-xs text-slate-500">No hay jugadores disponibles.</p>
+            )}
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -641,9 +676,6 @@ export const TournamentCategoryPage = ({
                     setTeamForm((prev) => ({
                       ...prev,
                       player1Id: event.target.value,
-                      ...(event.target.value !== NEW_PLAYER_OPTION
-                        ? { player1NewName: "" }
-                        : {}),
                     }))
                   }
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -654,21 +686,7 @@ export const TournamentCategoryPage = ({
                       {player.name}
                     </option>
                   ))}
-                  <option value={NEW_PLAYER_OPTION}>+ Crear nuevo jugador</option>
                 </select>
-                {teamForm.player1Id === NEW_PLAYER_OPTION && (
-                  <input
-                    value={teamForm.player1NewName}
-                    onChange={(event) =>
-                      setTeamForm((prev) => ({
-                        ...prev,
-                        player1NewName: event.target.value,
-                      }))
-                    }
-                    placeholder="Nombre del nuevo jugador"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  />
-                )}
               </div>
 
               <div className="space-y-2">
@@ -681,9 +699,6 @@ export const TournamentCategoryPage = ({
                     setTeamForm((prev) => ({
                       ...prev,
                       player2Id: event.target.value,
-                      ...(event.target.value !== NEW_PLAYER_OPTION
-                        ? { player2NewName: "" }
-                        : {}),
                     }))
                   }
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -694,21 +709,7 @@ export const TournamentCategoryPage = ({
                       {player.name}
                     </option>
                   ))}
-                  <option value={NEW_PLAYER_OPTION}>+ Crear nuevo jugador</option>
                 </select>
-                {teamForm.player2Id === NEW_PLAYER_OPTION && (
-                  <input
-                    value={teamForm.player2NewName}
-                    onChange={(event) =>
-                      setTeamForm((prev) => ({
-                        ...prev,
-                        player2NewName: event.target.value,
-                      }))
-                    }
-                    placeholder="Nombre del nuevo jugador"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  />
-                )}
               </div>
             </div>
 
@@ -721,12 +722,10 @@ export const TournamentCategoryPage = ({
                   try {
                     const player1Id = await resolvePlayerId({
                       selectedId: teamForm.player1Id,
-                      newName: teamForm.player1NewName,
                       required: true,
                     });
                     const player2Id = await resolvePlayerId({
                       selectedId: teamForm.player2Id,
-                      newName: teamForm.player2NewName,
                       required: false,
                     });
                     if (!player1Id) return;
@@ -799,9 +798,7 @@ export const TournamentCategoryPage = ({
                     ]);
                     setTeamForm({
                       player1Id: "",
-                      player1NewName: "",
                       player2Id: "",
-                      player2NewName: "",
                     });
                   } catch (error) {
                     setTeamDraftError(
@@ -942,11 +939,11 @@ export const TournamentCategoryPage = ({
 
             <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Zonas generadas ({data.zones.length})
+                Zonas generadas ({orderedZones.length})
               </p>
-              {data.zones.length ? (
+              {orderedZones.length ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {data.zones.map((zone) => (
+                  {orderedZones.map((zone) => (
                     <span
                       key={zone.id}
                       className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
@@ -969,9 +966,9 @@ export const TournamentCategoryPage = ({
               Los partidos se generan automáticamente desde las zonas. Desde acá solo editás resultados, horario y cancha.
             </p>
 
-            {data.editableMatches.length ? (
+            {orderedEditableMatches.length ? (
               <div className="mt-3 space-y-2">
-                {data.editableMatches.map((match) => (
+                {orderedEditableMatches.map((match) => (
                   <MatchCard
                     key={match.id}
                     match={match}
@@ -1028,7 +1025,7 @@ export const TournamentCategoryPage = ({
           {activeTab === "Zonas" && activeZone && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex flex-wrap gap-2">
-                {data.zones.map((zone) => (
+                {orderedZones.map((zone) => (
                   <button
                     key={zone.id}
                     onClick={() => setZoneId(zone.id)}
@@ -1068,9 +1065,9 @@ export const TournamentCategoryPage = ({
                 </table>
               </div>
               <div className="mt-4 grid gap-2">
-                {activeZone.matches.length ? (
+                {orderedZoneMatches.length ? (
                   <>
-                    {activeZone.matches.map((match) => (
+                    {orderedZoneMatches.map((match) => (
                       <MatchCard
                         key={match.id}
                         match={match}
@@ -1116,14 +1113,14 @@ export const TournamentCategoryPage = ({
           )}
           {activeTab === "Cruces" && (
             <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <TournamentBracket matches={data.bracketMatches} />
+              <TournamentBracket matches={orderedBracketMatches} />
 
-              {data.bracketMatches.length ? (
+              {orderedBracketMatches.length ? (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Edición de cruces
                   </p>
-                  {data.bracketMatches.map((match) => (
+                  {orderedBracketMatches.map((match) => (
                     <MatchCard
                       key={match.id}
                       match={match}
@@ -1219,6 +1216,123 @@ export const TournamentCategoryPage = ({
             />
           )}
         </>
+      )}
+
+      {isAdmin && playerModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
+            <h3 className="text-base font-semibold text-slate-900">Crear jugador</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Se agregará a la lista disponible para armar equipos.
+            </p>
+            <div className="mt-3 space-y-3">
+              <input
+                value={playerModal.name}
+                onChange={(event) =>
+                  setPlayerModal((prev) => ({
+                    ...prev,
+                    name: event.target.value,
+                    error: null,
+                  }))
+                }
+                placeholder="Nombre"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <select
+                value={playerModal.categoryId}
+                onChange={(event) =>
+                  setPlayerModal((prev) => ({
+                    ...prev,
+                    categoryId: event.target.value,
+                    error: null,
+                  }))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">Seleccionar categoría...</option>
+                {categoriesCatalog.map((categoryItem) => (
+                  <option key={categoryItem.id} value={categoryItem.id}>
+                    {categoryItem.name}
+                  </option>
+                ))}
+              </select>
+              {playerModal.error && (
+                <p className="text-xs text-red-600">{playerModal.error}</p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCreatePlayerModal}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={playerModal.saving}
+                onClick={() =>
+                  void (async () => {
+                    const trimmedName = playerModal.name.trim();
+                    if (!trimmedName) {
+                      setPlayerModal((prev) => ({
+                        ...prev,
+                        error: "Ingresá un nombre.",
+                      }));
+                      return;
+                    }
+                    if (!playerModal.categoryId) {
+                      setPlayerModal((prev) => ({
+                        ...prev,
+                        error: "Seleccioná una categoría.",
+                      }));
+                      return;
+                    }
+
+                    const existingPlayer = players.find(
+                      (player) =>
+                        player.name.toLocaleLowerCase() === trimmedName.toLocaleLowerCase(),
+                    );
+                    if (existingPlayer) {
+                      setTeamForm((prev) => ({
+                        ...prev,
+                        player1Id: prev.player1Id || existingPlayer.id,
+                      }));
+                      closeCreatePlayerModal();
+                      return;
+                    }
+
+                    setPlayerModal((prev) => ({ ...prev, saving: true, error: null }));
+                    try {
+                      const created = await createPlayer({
+                        name: trimmedName,
+                        current_category_id: playerModal.categoryId,
+                      });
+                      await loadPlayers();
+                      setTeamForm((prev) => ({
+                        ...prev,
+                        player1Id: prev.player1Id || created.id,
+                      }));
+                      closeCreatePlayerModal();
+                    } catch (error) {
+                      setPlayerModal((prev) => ({
+                        ...prev,
+                        saving: false,
+                        error:
+                          error instanceof Error
+                            ? error.message
+                            : "No se pudo crear el jugador.",
+                      }));
+                    }
+                  })()
+                }
+                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {playerModal.saving ? "Guardando..." : "Guardar jugador"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

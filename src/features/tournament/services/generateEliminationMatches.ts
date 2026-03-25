@@ -25,11 +25,25 @@ export const generateEliminationMatches = async ({
   const template = getEliminationTemplate(qualifiedTeamsCount)
   if (!template.length) return 0
 
+  const { data: existingGroupMatches, error: groupMatchesError } = await supabase
+    .from("matches")
+    .select("match_number")
+    .eq("tournament_category_id", tournamentCategoryId)
+    .eq("stage", "group")
+  throwIfError(groupMatchesError)
+
+  const groupMatchOffset = (existingGroupMatches ?? []).reduce(
+    (max, match) => Math.max(max, match.match_number ?? 0),
+    0,
+  )
+  const toAbsoluteMatchNumber = (templateMatchNumber: number) =>
+    groupMatchOffset + templateMatchNumber
+
   const eliminationMatches: MatchInsert[] = template.map((templateMatch) => ({
-    id: `tmp-${templateMatch.matchNumber}`,
+    id: `tmp-${toAbsoluteMatchNumber(templateMatch.matchNumber)}`,
     tournament_category_id: tournamentCategoryId,
     stage: templateMatch.stage as MatchInsert["stage"],
-    match_number: templateMatch.matchNumber,
+    match_number: toAbsoluteMatchNumber(templateMatch.matchNumber),
     round: templateMatch.round,
     round_order: templateMatch.order,
     team1_source: templateMatch.team1,
@@ -55,8 +69,8 @@ export const generateEliminationMatches = async ({
   for (const templateMatch of template) {
     if (!templateMatch.nextMatch || !templateMatch.nextSlot) continue
 
-    const matchId = matchNumberToId[templateMatch.matchNumber]
-    const nextMatchId = matchNumberToId[templateMatch.nextMatch]
+    const matchId = matchNumberToId[toAbsoluteMatchNumber(templateMatch.matchNumber)]
+    const nextMatchId = matchNumberToId[toAbsoluteMatchNumber(templateMatch.nextMatch)]
     if (!matchId || !nextMatchId) {
       throw new Error("No se pudo vincular el cuadro de eliminación por ids faltantes.")
     }

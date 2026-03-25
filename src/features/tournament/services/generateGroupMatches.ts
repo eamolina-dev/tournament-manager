@@ -7,19 +7,34 @@ export const generateGroupMatches = (
   groups: PlannedGroup[],
   groupsByKey: Map<string, string>,
 ): MatchInsert[] => {
-  const baseMatches = groups.flatMap((group) => {
+  const orderedGroups = [...groups].sort((a, b) => a.groupKey.localeCompare(b.groupKey))
+  let nextMatchNumber = 1
+
+  const baseMatches = orderedGroups.flatMap((group) => {
     const groupId = groupsByKey.get(group.groupKey)
     if (!groupId) {
       throw new Error(`No se pudo crear partidos de grupo: falta el id de ${group.name}.`)
     }
 
+    const assignMatchNumbers = (matches: MatchInsert[]): MatchInsert[] =>
+      matches.map((match) => ({
+        ...match,
+        match_number: nextMatchNumber++,
+      }))
+
     if (group.teamIds.length === 3) {
-      return buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+      return assignMatchNumbers(
+        buildThreeTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds),
+      )
     }
     if (group.teamIds.length === 4) {
-      return buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+      return assignMatchNumbers(
+        buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds),
+      )
     }
-    return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
+    return assignMatchNumbers(
+      buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds),
+    )
   })
 
   return scheduleGroupMatches(baseMatches)
@@ -37,9 +52,9 @@ const buildThreeTeamGroupMatches = (
   groupId: string,
   teamIds: string[],
 ): MatchInsert[] => [
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 1, team1_id: teamIds[0], team2_id: teamIds[1] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 2, team1_id: teamIds[0], team2_id: teamIds[2] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", match_number: 3, team1_id: teamIds[1], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[2] },
+  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[2] },
 ]
 
 const buildFourTeamGroupMatches = (
@@ -51,7 +66,6 @@ const buildFourTeamGroupMatches = (
     tournament_category_id: tournamentCategoryId,
     group_id: groupId,
     stage: "group",
-    match_number: 1,
     team1_id: teamIds[0],
     team2_id: teamIds[1],
   },
@@ -59,7 +73,6 @@ const buildFourTeamGroupMatches = (
     tournament_category_id: tournamentCategoryId,
     group_id: groupId,
     stage: "group",
-    match_number: 2,
     team1_id: teamIds[2],
     team2_id: teamIds[3],
   },
@@ -67,7 +80,6 @@ const buildFourTeamGroupMatches = (
     tournament_category_id: tournamentCategoryId,
     group_id: groupId,
     stage: "group",
-    match_number: 3,
     team1_id: teamIds[0],
     team2_id: teamIds[2],
   },
@@ -75,7 +87,6 @@ const buildFourTeamGroupMatches = (
     tournament_category_id: tournamentCategoryId,
     group_id: groupId,
     stage: "group",
-    match_number: 4,
     team1_id: teamIds[1],
     team2_id: teamIds[3],
   },

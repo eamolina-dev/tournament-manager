@@ -43,7 +43,9 @@ const getWinner = (score?: string) => {
 
 const mapMatches = (matches: Match[]): BracketMatch[] => {
   const sorted = [...matches].sort(
-    (a, b) => stageOrder[a.stage ?? "final"] - stageOrder[b.stage ?? "final"],
+    (a, b) =>
+      (a.matchNumber ?? Number.MAX_SAFE_INTEGER) - (b.matchNumber ?? Number.MAX_SAFE_INTEGER) ||
+      stageOrder[a.stage ?? "final"] - stageOrder[b.stage ?? "final"],
   )
 
   const withTree = sorted.map((item) => {
