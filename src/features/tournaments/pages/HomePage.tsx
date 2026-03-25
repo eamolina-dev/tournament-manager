@@ -15,7 +15,14 @@ type TournamentCard = {
   name: string
   start_date: string | null
   end_date: string | null
-  categories: { id: string; name: string; slug: string | null; tournamentCategoryId: string }[]
+  categories: {
+    id: string
+    name: string
+    slug: string | null
+    tournamentCategoryId: string
+    isSuma: boolean
+    sumaValue: number | null
+  }[]
 }
 
 export const HomePage = ({ navigate }: HomePageProps) => {
@@ -47,12 +54,17 @@ export const HomePage = ({ navigate }: HomePageProps) => {
         categories: categoriesPerTournament[index]
           .map((row) => {
             const category = categoriesMap.get(row.category_id ?? "")
-            if (!category) return null
+            if (!category && !row.is_suma) return null
             return {
-              id: category.id,
-              name: category.name,
-              slug: category.slug,
+              id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
+              name:
+                row.is_suma && row.suma_value != null
+                  ? `Suma ${row.suma_value}`
+                  : category?.name ?? "Categoría",
+              slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : (category?.slug ?? null),
               tournamentCategoryId: row.id,
+              isSuma: Boolean(row.is_suma),
+              sumaValue: row.suma_value ?? null,
             }
           })
           .filter((item): item is NonNullable<typeof item> => Boolean(item)),
