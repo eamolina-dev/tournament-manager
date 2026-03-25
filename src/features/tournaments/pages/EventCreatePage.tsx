@@ -109,7 +109,7 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
           end_date: endDate || null,
         });
 
-        navigate(`/eventos/${eventId}`);
+        navigate(`/eventos/${eventId}/edit`);
         return;
       }
 
@@ -152,10 +152,10 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
             {isEditMode ? "Editar evento" : "Crear evento"}
           </h1>
           <button
-            onClick={() => navigate(isEditMode && eventId ? `/eventos/${eventId}` : "/")}
+            onClick={() => navigate("/")}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
-            {isEditMode ? "Volver al evento" : "Volver al home"}
+            Volver al home
           </button>
         </div>
 

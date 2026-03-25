@@ -3,7 +3,6 @@ import { AppShell } from "./components/layout/AppShell";
 import { RankingsPage } from "./features/rankings/pages/RankingsPage";
 import { AdminTournamentsPage } from "./features/tournaments/pages/AdminTournamentsPage";
 import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
-import { EventHubPage } from "./features/tournaments/pages/EventHubPage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 
@@ -73,7 +72,7 @@ export default function App() {
       {pathname === "/" && <HomePage navigate={navigate} />}
       {pathname === "/eventos/new" && <EventCreatePage navigate={navigate} />}
       {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
-      {eventRoute && <EventHubPage eventId={eventRoute.eventId} navigate={navigate} />}
+      {eventRoute && <EventCreatePage navigate={navigate} eventId={eventRoute.eventId} />}
       {eventCategoryRoute && (
         <TournamentCategoryPage
           slug=""
@@ -84,7 +83,7 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {legacyEventRoute && <EventHubPage eventId={legacyEventRoute.eventId} navigate={navigate} />}
+      {legacyEventRoute && <EventCreatePage navigate={navigate} eventId={legacyEventRoute.eventId} />}
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
       {tournamentRoute && (

@@ -111,12 +111,6 @@ export const HomePage = ({ navigate }: HomePageProps) => {
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              onClick={() => navigate(`/eventos/${tournament.id}`)}
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
-            >
-              Ver torneo
-            </button>
-            <button
               onClick={() => navigate(`/eventos/${tournament.id}/edit`)}
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
             >
