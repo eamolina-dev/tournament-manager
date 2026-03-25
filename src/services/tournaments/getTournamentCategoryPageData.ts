@@ -13,6 +13,9 @@ export type TournamentCategoryPageData = {
   tournamentCategoryId: string
   tournamentName: string
   categoryName: string
+  isSuma: boolean
+  sumaValue: number | null
+  categoryLevel: number | null
   champion?: string
   finalist?: string
   semifinalists?: [string, string]
@@ -62,7 +65,7 @@ export type TournamentCategoryPageData = {
     court?: string
   }[]
   results: { playerId: string; playerName: string; points: number; isInCompetition: boolean }[]
-  teams: { id: string; name: string }[]
+  teams: { id: string; name: string; player1Id: string | null; player2Id: string | null }[]
   editableMatches: {
     id: string
     team1: string
@@ -280,7 +283,13 @@ export const getTournamentCategoryPageData = async (
   return {
     tournamentCategoryId,
     tournamentName: tournament.name ?? "Torneo",
-    categoryName: category.category.name ?? "Categoría",
+    categoryName:
+      category.is_suma && category.suma_value != null
+        ? `Suma ${category.suma_value}`
+        : category.category?.name ?? "Categoría",
+    isSuma: Boolean(category.is_suma),
+    sumaValue: category.suma_value ?? null,
+    categoryLevel: category.category?.level ?? null,
     champion,
     finalist,
     semifinalists:
@@ -300,7 +309,12 @@ export const getTournamentCategoryPageData = async (
     results: resultRows,
     teams: teamPlayers
       .filter((team) => team.id)
-      .map((team) => ({ id: team.id ?? "", name: team.team_name ?? "Equipo" })),
+      .map((team) => ({
+        id: team.id ?? "",
+        name: team.team_name ?? "Equipo",
+        player1Id: team.player1_id ?? null,
+        player2Id: team.player2_id ?? null,
+      })),
     editableMatches: matches.map((match) => ({
       id: match.id,
       team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",

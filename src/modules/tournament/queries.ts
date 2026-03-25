@@ -52,11 +52,11 @@ export const getTournamentCategories = async (
 }
 
 export const getAllCategories = async (): Promise<
-  { id: string; name: string; slug: string | null }[]
+  { id: string; name: string; slug: string | null; level: number }[]
 > => {
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, slug")
+    .select("id, name, slug, level")
     .order("level", { ascending: true })
 
   throwIfError(error)
@@ -67,6 +67,9 @@ export const getTournamentCategoryBySlugs = async (
   tournamentSlug: string,
   categorySlug: string
 ) => {
+  const tournament = await getTournamentBySlug(tournamentSlug)
+  if (!tournament) return null
+
   const { data, error } = await supabase
     .from("tournament_categories")
     .select(`
@@ -74,22 +77,20 @@ export const getTournamentCategoryBySlugs = async (
       gender,
       is_suma,
       suma_value,
-      tournament:tournaments!inner(slug),
-      category:categories!inner(name, slug)
+      category:categories(name, slug, level)
     `)
-    .eq("tournaments.slug", tournamentSlug)
-    .eq("categories.slug", categorySlug)
-    .maybeSingle();
+    .eq("tournament_id", tournament.id)
 
-  if (error) {
-    console.error("Error detallado:", error);
-    return null;
-  }
+  throwIfError(error)
 
-  console.log("Buscando Torneo: |", tournamentSlug, "|", "Categoría: |", categorySlug, "|");
-  console.log("Resultado real de DB:", JSON.stringify(data, null, 2));
-
-  return data;
+  return (
+    data.find((row) => {
+      if (row.is_suma && row.suma_value != null) {
+        return `suma-${row.suma_value}` === categorySlug
+      }
+      return row.category?.slug === categorySlug
+    }) ?? null
+  )
 }
 
 export const getGroupsByCategory = async (

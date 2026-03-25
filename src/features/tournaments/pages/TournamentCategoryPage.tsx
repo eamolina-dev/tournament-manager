@@ -7,6 +7,7 @@ import {
 import { createPlayer } from "../../../modules/player/mutations";
 import { getPlayers } from "../../../modules/player/queries";
 import { createTeam, deleteTeam } from "../../../modules/team/mutations";
+import { getAllCategories } from "../../../modules/tournament/queries";
 import {
   generateFullTournament,
   resolveEliminationTeamSources,
@@ -82,7 +83,9 @@ export const TournamentCategoryPage = ({
     storageKey: `tournament:${slug}:${category}:zone-tab`,
     tabs: zoneTabs,
   });
-  const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
+  const [players, setPlayers] = useState<
+    { id: string; name: string; categoryLevel: number | null }[]
+  >([]);
   const [teamForm, setTeamForm] = useState<TeamFormState>({
     player1Id: "",
     player1NewName: "",
@@ -118,11 +121,19 @@ export const TournamentCategoryPage = ({
   };
 
   const loadPlayers = async () => {
-    const response = await getPlayers();
+    const [response, categories] = await Promise.all([getPlayers(), getAllCategories()]);
+    const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
+
     setPlayers(
       response
         .filter((player) => Boolean(player.id) && Boolean(player.name?.trim()))
-        .map((player) => ({ id: player.id, name: player.name?.trim() ?? "" }))
+        .map((player) => ({
+          id: player.id,
+          name: player.name?.trim() ?? "",
+          categoryLevel: player.current_category_id
+            ? (categoryLevelById.get(player.current_category_id) ?? null)
+            : null,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     );
   };
@@ -152,6 +163,43 @@ export const TournamentCategoryPage = ({
   const playersById = useMemo(
     () => new Map(players.map((player) => [player.id, player.name])),
     [players],
+  );
+  const playersByIdWithCategory = useMemo(
+    () => new Map(players.map((player) => [player.id, player])),
+    [players],
+  );
+  const blockedPlayerIds = useMemo(() => {
+    const ids = new Set<string>();
+    data?.teams.forEach((team) => {
+      if (team.player1Id) ids.add(team.player1Id);
+      if (team.player2Id) ids.add(team.player2Id);
+    });
+    draftTeams.forEach((team) => {
+      ids.add(team.player1Id);
+      if (team.player2Id) ids.add(team.player2Id);
+    });
+    return ids;
+  }, [data?.teams, draftTeams]);
+
+  const canPlayerEnterByCategory = (playerId: string): boolean => {
+    if (!data || data.isSuma || data.categoryLevel == null) return true;
+    const player = playersByIdWithCategory.get(playerId);
+    if (!player || player.categoryLevel == null) return false;
+    return player.categoryLevel >= data.categoryLevel;
+  };
+
+  const selectablePlayers = useMemo(
+    () =>
+      filteredPlayers.filter(
+        (player) => !blockedPlayerIds.has(player.id) && canPlayerEnterByCategory(player.id),
+      ),
+    [filteredPlayers, blockedPlayerIds, data, playersByIdWithCategory],
+  );
+  const player1Options = selectablePlayers.filter(
+    (player) => player.id === teamForm.player1Id || player.id !== teamForm.player2Id,
+  );
+  const player2Options = selectablePlayers.filter(
+    (player) => player.id === teamForm.player2Id || player.id !== teamForm.player1Id,
   );
 
   const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
@@ -487,13 +535,23 @@ export const TournamentCategoryPage = ({
             <p className="mt-1 text-xs text-slate-500">
               Seleccioná jugadores existentes o crealos en el momento.
             </p>
+            {data.isSuma && data.sumaValue != null ? (
+              <p className="mt-1 text-xs text-slate-600">
+                Torneo suma {data.sumaValue}: se valida la pareja al guardar (cat1 + cat2 ≥{" "}
+                {data.sumaValue}).
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-600">
+                Solo se muestran jugadores de esta categoría o inferiores.
+              </p>
+            )}
             <div className="mt-3">
               <SearchInput
                 value={playersQuery}
                 onChange={setPlayersQuery}
                 placeholder="Buscar jugador para armar equipo..."
               />
-              {!filteredPlayers.length && (
+              {!selectablePlayers.length && (
                 <p className="mt-2 text-xs text-slate-500">No se encontraron jugadores.</p>
               )}
             </div>
@@ -517,7 +575,7 @@ export const TournamentCategoryPage = ({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   <option value="">Seleccionar jugador</option>
-                  {filteredPlayers.map((player) => (
+                  {player1Options.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
                     </option>
@@ -557,7 +615,7 @@ export const TournamentCategoryPage = ({
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                   <option value="">Sin segundo jugador</option>
-                  {filteredPlayers.map((player) => (
+                  {player2Options.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
                     </option>
@@ -598,6 +656,44 @@ export const TournamentCategoryPage = ({
                       required: false,
                     });
                     if (!player1Id) return;
+                    if (player2Id && player1Id === player2Id) {
+                      setTeamDraftError("No podés elegir al mismo jugador en ambos lados.");
+                      return;
+                    }
+                    if (
+                      blockedPlayerIds.has(player1Id) ||
+                      (player2Id && blockedPlayerIds.has(player2Id))
+                    ) {
+                      setTeamDraftError("Uno de los jugadores ya está asignado en otro equipo.");
+                      return;
+                    }
+                    if (
+                      !canPlayerEnterByCategory(player1Id) ||
+                      (player2Id && !canPlayerEnterByCategory(player2Id))
+                    ) {
+                      setTeamDraftError(
+                        "Hay jugadores fuera de la categoría permitida para este torneo.",
+                      );
+                      return;
+                    }
+                    if (data.isSuma && data.sumaValue != null && player2Id) {
+                      const player1Level =
+                        playersByIdWithCategory.get(player1Id)?.categoryLevel;
+                      const player2Level =
+                        playersByIdWithCategory.get(player2Id)?.categoryLevel;
+                      if (player1Level == null || player2Level == null) {
+                        setTeamDraftError(
+                          "Ambos jugadores deben tener categoría actual asignada.",
+                        );
+                        return;
+                      }
+                      if (player1Level + player2Level < data.sumaValue) {
+                        setTeamDraftError(
+                          `La pareja no cumple suma ${data.sumaValue}: ${player1Level} + ${player2Level} debe ser mayor o igual.`,
+                        );
+                        return;
+                      }
+                    }
 
                     const player1Name = playersById.get(player1Id) ?? "Jugador/a 1";
                     const player2Name = player2Id ? playersById.get(player2Id) : null;

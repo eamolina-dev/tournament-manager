@@ -27,6 +27,8 @@ type TournamentCard = {
     name: string;
     slug: string | null;
     tournamentCategoryId: string;
+    isSuma: boolean;
+    sumaValue: number | null;
   }[];
 };
 
@@ -44,7 +46,7 @@ export const AdminTournamentsPage = ({
 }: AdminTournamentsPageProps) => {
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
   const [categoriesCatalog, setCategoriesCatalog] = useState<
-    { id: string; name: string; slug: string | null }[]
+    { id: string; name: string; slug: string | null; level: number }[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,8 @@ export const AdminTournamentsPage = ({
   const [categorySelection, setCategorySelection] = useState<
     Record<string, string>
   >({});
+  const [categoryMode, setCategoryMode] = useState<Record<string, "normal" | "suma">>({});
+  const [sumSelection, setSumSelection] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,12 +85,17 @@ export const AdminTournamentsPage = ({
           categories: categoriesPerTournament[index]
             .map((row) => {
               const category = categoriesMap.get(row.category_id ?? "");
-              if (!category) return null;
+              if (!category && !row.is_suma) return null;
               return {
-                id: category.id,
-                name: category.name,
-                slug: category.slug,
+                id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
+                name:
+                  row.is_suma && row.suma_value != null
+                    ? `Suma ${row.suma_value}`
+                    : category?.name ?? "Categoría",
+                slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : (category?.slug ?? null),
                 tournamentCategoryId: row.id,
+                isSuma: Boolean(row.is_suma),
+                sumaValue: row.suma_value ?? null,
               };
             })
             .filter((item): item is NonNullable<typeof item> => Boolean(item)),
@@ -240,13 +249,10 @@ export const AdminTournamentsPage = ({
                 className="flex items-center gap-1"
               >
                 <button
-                  onClick={() =>
-                    navigate(
-                      `/admin/tournament/${tournament.slug}/${
-                        cat.slug ?? cat.id
-                      }`
-                    )
-                  }
+                  onClick={() => {
+                    if (!cat.slug) return;
+                    navigate(`/admin/tournament/${tournament.slug}/${cat.slug ?? cat.id}`);
+                  }}
                   className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                 >
                   {cat.name}
@@ -267,31 +273,77 @@ export const AdminTournamentsPage = ({
 
           <div className="mt-3 flex flex-wrap gap-2">
             <select
-              value={categorySelection[tournament.id] ?? ""}
+              value={categoryMode[tournament.id] ?? "normal"}
               onChange={(event) =>
-                setCategorySelection((prev) => ({
+                setCategoryMode((prev) => ({
                   ...prev,
-                  [tournament.id]: event.target.value,
+                  [tournament.id]: event.target.value === "suma" ? "suma" : "normal",
                 }))
               }
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
             >
-              <option value="">Agregar categoría...</option>
-              {(availableCategoriesByTournament[tournament.id] ?? []).map(
-                (cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                )
-              )}
+              <option value="normal">Categoría normal</option>
+              <option value="suma">Categoría suma</option>
             </select>
+            {(categoryMode[tournament.id] ?? "normal") === "suma" ? (
+              <select
+                value={sumSelection[tournament.id] ?? 13}
+                onChange={(event) =>
+                  setSumSelection((prev) => ({
+                    ...prev,
+                    [tournament.id]: Number(event.target.value),
+                  }))
+                }
+                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              >
+                {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
+                  <option key={sumValue} value={sumValue}>
+                    Suma {sumValue}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {(categoryMode[tournament.id] ?? "normal") === "normal" ? (
+              <select
+                value={categorySelection[tournament.id] ?? ""}
+                onChange={(event) =>
+                  setCategorySelection((prev) => ({
+                    ...prev,
+                    [tournament.id]: event.target.value,
+                  }))
+                }
+                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              >
+                <option value="">Agregar categoría...</option>
+                {(availableCategoriesByTournament[tournament.id] ?? []).map(
+                  (cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  )
+                )}
+              </select>
+            ) : null}
             <button
               onClick={() => {
+                const mode = categoryMode[tournament.id] ?? "normal";
+                if (mode === "suma") {
+                  void createCategory({
+                    tournament_id: tournament.id,
+                    is_suma: true,
+                    suma_value: sumSelection[tournament.id] ?? 13,
+                    category_id: null,
+                  }).then(load);
+                  return;
+                }
+
                 const categoryId = categorySelection[tournament.id];
                 if (!categoryId) return;
                 void createCategory({
                   tournament_id: tournament.id,
                   category_id: categoryId,
+                  is_suma: false,
+                  suma_value: null,
                 }).then(load);
               }}
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm"

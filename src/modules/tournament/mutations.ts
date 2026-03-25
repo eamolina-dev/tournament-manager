@@ -48,9 +48,6 @@ export const createCategory = async (
   if (!input.tournament_id) {
     throw new Error("Falta tournament_id para vincular la categoría al torneo.")
   }
-  if (!input.category_id) {
-    throw new Error("Falta category_id para crear la categoría del torneo.")
-  }
 
   const { data, error } = await supabase
     .from("tournament_categories")
