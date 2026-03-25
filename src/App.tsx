@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { RankingsPage } from "./features/rankings/pages/RankingsPage";
 import { AdminTournamentsPage } from "./features/tournaments/pages/AdminTournamentsPage";
+import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
+import { EventHubPage } from "./features/tournaments/pages/EventHubPage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 
@@ -15,6 +17,25 @@ const matchAdminTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
   return { slug: match[1], category: decodeURIComponent(match[2]) };
+};
+
+const matchEventPath = (pathname: string) => {
+  const match = pathname.match(/^\/eventos\/([^/]+)$/);
+  if (!match) return null;
+  if (match[1] === "new") return null;
+  return { eventId: match[1] };
+};
+
+const matchEventCategoryPath = (pathname: string) => {
+  const match = pathname.match(/^\/eventos\/([^/]+)\/categorias\/([^/]+)$/);
+  if (!match) return null;
+  return { eventId: match[1], categoryId: match[2] };
+};
+
+const matchLegacyEventPath = (pathname: string) => {
+  const match = pathname.match(/^\/torneos\/([^/]+)$/);
+  if (!match) return null;
+  return { eventId: match[1] };
 };
 
 export default function App() {
@@ -34,10 +55,26 @@ export default function App() {
 
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
+  const eventRoute = useMemo(() => matchEventPath(pathname), [pathname]);
+  const eventCategoryRoute = useMemo(() => matchEventCategoryPath(pathname), [pathname]);
+  const legacyEventRoute = useMemo(() => matchLegacyEventPath(pathname), [pathname]);
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
       {pathname === "/" && <HomePage navigate={navigate} />}
+      {pathname === "/eventos/new" && <EventCreatePage navigate={navigate} />}
+      {eventRoute && <EventHubPage eventId={eventRoute.eventId} navigate={navigate} />}
+      {eventCategoryRoute && (
+        <TournamentCategoryPage
+          slug=""
+          category=""
+          eventId={eventCategoryRoute.eventId}
+          categoryId={eventCategoryRoute.categoryId}
+          isAdmin
+          navigate={navigate}
+        />
+      )}
+      {legacyEventRoute && <EventHubPage eventId={legacyEventRoute.eventId} navigate={navigate} />}
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
       {tournamentRoute && (
@@ -56,7 +93,15 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {!tournamentRoute && !adminTournamentRoute && pathname !== "/" && pathname !== "/rankings" && pathname !== "/admin/tournaments" && (
+      {!tournamentRoute &&
+        !adminTournamentRoute &&
+        !eventRoute &&
+        !eventCategoryRoute &&
+        !legacyEventRoute &&
+        pathname !== "/" &&
+        pathname !== "/rankings" &&
+        pathname !== "/admin/tournaments" &&
+        pathname !== "/eventos/new" && (
         <section className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-sm text-slate-600">Ruta no encontrada.</p>
         </section>

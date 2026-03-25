@@ -7,7 +7,11 @@ import {
 import { createPlayer } from "../../../modules/player/mutations";
 import { getPlayers } from "../../../modules/player/queries";
 import { createTeam, deleteTeam } from "../../../modules/team/mutations";
-import { getAllCategories } from "../../../modules/tournament/queries";
+import {
+  getAllCategories,
+  getTournamentById,
+  getTournamentCategories,
+} from "../../../modules/tournament/queries";
 import {
   generateFullTournament,
   resolveEliminationTeamSources,
@@ -25,6 +29,8 @@ import { useSearchFilter } from "../../../shared/hooks/useSearchFilter";
 type TournamentCategoryPageProps = {
   slug: string;
   category: string;
+  eventId?: string;
+  categoryId?: string;
   isAdmin?: boolean;
   isOwner?: boolean;
   navigate?: (path: string) => void;
@@ -75,6 +81,8 @@ const toScheduledAt = (
 export const TournamentCategoryPage = ({
   slug,
   category,
+  eventId,
+  categoryId,
   isAdmin = false,
   isOwner = false,
   navigate,
@@ -136,7 +144,42 @@ export const TournamentCategoryPage = ({
   const load = async () => {
     setLoading(true);
     try {
-      const response = await getTournamentCategoryPageData(slug, category);
+      let tournamentSlug = slug;
+      let categorySlug = category;
+
+      if (eventId && categoryId) {
+        const [tournament, allCategories, tournamentCategories] = await Promise.all([
+          getTournamentById(eventId),
+          getAllCategories(),
+          getTournamentCategories(eventId),
+        ]);
+
+        if (!tournament?.slug) {
+          setData(null);
+          return;
+        }
+
+        const targetCategory = tournamentCategories.find((item) => item.id === categoryId);
+        if (!targetCategory) {
+          setData(null);
+          return;
+        }
+
+        const categoryById = new Map(allCategories.map((item) => [item.id, item]));
+        const resolvedCategorySlug = targetCategory.is_suma
+          ? `suma-${targetCategory.suma_value ?? ""}`
+          : categoryById.get(targetCategory.category_id ?? "")?.slug;
+
+        if (!resolvedCategorySlug) {
+          setData(null);
+          return;
+        }
+
+        tournamentSlug = tournament.slug;
+        categorySlug = resolvedCategorySlug;
+      }
+
+      const response = await getTournamentCategoryPageData(tournamentSlug, categorySlug);
       setData(response);
     } finally {
       setLoading(false);
@@ -166,7 +209,7 @@ export const TournamentCategoryPage = ({
     if (isAdmin) {
       void loadPlayers();
     }
-  }, [slug, category, isAdmin]);
+  }, [slug, category, eventId, categoryId, isAdmin]);
 
   const activeZone = useMemo(() => {
     if (!data?.zones.length) return null;
@@ -501,6 +544,14 @@ export const TournamentCategoryPage = ({
   return (
     <section className="flex flex-col gap-4">
       <header className="rounded-2xl border border-slate-200 bg-white p-4">
+        {eventId && navigate && (
+          <button
+            onClick={() => navigate(`/eventos/${eventId}`)}
+            className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            ← Volver al evento
+          </button>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-slate-900">
             {data.tournamentName}

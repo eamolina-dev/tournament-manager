@@ -88,10 +88,10 @@ export const HomePage = ({ navigate }: HomePageProps) => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-slate-900">Torneos</h1>
           <button
-            onClick={() => navigate("/admin/tournaments")}
+            onClick={() => navigate("/eventos/new")}
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
           >
-            Gestión de torneos
+            Crear torneo
           </button>
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
