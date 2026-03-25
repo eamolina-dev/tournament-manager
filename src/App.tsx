@@ -7,6 +7,8 @@ import { EventHubPage } from "./features/tournaments/pages/EventHubPage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 
+const OWNER_MODE_ENABLED = true;
+
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
@@ -38,6 +40,12 @@ const matchLegacyEventPath = (pathname: string) => {
   return { eventId: match[1] };
 };
 
+const matchEventEditPath = (pathname: string) => {
+  const match = pathname.match(/^\/eventos\/([^/]+)\/edit$/);
+  if (!match) return null;
+  return { eventId: match[1] };
+};
+
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
 
@@ -56,6 +64,7 @@ export default function App() {
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
   const eventRoute = useMemo(() => matchEventPath(pathname), [pathname]);
+  const eventEditRoute = useMemo(() => matchEventEditPath(pathname), [pathname]);
   const eventCategoryRoute = useMemo(() => matchEventCategoryPath(pathname), [pathname]);
   const legacyEventRoute = useMemo(() => matchLegacyEventPath(pathname), [pathname]);
 
@@ -63,6 +72,7 @@ export default function App() {
     <AppShell pathname={pathname} navigate={navigate}>
       {pathname === "/" && <HomePage navigate={navigate} />}
       {pathname === "/eventos/new" && <EventCreatePage navigate={navigate} />}
+      {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
       {eventRoute && <EventHubPage eventId={eventRoute.eventId} navigate={navigate} />}
       {eventCategoryRoute && (
         <TournamentCategoryPage
@@ -81,7 +91,7 @@ export default function App() {
         <TournamentCategoryPage
           slug={tournamentRoute.slug}
           category={tournamentRoute.category}
-          isOwner={new URLSearchParams(window.location.search).get("owner") === "1"}
+          isOwner={OWNER_MODE_ENABLED}
           navigate={navigate}
         />
       )}
@@ -96,6 +106,7 @@ export default function App() {
       {!tournamentRoute &&
         !adminTournamentRoute &&
         !eventRoute &&
+        !eventEditRoute &&
         !eventCategoryRoute &&
         !legacyEventRoute &&
         pathname !== "/" &&

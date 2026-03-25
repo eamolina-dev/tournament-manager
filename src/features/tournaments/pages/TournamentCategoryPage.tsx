@@ -990,21 +990,12 @@ export const TournamentCategoryPage = ({
             <p className="mt-1 text-xs text-slate-500">
               Resuelve los placeholders de cruces (ej: 1A, 2B) en base a la tabla actual de zonas.
             </p>
-
             <button
-              disabled={saving}
-              onClick={() =>
-                void (async () => {
-                  setSaving(true);
-                  try {
-                    await resolveEliminationTeamSources(data.tournamentCategoryId);
-                    await load();
-                  } finally {
-                    setSaving(false);
-                  }
-                })()
-              }
-              className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              type="button"
+              onClick={() => void resolveEliminationTeamSources(data.tournamentCategoryId)}
+              className="hidden"
+              aria-hidden
+              tabIndex={-1}
             >
               Generar cruces
             </button>

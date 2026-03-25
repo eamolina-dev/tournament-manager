@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { deleteTournament } from "../../../modules/tournament/mutations"
 import {
   getAllCategories,
   getTournamentCategories,
@@ -109,6 +110,44 @@ export const HomePage = ({ navigate }: HomePageProps) => {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => navigate(`/eventos/${tournament.id}`)}
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+            >
+              Ver torneo
+            </button>
+            <button
+              onClick={() => navigate(`/eventos/${tournament.id}/edit`)}
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+            >
+              ✏️ Editar
+            </button>
+            <button
+              onClick={() =>
+                void (async () => {
+                  const confirmed = window.confirm(
+                    `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`,
+                  )
+                  if (!confirmed) return
+                  try {
+                    await deleteTournament(tournament.id)
+                    await load()
+                  } catch (deleteError) {
+                    setError(
+                      deleteError instanceof Error
+                        ? deleteError.message
+                        : "No se pudo eliminar el torneo",
+                    )
+                  }
+                })()
+              }
+              className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-700"
+            >
+              🗑️ Eliminar
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2">
             {tournament.categories.map((cat) => (
               <button
                 key={cat.tournamentCategoryId}
