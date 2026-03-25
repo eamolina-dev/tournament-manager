@@ -61,6 +61,16 @@ type EditedResultsState = Record<
 type MatchErrorState = Record<string, string>;
 
 const NEW_PLAYER_OPTION = "__new__";
+const DAY_TO_DATE: Record<"Viernes" | "Sabado" | "Domingo", string> = {
+  Viernes: "2026-01-02",
+  Sabado: "2026-01-03",
+  Domingo: "2026-01-04",
+};
+
+const toScheduledAt = (
+  day: "Viernes" | "Sabado" | "Domingo",
+  time: string,
+): string => `${DAY_TO_DATE[day]}T${time}:00`;
 
 export const TournamentCategoryPage = ({
   slug,
@@ -109,6 +119,19 @@ export const TournamentCategoryPage = ({
   const [bracketMatchErrors, setBracketMatchErrors] = useState<MatchErrorState>({});
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
   const [savingBracket, setSavingBracket] = useState(false);
+
+  const updateMatchSchedule = async (input: {
+    matchId: string;
+    day: "Viernes" | "Sabado" | "Domingo";
+    time: string;
+    court: string;
+  }) => {
+    await updateMatch(input.matchId, {
+      scheduled_at: toScheduledAt(input.day, input.time),
+      court: input.court.trim() ? input.court.trim() : null,
+    });
+    await load();
+  };
 
   const load = async () => {
     setLoading(true);
@@ -1148,6 +1171,8 @@ export const TournamentCategoryPage = ({
           {activeTab === "Horarios" && (
             <ScheduleSection
               matches={data.schedule}
+              isEditable={isOwner}
+              onSaveSchedule={updateMatchSchedule}
               storageKey={`tournament:${slug}:${category}:schedule-day-tab`}
             />
           )}
@@ -1161,6 +1186,8 @@ const dayTabs = ["Viernes", "Sabado", "Domingo"] as const;
 
 const ScheduleSection = ({
   matches,
+  isEditable = false,
+  onSaveSchedule,
   storageKey,
 }: {
   matches: {
@@ -1171,6 +1198,13 @@ const ScheduleSection = ({
     team1: string;
     team2: string;
   }[];
+  isEditable?: boolean;
+  onSaveSchedule?: (input: {
+    matchId: string;
+    day: "Viernes" | "Sabado" | "Domingo";
+    time: string;
+    court: string;
+  }) => Promise<void>;
   storageKey: string;
 }) => {
   const [day, setDay] = usePersistentTab<(typeof dayTabs)[number]>({
@@ -1237,7 +1271,7 @@ const ScheduleSection = ({
                     return (
                       <td key={`${time}-${court}`} className="py-2 px-1">
                         {match ? (
-                          <button className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left transition hover:border-slate-300">
+                          <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left">
                             <p className="text-xs font-medium text-slate-800 leading-tight">
                               {match.team1}
                             </p>
@@ -1247,7 +1281,13 @@ const ScheduleSection = ({
                             <p className="text-xs font-medium text-slate-800 leading-tight">
                               {match.team2}
                             </p>
-                          </button>
+                            {isEditable ? (
+                              <EditableScheduleFields
+                                match={match}
+                                onSaveSchedule={onSaveSchedule}
+                              />
+                            ) : null}
+                          </div>
                         ) : (
                           <div className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
                             -
@@ -1278,6 +1318,88 @@ const sortCourts = (a: string, b: string) => {
   };
 
   return parseCourt(a) - parseCourt(b) || a.localeCompare(b);
+};
+
+const EditableScheduleFields = ({
+  match,
+  onSaveSchedule,
+}: {
+  match: {
+    id: string;
+    day: "Viernes" | "Sabado" | "Domingo";
+    time: string;
+    court?: string;
+  };
+  onSaveSchedule?: (input: {
+    matchId: string;
+    day: "Viernes" | "Sabado" | "Domingo";
+    time: string;
+    court: string;
+  }) => Promise<void>;
+}) => {
+  const [day, setDay] = useState(match.day);
+  const [time, setTime] = useState(match.time === "--:--" ? "17:00" : match.time);
+  const [court, setCourt] = useState(match.court ?? "C1");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDay(match.day);
+    setTime(match.time === "--:--" ? "17:00" : match.time);
+    setCourt(match.court ?? "C1");
+  }, [match.court, match.day, match.time]);
+
+  const handleSave = async () => {
+    if (!onSaveSchedule) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSaveSchedule({ matchId: match.id, day, time, court });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 space-y-1 border-t border-slate-200 pt-2">
+      <div className="grid grid-cols-3 gap-1">
+        <select
+          value={day}
+          onChange={(event) => setDay(event.target.value as typeof day)}
+          className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px]"
+        >
+          {dayTabs.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <input
+          type="time"
+          value={time}
+          onChange={(event) => setTime(event.target.value)}
+          className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px]"
+        />
+        <input
+          value={court}
+          onChange={(event) => setCourt(event.target.value)}
+          className="rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px]"
+          placeholder="C1"
+        />
+      </div>
+      {error ? <p className="text-[11px] text-red-600">{error}</p> : null}
+      <button
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={saving || !time}
+        className="rounded border border-slate-300 px-2 py-1 text-[11px] disabled:opacity-60"
+      >
+        {saving ? "Guardando..." : "Guardar horario"}
+      </button>
+    </div>
+  );
 };
 
 const sortTimes = (a: string, b: string) => {

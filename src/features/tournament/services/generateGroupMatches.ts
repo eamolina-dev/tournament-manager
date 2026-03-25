@@ -1,12 +1,13 @@
 import type { MatchInsert } from "../../../shared/types/entities"
+import { scheduleGroupMatches } from "./autoScheduleMatches"
 import type { PlannedGroup } from "./generateGroups"
 
 export const generateGroupMatches = (
   tournamentCategoryId: string,
   groups: PlannedGroup[],
   groupsByKey: Map<string, string>,
-): MatchInsert[] =>
-  groups.flatMap((group) => {
+): MatchInsert[] => {
+  const baseMatches = groups.flatMap((group) => {
     const groupId = groupsByKey.get(group.groupKey)
     if (!groupId) {
       throw new Error(`No se pudo crear partidos de grupo: falta el id de ${group.name}.`)
@@ -20,6 +21,9 @@ export const generateGroupMatches = (
     }
     return buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds)
   })
+
+  return scheduleGroupMatches(baseMatches)
+}
 
 export const isValidGroupMatch = (match: MatchInsert): boolean =>
   Boolean(

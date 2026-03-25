@@ -3,6 +3,7 @@ import type { MatchTemplate } from "../../../brackets/match-template"
 import { supabase } from "../../../lib/supabase"
 import { throwIfError } from "../../../lib/throw-if-error"
 import type { MatchInsert } from "../../../shared/types/entities"
+import { scheduleEliminationMatches } from "./autoScheduleMatches"
 
 export const getEliminationTemplate = (qualifiedTeamsCount: number): MatchTemplate[] => {
   const template = templates[qualifiedTeamsCount]
@@ -25,6 +26,7 @@ export const generateEliminationMatches = async ({
   if (!template.length) return 0
 
   const eliminationMatches: MatchInsert[] = template.map((templateMatch) => ({
+    id: `tmp-${templateMatch.matchNumber}`,
     tournament_category_id: tournamentCategoryId,
     stage: templateMatch.stage as MatchInsert["stage"],
     match_number: templateMatch.matchNumber,
@@ -35,9 +37,11 @@ export const generateEliminationMatches = async ({
     group_id: null,
   }))
 
+  const scheduledMatches = scheduleEliminationMatches(eliminationMatches, template)
+
   const { data: insertedMatches, error: insertError } = await supabase
     .from("matches")
-    .insert(eliminationMatches)
+    .insert(scheduledMatches.map(({ id: _id, ...match }) => match))
     .select("id, match_number")
   throwIfError(insertError)
 
