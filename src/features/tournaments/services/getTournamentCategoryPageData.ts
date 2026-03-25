@@ -131,7 +131,6 @@ export const getTournamentCategoryPageData = async (
 ): Promise<TournamentCategoryPageData | null> => {
   const tournament = await getTournamentBySlug(tournamentSlug)
 
-  // console.log('torunament: ' + TournamentBracket)
   if (!tournament) return null
 
   const category = await getTournamentCategoryBySlugs(tournamentSlug, categorySlug)
