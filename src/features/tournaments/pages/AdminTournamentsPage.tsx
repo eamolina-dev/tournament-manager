@@ -274,6 +274,7 @@ export const AdminTournamentsPage = ({
           <div className="mt-3 flex flex-wrap gap-2">
             <select
               value={categoryMode[tournament.id] ?? "normal"}
+<<<<<<< HEAD
               onChange={(event) =>
                 setCategoryMode((prev) => ({
                   ...prev,
@@ -305,24 +306,59 @@ export const AdminTournamentsPage = ({
             ) : null}
             <select
               value={categorySelection[tournament.id] ?? ""}
+=======
+>>>>>>> codex/improve-player-selection-flow-for-tournaments-ys9qal
               onChange={(event) =>
-                setCategorySelection((prev) => ({
+                setCategoryMode((prev) => ({
                   ...prev,
-                  [tournament.id]: event.target.value,
+                  [tournament.id]: event.target.value === "suma" ? "suma" : "normal",
                 }))
               }
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
               disabled={(categoryMode[tournament.id] ?? "normal") === "suma"}
             >
-              <option value="">Agregar categoría...</option>
-              {(availableCategoriesByTournament[tournament.id] ?? []).map(
-                (cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                )
-              )}
+              <option value="normal">Categoría normal</option>
+              <option value="suma">Categoría suma</option>
             </select>
+            {(categoryMode[tournament.id] ?? "normal") === "suma" ? (
+              <select
+                value={sumSelection[tournament.id] ?? 13}
+                onChange={(event) =>
+                  setSumSelection((prev) => ({
+                    ...prev,
+                    [tournament.id]: Number(event.target.value),
+                  }))
+                }
+                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              >
+                {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
+                  <option key={sumValue} value={sumValue}>
+                    Suma {sumValue}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {(categoryMode[tournament.id] ?? "normal") === "normal" ? (
+              <select
+                value={categorySelection[tournament.id] ?? ""}
+                onChange={(event) =>
+                  setCategorySelection((prev) => ({
+                    ...prev,
+                    [tournament.id]: event.target.value,
+                  }))
+                }
+                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+              >
+                <option value="">Agregar categoría...</option>
+                {(availableCategoriesByTournament[tournament.id] ?? []).map(
+                  (cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  )
+                )}
+              </select>
+            ) : null}
             <button
               onClick={() => {
                 const mode = categoryMode[tournament.id] ?? "normal";
