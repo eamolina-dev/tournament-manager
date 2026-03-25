@@ -1,11 +1,11 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type {
   Group,
   GroupWithTeams,
   Tournament,
   TournamentCategory,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export const getTournaments = async (): Promise<Tournament[]> => {
   const { data, error } = await supabase.from("tournaments").select("*")

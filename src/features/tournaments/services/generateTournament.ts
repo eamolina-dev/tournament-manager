@@ -1,5 +1,5 @@
-import { supabase } from "../../../lib/supabase"
-import { throwIfError } from "../../../lib/throw-if-error"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
 import { generateEliminationMatches, getEliminationTemplate } from "./generateEliminationMatches"
 import {
   countGroupMatches,

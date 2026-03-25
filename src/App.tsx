@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell } from "./components/layout/AppShell";
+import { AppShell } from "./widgets/layout/AppShell";
 import { RankingsPage } from "./features/rankings/pages/RankingsPage";
 import { AdminTournamentsPage } from "./features/tournaments/pages/AdminTournamentsPage";
 import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";

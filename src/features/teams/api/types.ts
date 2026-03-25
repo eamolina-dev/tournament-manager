@@ -1,4 +1,4 @@
-import type { Team, TeamInsert, TeamUpdate, TeamWithPlayers } from "../../shared/types/entities"
+import type { Team, TeamInsert, TeamUpdate, TeamWithPlayers } from "../../../shared/types/entities"
 
 export type TeamEntity = Team
 export type TeamWithPlayersEntity = TeamWithPlayers

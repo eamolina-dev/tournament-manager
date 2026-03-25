@@ -1,6 +1,6 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import type { Team, TeamInsert, TeamUpdate } from "../../shared/types/entities"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import type { Team, TeamInsert, TeamUpdate } from "../../../shared/types/entities"
 
 export const createTeam = async (input: TeamInsert): Promise<Team> => {
   if (!input.tournament_category_id) {

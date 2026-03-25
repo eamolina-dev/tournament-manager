@@ -1,23 +1,23 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import { getMatchesByCategory, getMatchSetsByMatchIds } from "../match/queries"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../matches/api/queries"
 import { getGroupsByCategory } from "./queries"
-import { getTeamPlayersByCategory } from "../team/queries"
-import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
+import { getTeamPlayersByCategory } from "../../teams/api/queries"
+import { computeGroupStandings } from "../utils/computeGroupStandings"
 import {
   resolveTeamSourcesForMatches,
   type StandingsByGroup,
-} from "../../features/tournaments/utils/resolveTeamSourcesForMatches"
+} from "../utils/resolveTeamSourcesForMatches"
 import {
   generateFullTournament,
-} from "../../features/tournament/services/generateTournament"
+} from "../services/generateTournament"
 import type {
   Tournament,
   TournamentCategory,
   TournamentCategoryInsert,
   TournamentInsert,
   TournamentUpdate,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export const createTournament = async (
   input: TournamentInsert

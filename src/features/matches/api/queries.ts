@@ -1,12 +1,12 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type {
   BracketMatch,
   Match,
   MatchDetailed,
   MatchSet,
   MatchWithTeams,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export const getMatchesByCategory = async (
   tournamentCategoryId: string

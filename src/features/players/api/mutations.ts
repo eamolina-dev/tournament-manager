@@ -1,6 +1,6 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import type { Player, PlayerInsert, PlayerUpdate } from "../../shared/types/entities"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import type { Player, PlayerInsert, PlayerUpdate } from "../../../shared/types/entities"
 
 export const createPlayer = async (input: PlayerInsert): Promise<Player> => {
   const { data, error } = await supabase

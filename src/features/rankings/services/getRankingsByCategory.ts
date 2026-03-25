@@ -1,9 +1,9 @@
-import { getPlayers } from "../../modules/player/queries"
-import { getCategories, getTeamResults } from "../../modules/ranking/queries"
-import { getTeams } from "../../modules/team/queries"
-import { computeGlobalRanking } from "../../features/rankings/utils/computeGlobalRanking"
-import type { CategoryRankingDTO } from "../../types/ranking"
-import { rankingCategories } from "../../types/ranking"
+import { getPlayers } from "../../players/api/queries"
+import { getCategories, getTeamResults } from "../../rankings/api/queries"
+import { getTeams } from "../../teams/api/queries"
+import { computeGlobalRanking } from "../utils/computeGlobalRanking"
+import type { CategoryRankingDTO } from "../../../shared/types/ranking"
+import { rankingCategories } from "../../../shared/types/ranking"
 
 export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => {
   const [categories, results, teams, players] = await Promise.all([

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { deleteTournament } from "../../../modules/tournament/mutations"
+import { deleteTournament } from "../../../features/tournaments/api/mutations"
 import {
   getAllCategories,
   getTournamentCategories,
   getTournaments,
-} from "../../../modules/tournament/queries"
+} from "../../../features/tournaments/api/queries"
 
 type HomePageProps = {
   navigate: (path: string) => void

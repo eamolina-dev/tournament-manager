@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { RankingTable } from "../components/RankingTable"
-import { getRankingsByCategory } from "../../../services/rankings/getRankingsByCategory"
+import { getRankingsByCategory } from "../../../features/rankings/services/getRankingsByCategory"
 import {
   createEmptyCategoryRankingMap,
   rankingCategories,
   type CategoryCode,
-} from "../../../types/ranking"
+} from "../../../shared/types/ranking"
 import { SearchInput } from "../../../shared/components/SearchInput"
 import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
 

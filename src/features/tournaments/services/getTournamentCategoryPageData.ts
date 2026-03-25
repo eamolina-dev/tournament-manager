@@ -1,13 +1,13 @@
-import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../modules/match/queries"
-import { getPlayersByIds } from "../../modules/player/queries"
-import { getRankingTableByCategory } from "../../modules/ranking/queries"
-import { getTeamPlayersByCategory, getTeamsByCategory } from "../../modules/team/queries"
+import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../matches/api/queries"
+import { getPlayersByIds } from "../../players/api/queries"
+import { getRankingTableByCategory } from "../../rankings/api/queries"
+import { getTeamPlayersByCategory, getTeamsByCategory } from "../../teams/api/queries"
 import {
   getGroupsByCategory,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
-} from "../../modules/tournament/queries"
-import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
+} from "../api/queries"
+import { computeGroupStandings } from "../utils/computeGroupStandings"
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string

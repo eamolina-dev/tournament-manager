@@ -5,12 +5,12 @@ import {
   deleteTournament,
   deleteTournamentCategory,
   updateTournament,
-} from "../../../modules/tournament/mutations";
+} from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
   getTournamentCategories,
   getTournaments,
-} from "../../../modules/tournament/queries";
+} from "../../../features/tournaments/api/queries";
 
 type AdminTournamentsPageProps = {
   navigate: (path: string) => void;

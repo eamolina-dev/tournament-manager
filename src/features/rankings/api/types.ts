@@ -1,4 +1,4 @@
-import type { GroupStanding, GroupTableRow, Ranking, RankingRule } from "../../shared/types/entities"
+import type { GroupStanding, GroupTableRow, Ranking, RankingRule } from "../../../shared/types/entities"
 
 export type RankingEntity = Ranking
 export type RankingRuleEntity = RankingRule

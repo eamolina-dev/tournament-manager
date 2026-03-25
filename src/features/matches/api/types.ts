@@ -7,7 +7,7 @@ import type {
   MatchSetInsert,
   MatchUpdate,
   MatchWithTeams,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export type MatchEntity = Match
 export type MatchSetEntity = MatchSet

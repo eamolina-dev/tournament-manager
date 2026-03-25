@@ -1,10 +1,10 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import { computeTeamFinalPositions, type RankingMatch, type RankingTeam } from "../../features/tournaments/utils/computeTournamentRanking"
-import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
-import { parseSource } from "../../features/tournaments/utils/resolveTeamSourcesForMatches"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import { computeTeamFinalPositions, type RankingMatch, type RankingTeam } from "../../tournaments/utils/computeTournamentRanking"
+import { computeGroupStandings } from "../../tournaments/utils/computeGroupStandings"
+import { parseSource } from "../../tournaments/utils/resolveTeamSourcesForMatches"
 import { getRankingRulesByCircuit } from "./queries"
-import type { RankingInsert, RankingRule } from "../../shared/types/entities"
+import type { RankingInsert, RankingRule } from "../../../shared/types/entities"
 
 export const updateGroupPositions = async (groupId: string): Promise<void> => {
   const { error } = await supabase.rpc("update_group_positions", {

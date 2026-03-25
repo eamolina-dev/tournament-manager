@@ -1,6 +1,6 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import type { Team, TeamWithPlayers } from "../../shared/types/entities"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import type { Team, TeamWithPlayers } from "../../../shared/types/entities"
 
 export const getTeams = async (): Promise<
   Pick<Team, "id" | "tournament_category_id" | "player1_id" | "player2_id">[]

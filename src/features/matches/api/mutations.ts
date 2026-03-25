@@ -1,19 +1,19 @@
-import { supabase } from "../../lib/supabase"
-import { throwIfError } from "../../lib/throw-if-error"
-import { computeGroupStandings } from "../../features/tournaments/utils/computeGroupStandings"
-import { recalculateProgressiveTeamResults } from "../ranking/mutations"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
+import { computeGroupStandings } from "../../tournaments/utils/computeGroupStandings"
+import { recalculateProgressiveTeamResults } from "../../rankings/api/mutations"
 import {
   parseSource,
   resolveTeamSourcesForMatches,
   type StandingsByGroup,
-} from "../../features/tournaments/utils/resolveTeamSourcesForMatches"
+} from "../../tournaments/utils/resolveTeamSourcesForMatches"
 import type {
   Match,
   MatchInsert,
   MatchSet,
   MatchSetInsert,
   MatchUpdate,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export const createMatch = async (input: MatchInsert): Promise<Match> => {
   if (!input.tournament_category_id) {

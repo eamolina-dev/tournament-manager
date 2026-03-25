@@ -1,5 +1,5 @@
 import type { MatchInsert } from "../../../shared/types/entities"
-import type { MatchTemplate } from "../../../brackets/match-template"
+import type { MatchTemplate } from "../brackets/match-template"
 
 type StageDay = "Viernes" | "Sabado" | "Domingo"
 

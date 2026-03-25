@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createCategory } from "../../../modules/tournament/mutations";
+import { createCategory } from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
   getTournamentById,
   getTournamentCategories,
-} from "../../../modules/tournament/queries";
+} from "../../../features/tournaments/api/queries";
 
 type EventHubPageProps = {
   eventId: string;

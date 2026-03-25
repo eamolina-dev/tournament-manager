@@ -3,20 +3,20 @@ import {
   propagateMatchWinner,
   replaceMatchSets,
   updateMatch,
-} from "../../../modules/match/mutations";
-import { createPlayer } from "../../../modules/player/mutations";
-import { getPlayers } from "../../../modules/player/queries";
-import { createTeam, deleteTeam } from "../../../modules/team/mutations";
+} from "../../../features/matches/api/mutations";
+import { createPlayer } from "../../../features/players/api/mutations";
+import { getPlayers } from "../../../features/players/api/queries";
+import { createTeam, deleteTeam } from "../../../features/teams/api/mutations";
 import {
   getAllCategories,
   getTournamentById,
   getTournamentCategories,
-} from "../../../modules/tournament/queries";
+} from "../../../features/tournaments/api/queries";
 import {
   generateFullTournament,
   resolveEliminationTeamSources,
-} from "../../../modules/tournament/mutations";
-import { getTournamentCategoryPageData } from "../../../services/tournaments/getTournamentCategoryPageData";
+} from "../../../features/tournaments/api/mutations";
+import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
 import {
   MatchCard,
   type MatchSetScore,

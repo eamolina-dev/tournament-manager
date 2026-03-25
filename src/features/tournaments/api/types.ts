@@ -5,7 +5,7 @@ import type {
   TournamentCategory,
   TournamentCategoryInsert,
   TournamentInsert,
-} from "../../shared/types/entities"
+} from "../../../shared/types/entities"
 
 export type TournamentEntity = Tournament
 export type TournamentCategoryEntity = TournamentCategory

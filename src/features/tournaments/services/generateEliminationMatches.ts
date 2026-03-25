@@ -1,7 +1,7 @@
-import { templates } from "../../../brackets/temp-mapping"
-import type { MatchTemplate } from "../../../brackets/match-template"
-import { supabase } from "../../../lib/supabase"
-import { throwIfError } from "../../../lib/throw-if-error"
+import { templates } from "../brackets/temp-mapping"
+import type { MatchTemplate } from "../brackets/match-template"
+import { supabase } from "../../../shared/lib/supabase"
+import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type { MatchInsert } from "../../../shared/types/entities"
 import { scheduleEliminationMatches } from "./autoScheduleMatches"
 

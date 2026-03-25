@@ -1,4 +1,4 @@
-import type { RankingRow } from "../../../types/ranking"
+import type { RankingRow } from "../../../shared/types/ranking"
 
 export const RankingTable = ({ rows }: { rows: RankingRow[] }) => (
   <section className="rounded-2xl border border-slate-200 bg-white p-4">
