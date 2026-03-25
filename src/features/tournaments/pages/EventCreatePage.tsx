@@ -16,7 +16,8 @@ const slugify = (value: string): string =>
 
 export const EventCreatePage = ({ navigate }: EventCreatePageProps) => {
   const [name, setName] = useState("");
-  const [date, setDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +32,8 @@ export const EventCreatePage = ({ navigate }: EventCreatePageProps) => {
         circuit_id: "54b31da0-56ac-4ac0-914e-84a9856ba3c8",
         name: name.trim(),
         slug: slugify(name),
-        start_date: date || null,
-        end_date: date || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
       });
 
       navigate(`/eventos/${created.id}`);
@@ -56,7 +57,7 @@ export const EventCreatePage = ({ navigate }: EventCreatePageProps) => {
           </button>
         </div>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -65,8 +66,14 @@ export const EventCreatePage = ({ navigate }: EventCreatePageProps) => {
           />
           <input
             type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
           />
           <button

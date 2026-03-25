@@ -558,14 +558,14 @@ export const TournamentCategoryPage = ({
           </h1>
           {!isAdmin && navigate && (
             <button
-              onClick={() => navigate(`/admin/tournament/${slug}/${category}`)}
+              onClick={() => navigate("/")}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
-              Gestionar torneo
+              Volver al home
             </button>
           )}
 
-          {isAdmin && navigate && (
+          {isAdmin && !eventId && navigate && (
             <button
               onClick={() => navigate(`/tournament/${slug}/${category}?owner=1`)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
