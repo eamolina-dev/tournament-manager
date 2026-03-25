@@ -55,7 +55,9 @@ export const AdminTournamentsPage = ({
   const [categorySelection, setCategorySelection] = useState<
     Record<string, string>
   >({});
-  const [categoryMode, setCategoryMode] = useState<Record<string, "normal" | "suma">>({});
+  const [categoryMode, setCategoryMode] = useState<
+    Record<string, "normal" | "suma">
+  >({});
   const [sumSelection, setSumSelection] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
@@ -92,7 +94,9 @@ export const AdminTournamentsPage = ({
                   row.is_suma && row.suma_value != null
                     ? `Suma ${row.suma_value}`
                     : category?.name ?? "Categoría",
-                slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : (category?.slug ?? null),
+                slug: row.is_suma
+                  ? `suma-${row.suma_value ?? ""}`
+                  : category?.slug ?? null,
                 tournamentCategoryId: row.id,
                 isSuma: Boolean(row.is_suma),
                 sumaValue: row.suma_value ?? null,
@@ -251,7 +255,11 @@ export const AdminTournamentsPage = ({
                 <button
                   onClick={() => {
                     if (!cat.slug) return;
-                    navigate(`/admin/tournament/${tournament.slug}/${cat.slug ?? cat.id}`);
+                    navigate(
+                      `/admin/tournament/${tournament.slug}/${
+                        cat.slug ?? cat.id
+                      }`
+                    );
                   }}
                   className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                 >
@@ -274,44 +282,11 @@ export const AdminTournamentsPage = ({
           <div className="mt-3 flex flex-wrap gap-2">
             <select
               value={categoryMode[tournament.id] ?? "normal"}
-<<<<<<< HEAD
               onChange={(event) =>
                 setCategoryMode((prev) => ({
                   ...prev,
-                  [tournament.id]: event.target.value === "suma" ? "suma" : "normal",
-                }))
-              }
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
-            >
-              <option value="normal">Categoría normal</option>
-              <option value="suma">Categoría suma</option>
-            </select>
-            {(categoryMode[tournament.id] ?? "normal") === "suma" ? (
-              <select
-                value={sumSelection[tournament.id] ?? 13}
-                onChange={(event) =>
-                  setSumSelection((prev) => ({
-                    ...prev,
-                    [tournament.id]: Number(event.target.value),
-                  }))
-                }
-                className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
-              >
-                {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
-                  <option key={sumValue} value={sumValue}>
-                    Suma {sumValue}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <select
-              value={categorySelection[tournament.id] ?? ""}
-=======
->>>>>>> codex/improve-player-selection-flow-for-tournaments-ys9qal
-              onChange={(event) =>
-                setCategoryMode((prev) => ({
-                  ...prev,
-                  [tournament.id]: event.target.value === "suma" ? "suma" : "normal",
+                  [tournament.id]:
+                    event.target.value === "suma" ? "suma" : "normal",
                 }))
               }
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
@@ -331,11 +306,13 @@ export const AdminTournamentsPage = ({
                 }
                 className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
               >
-                {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
-                  <option key={sumValue} value={sumValue}>
-                    Suma {sumValue}
-                  </option>
-                ))}
+                {Array.from({ length: 13 }, (_, index) => index + 3).map(
+                  (sumValue) => (
+                    <option key={sumValue} value={sumValue}>
+                      Suma {sumValue}
+                    </option>
+                  )
+                )}
               </select>
             ) : null}
             {(categoryMode[tournament.id] ?? "normal") === "normal" ? (
