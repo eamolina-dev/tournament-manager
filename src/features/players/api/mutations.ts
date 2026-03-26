@@ -27,3 +27,9 @@ export const updatePlayer = async (
   throwIfError(error)
   return data
 }
+
+export const deletePlayer = async (playerId: string): Promise<void> => {
+  const { error } = await supabase.from("players").delete().eq("id", playerId)
+
+  throwIfError(error)
+}

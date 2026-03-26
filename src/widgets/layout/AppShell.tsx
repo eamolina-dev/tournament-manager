@@ -8,6 +8,7 @@ type AppShellProps = PropsWithChildren<{
 const navItems = [
   { label: "Inicio", href: "/" },
   { label: "Rankings", href: "/rankings" },
+  { label: "Jugadores", href: "/players" },
 ];
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => (
