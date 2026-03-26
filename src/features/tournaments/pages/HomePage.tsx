@@ -1,87 +1,97 @@
-import { useCallback, useEffect, useState } from "react"
-import { deleteTournament } from "../../../features/tournaments/api/mutations"
+import { useCallback, useEffect, useState } from "react";
+import { deleteTournament } from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
   getTournamentCategories,
   getTournaments,
-} from "../../../features/tournaments/api/queries"
+} from "../../../features/tournaments/api/queries";
 
 type HomePageProps = {
-  navigate: (path: string) => void
-}
+  navigate: (path: string) => void;
+};
 
 type TournamentCard = {
-  id: string
-  slug: string
-  name: string
-  start_date: string | null
-  end_date: string | null
+  id: string;
+  slug: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
   categories: {
-    id: string
-    name: string
-    slug: string | null
-    tournamentCategoryId: string
-    isSuma: boolean
-    sumaValue: number | null
-  }[]
-}
+    id: string;
+    name: string;
+    slug: string | null;
+    tournamentCategoryId: string;
+    isSuma: boolean;
+    sumaValue: number | null;
+  }[];
+};
 
 export const HomePage = ({ navigate }: HomePageProps) => {
-  const [tournaments, setTournaments] = useState<TournamentCard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
       const [rawTournaments, allCategories] = await Promise.all([
         getTournaments(),
         getAllCategories(),
-      ])
+      ]);
 
       const categoriesPerTournament = await Promise.all(
-        rawTournaments.map((tournament) => getTournamentCategories(tournament.id))
-      )
+        rawTournaments.map((tournament) =>
+          getTournamentCategories(tournament.id)
+        )
+      );
 
-      const categoriesMap = new Map(allCategories.map((cat) => [cat.id, cat]))
-      const merged: TournamentCard[] = rawTournaments.map((tournament, index) => ({
-        id: tournament.id,
-        slug: tournament.slug ?? tournament.id,
-        name: tournament.name ?? "Torneo",
-        start_date: tournament.start_date,
-        end_date: tournament.end_date,
-        categories: categoriesPerTournament[index]
-          .map((row) => {
-            const category = categoriesMap.get(row.category_id ?? "")
-            if (!category && !row.is_suma) return null
-            return {
-              id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
-              name:
-                row.is_suma && row.suma_value != null
-                  ? `Suma ${row.suma_value}`
-                  : category?.name ?? "Categoría",
-              slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : (category?.slug ?? null),
-              tournamentCategoryId: row.id,
-              isSuma: Boolean(row.is_suma),
-              sumaValue: row.suma_value ?? null,
-            }
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-      }))
+      const categoriesMap = new Map(allCategories.map((cat) => [cat.id, cat]));
+      const merged: TournamentCard[] = rawTournaments.map(
+        (tournament, index) => ({
+          id: tournament.id,
+          slug: tournament.slug ?? tournament.id,
+          name: tournament.name ?? "Torneo",
+          start_date: tournament.start_date,
+          end_date: tournament.end_date,
+          categories: categoriesPerTournament[index]
+            .map((row) => {
+              const category = categoriesMap.get(row.category_id ?? "");
+              if (!category && !row.is_suma) return null;
+              return {
+                id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
+                name:
+                  row.is_suma && row.suma_value != null
+                    ? `Suma ${row.suma_value}`
+                    : category?.name ?? "Categoría",
+                slug: row.is_suma
+                  ? `suma-${row.suma_value ?? ""}`
+                  : category?.slug ?? null,
+                tournamentCategoryId: row.id,
+                isSuma: Boolean(row.is_suma),
+                sumaValue: row.suma_value ?? null,
+              };
+            })
+            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+        })
+      );
 
-      setTournaments(merged)
+      setTournaments(merged);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Error cargando torneos")
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Error cargando torneos"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void load();
+  }, [load]);
 
   return (
     <section className="grid gap-4">
@@ -98,14 +108,18 @@ export const HomePage = ({ navigate }: HomePageProps) => {
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {loading ? <p className="tm-card text-sm text-[var(--tm-muted)]">Cargando...</p> : null}
+      {loading ? (
+        <p className="tm-card text-sm text-[var(--tm-muted)]">Cargando...</p>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {tournaments.map((tournament) => (
           <article key={tournament.id} className="tm-card">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-[var(--tm-text)]">{tournament.name}</h2>
+                <h2 className="text-lg font-semibold text-[var(--tm-text)]">
+                  {tournament.name}
+                </h2>
                 <p className="text-sm text-[var(--tm-muted)]">
                   {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
                 </p>
@@ -121,18 +135,18 @@ export const HomePage = ({ navigate }: HomePageProps) => {
                   onClick={() =>
                     void (async () => {
                       const confirmed = window.confirm(
-                        `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`,
-                      )
-                      if (!confirmed) return
+                        `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`
+                      );
+                      if (!confirmed) return;
                       try {
-                        await deleteTournament(tournament.id)
-                        await load()
+                        await deleteTournament(tournament.id);
+                        await load();
                       } catch (deleteError) {
                         setError(
                           deleteError instanceof Error
                             ? deleteError.message
-                            : "No se pudo eliminar el torneo",
-                        )
+                            : "No se pudo eliminar el torneo"
+                        );
                       }
                     })()
                   }
@@ -143,12 +157,16 @@ export const HomePage = ({ navigate }: HomePageProps) => {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap justify-between gap-2">
+            <div className="mt-3 flex flex-wrap flex-start gap-2">
               {tournament.categories.map((cat) => (
                 <button
                   key={cat.tournamentCategoryId}
-                  onClick={() => navigate(`/tournament/${tournament.slug}/${cat.slug ?? cat.id}`)}
-                  className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-text)]"
+                  onClick={() =>
+                    navigate(
+                      `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
+                    )
+                  }
+                  className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
                 >
                   {cat.name}
                 </button>
@@ -158,5 +176,5 @@ export const HomePage = ({ navigate }: HomePageProps) => {
         ))}
       </div>
     </section>
-  )
-}
+  );
+};
