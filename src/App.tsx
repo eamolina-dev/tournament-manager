@@ -5,6 +5,7 @@ import { AdminTournamentsPage } from "./features/tournaments/pages/AdminTourname
 import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
+import { PlayersPage } from "./features/players/pages/PlayersPage";
 
 const OWNER_MODE_ENABLED = true;
 
@@ -86,6 +87,7 @@ export default function App() {
       {legacyEventRoute && <EventCreatePage navigate={navigate} eventId={legacyEventRoute.eventId} />}
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
+      {pathname === "/players" && <PlayersPage />}
       {tournamentRoute && (
         <TournamentCategoryPage
           slug={tournamentRoute.slug}
@@ -110,6 +112,7 @@ export default function App() {
         !legacyEventRoute &&
         pathname !== "/" &&
         pathname !== "/rankings" &&
+        pathname !== "/players" &&
         pathname !== "/admin/tournaments" &&
         pathname !== "/eventos/new" && (
         <section className="rounded-xl border border-slate-200 bg-white p-4">

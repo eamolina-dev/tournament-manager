@@ -24,6 +24,8 @@ import {
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
+import { CreatePlayerModal } from "../../players/components/CreatePlayerModal";
+import { isPlayerCategoryCompatible } from "../../players/services/categoryRules";
 
 type TournamentCategoryPageProps = {
   slug: string;
@@ -44,14 +46,6 @@ type FlowStatus = "draft" | "teams_ready" | "groups_ready" | "matches_ready";
 type TeamFormState = {
   player1Id: string;
   player2Id: string;
-};
-
-type PlayerModalState = {
-  open: boolean;
-  name: string;
-  categoryId: string;
-  saving: boolean;
-  error: string | null;
 };
 
 type DraftTeam = {
@@ -124,15 +118,9 @@ export const TournamentCategoryPage = ({
   const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
   const [resultsQuery, setResultsQuery] = useState("");
   const [categoriesCatalog, setCategoriesCatalog] = useState<
-    { id: string; name: string }[]
+    { id: string; name: string; level: number | null }[]
   >([]);
-  const [playerModal, setPlayerModal] = useState<PlayerModalState>({
-    open: false,
-    name: "",
-    categoryId: "",
-    saving: false,
-    error: null,
-  });
+  const [playerModalOpen, setPlayerModalOpen] = useState(false);
   const [zoneEditedResults, setZoneEditedResults] = useState<
     Record<string, EditedResultsState>
   >({});
@@ -207,7 +195,9 @@ export const TournamentCategoryPage = ({
   const loadPlayers = async () => {
       const [response, categories] = await Promise.all([getPlayers(), getAllCategories()]);
     const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
-    setCategoriesCatalog(categories.map((item) => ({ id: item.id, name: item.name })));
+    setCategoriesCatalog(
+      categories.map((item) => ({ id: item.id, name: item.name, level: item.level ?? null })),
+    );
 
     setPlayers(
       response
@@ -281,10 +271,12 @@ export const TournamentCategoryPage = ({
   }, [data?.teams, draftTeams]);
 
   const canPlayerEnterByCategory = (playerId: string): boolean => {
-    if (!data || data.isSuma || data.categoryLevel == null) return true;
     const player = playersByIdWithCategory.get(playerId);
-    if (!player || player.categoryLevel == null) return false;
-    return player.categoryLevel >= data.categoryLevel;
+    return isPlayerCategoryCompatible({
+      isSuma: data?.isSuma ?? false,
+      tournamentCategoryLevel: data?.categoryLevel ?? null,
+      playerCategoryLevel: player?.categoryLevel ?? null,
+    });
   };
 
   const defaultPlayerCategoryId = useMemo(() => {
@@ -293,17 +285,11 @@ export const TournamentCategoryPage = ({
   }, [data?.categoryId, categoriesCatalog]);
 
   const openCreatePlayerModal = () => {
-    setPlayerModal({
-      open: true,
-      name: "",
-      categoryId: defaultPlayerCategoryId,
-      saving: false,
-      error: null,
-    });
+    setPlayerModalOpen(true);
   };
 
   const closeCreatePlayerModal = () => {
-    setPlayerModal((prev) => ({ ...prev, open: false, error: null, saving: false }));
+    setPlayerModalOpen(false);
   };
 
   const selectablePlayers = useMemo(
@@ -1218,121 +1204,39 @@ export const TournamentCategoryPage = ({
         </>
       )}
 
-      {isAdmin && playerModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
-            <h3 className="text-base font-semibold text-slate-900">Crear jugador</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Se agregará a la lista disponible para armar equipos.
-            </p>
-            <div className="mt-3 space-y-3">
-              <input
-                value={playerModal.name}
-                onChange={(event) =>
-                  setPlayerModal((prev) => ({
-                    ...prev,
-                    name: event.target.value,
-                    error: null,
-                  }))
-                }
-                placeholder="Nombre"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={playerModal.categoryId}
-                onChange={(event) =>
-                  setPlayerModal((prev) => ({
-                    ...prev,
-                    categoryId: event.target.value,
-                    error: null,
-                  }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar categoría...</option>
-                {categoriesCatalog.map((categoryItem) => (
-                  <option key={categoryItem.id} value={categoryItem.id}>
-                    {categoryItem.name}
-                  </option>
-                ))}
-              </select>
-              {playerModal.error && (
-                <p className="text-xs text-red-600">{playerModal.error}</p>
-              )}
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeCreatePlayerModal}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={playerModal.saving}
-                onClick={() =>
-                  void (async () => {
-                    const trimmedName = playerModal.name.trim();
-                    if (!trimmedName) {
-                      setPlayerModal((prev) => ({
-                        ...prev,
-                        error: "Ingresá un nombre.",
-                      }));
-                      return;
-                    }
-                    if (!playerModal.categoryId) {
-                      setPlayerModal((prev) => ({
-                        ...prev,
-                        error: "Seleccioná una categoría.",
-                      }));
-                      return;
-                    }
+      {isAdmin && (
+        <CreatePlayerModal
+          open={playerModalOpen}
+          categories={categoriesCatalog}
+          initialCategoryId={defaultPlayerCategoryId}
+          tournamentCategoryLevel={data.categoryLevel}
+          isSumaTournament={data.isSuma}
+          onClose={closeCreatePlayerModal}
+          onSubmit={async ({ name, categoryId }) => {
+            const existingPlayer = players.find(
+              (player) => player.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+            );
+            if (existingPlayer) {
+              setTeamForm((prev) => ({
+                ...prev,
+                player1Id: prev.player1Id || existingPlayer.id,
+              }));
+              closeCreatePlayerModal();
+              return;
+            }
 
-                    const existingPlayer = players.find(
-                      (player) =>
-                        player.name.toLocaleLowerCase() === trimmedName.toLocaleLowerCase(),
-                    );
-                    if (existingPlayer) {
-                      setTeamForm((prev) => ({
-                        ...prev,
-                        player1Id: prev.player1Id || existingPlayer.id,
-                      }));
-                      closeCreatePlayerModal();
-                      return;
-                    }
-
-                    setPlayerModal((prev) => ({ ...prev, saving: true, error: null }));
-                    try {
-                      const created = await createPlayer({
-                        name: trimmedName,
-                        current_category_id: playerModal.categoryId,
-                      });
-                      await loadPlayers();
-                      setTeamForm((prev) => ({
-                        ...prev,
-                        player1Id: prev.player1Id || created.id,
-                      }));
-                      closeCreatePlayerModal();
-                    } catch (error) {
-                      setPlayerModal((prev) => ({
-                        ...prev,
-                        saving: false,
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : "No se pudo crear el jugador.",
-                      }));
-                    }
-                  })()
-                }
-                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {playerModal.saving ? "Guardando..." : "Guardar jugador"}
-              </button>
-            </div>
-          </div>
-        </div>
+            const created = await createPlayer({
+              name,
+              current_category_id: categoryId,
+            });
+            await loadPlayers();
+            setTeamForm((prev) => ({
+              ...prev,
+              player1Id: prev.player1Id || created.id,
+            }));
+            closeCreatePlayerModal();
+          }}
+        />
       )}
     </section>
   );
