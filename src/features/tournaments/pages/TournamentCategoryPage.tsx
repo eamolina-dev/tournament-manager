@@ -34,10 +34,12 @@ type TournamentCategoryPageProps = {
   categoryId?: string;
   isAdmin?: boolean;
   isOwner?: boolean;
+  adminViewMode?: "full" | "results";
   navigate?: (path: string) => void;
 };
 
 const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const;
+const adminResultsTabs = ["Zonas", "Cruces"] as const;
 
 type SectionTab = (typeof sectionTabs)[number];
 
@@ -83,11 +85,14 @@ export const TournamentCategoryPage = ({
   categoryId,
   isAdmin = false,
   isOwner = false,
+  adminViewMode = "full",
   navigate,
 }: TournamentCategoryPageProps) => {
+  const isAdminResultsMode = isAdmin && adminViewMode === "results";
+  const availableTabs = isAdminResultsMode ? adminResultsTabs : sectionTabs;
   const [activeTab, setActiveTab] = usePersistentTab<SectionTab>({
     storageKey: `tournament:${slug}:${category}:section-tab`,
-    tabs: sectionTabs,
+    tabs: availableTabs,
     defaultTab: "Zonas",
   });
   const [loading, setLoading] = useState(true);
@@ -609,7 +614,7 @@ export const TournamentCategoryPage = ({
         )}
       </header>
 
-      {isAdmin && (
+      {isAdmin && !isAdminResultsMode && (
         <section className="space-y-4 tm-card">
           <header className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -988,6 +993,105 @@ export const TournamentCategoryPage = ({
             <p className="text-xs text-slate-500">Procesando...</p>
           )}
         </section>
+      )}
+
+      {isAdminResultsMode && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {adminResultsTabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                  tab === activeTab
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "Zonas" && activeZone && (
+            <section className="tm-card">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {orderedZones.map((zone) => (
+                  <button
+                    key={zone.id}
+                    onClick={() => setZoneId(zone.id)}
+                    className={`rounded-full px-3 py-1 text-sm ${
+                      zone.id === activeZone.id
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-300 text-slate-700"
+                    }`}
+                  >
+                    {zone.name}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 grid gap-2">
+                {orderedZoneMatches.length ? (
+                  <>
+                    {orderedZoneMatches.map((match) => (
+                      <MatchCardFull
+                        key={match.id}
+                        match={match}
+                        isEditable
+                        hideSaveButton
+                        isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
+                        externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                        onEditStateChange={({ sets, error }) =>
+                          handleZoneEditStateChange(match.id, { sets, error })
+                        }
+                      />
+                    ))}
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        onClick={() => void saveZoneResultsBatch()}
+                        disabled={
+                          savingZoneId === activeZone.id ||
+                          !Object.keys(zoneEditedResults[activeZone.id] ?? {}).length
+                        }
+                        className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingZoneId === activeZone.id ? "Guardando..." : "Guardar resultados"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "Cruces" && (
+            <section className="space-y-4 tm-card">
+              <TournamentBracket matches={orderedBracketMatches} />
+              {orderedBracketMatches.map((match) => (
+                <MatchCardFull
+                  key={match.id}
+                  match={match}
+                  isEditable
+                  hideSaveButton
+                  isModified={Boolean(bracketEditedResults[match.id])}
+                  externalError={bracketMatchErrors[match.id]}
+                  onEditStateChange={({ sets, error }) =>
+                    handleBracketEditStateChange(match.id, { sets, error })
+                  }
+                />
+              ))}
+              <button
+                onClick={() => void saveBracketResultsBatch()}
+                disabled={savingBracket || !Object.keys(bracketEditedResults).length}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingBracket ? "Guardando..." : "Guardar resultados"}
+              </button>
+            </section>
+          )}
+        </>
       )}
 
       {!isAdmin && (

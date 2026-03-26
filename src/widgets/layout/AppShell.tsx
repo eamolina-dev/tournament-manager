@@ -5,35 +5,53 @@ type AppShellProps = PropsWithChildren<{
   navigate: (path: string) => void;
 }>;
 
-const navItems = [
-  { label: "Inicio", href: "/" },
-  { label: "Rankings", href: "/rankings" },
-  { label: "Jugadores", href: "/players" },
+const publicNavItems = [
+  { label: "Inicio", href: "/public" },
+  { label: "Rankings", href: "/public/rankings" },
 ];
 
-export const AppShell = ({ children, pathname, navigate }: AppShellProps) => (
-  <div className="min-h-screen">
-    <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <button
-              key={item.href}
-              onClick={() => navigate(item.href)}
-              className={`rounded-full px-4 py-2 text-sm font-medium ${
-                isActive
-                  ? "bg-[var(--tm-accent)] text-white"
-                  : "border border-[var(--tm-border)] bg-[#0f2439] text-[var(--tm-muted)]"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-    </header>
+const adminNavItems = [
+  { label: "Admin Inicio", href: "/admin" },
+  { label: "Jugadores", href: "/admin/players" },
+];
 
-    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 py-5">{children}</main>
-  </div>
-);
+const getNavItems = (pathname: string) => {
+  if (pathname.startsWith("/admin")) return adminNavItems;
+  if (pathname.startsWith("/public")) return publicNavItems;
+  return [
+    { label: "Inicio", href: "/" },
+    { label: "Rankings", href: "/rankings" },
+    { label: "Jugadores", href: "/players" },
+  ];
+};
+
+export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
+  const navItems = getNavItems(pathname);
+
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <button
+                key={item.href}
+                onClick={() => navigate(item.href)}
+                className={`rounded-full px-4 py-2 text-sm font-medium ${
+                  isActive
+                    ? "bg-[var(--tm-accent)] text-white"
+                    : "border border-[var(--tm-border)] bg-[#0f2439] text-[var(--tm-muted)]"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 py-5">{children}</main>
+    </div>
+  );
+};

@@ -8,6 +8,7 @@ import {
 
 type HomePageProps = {
   navigate: (path: string) => void;
+  mode?: "public" | "admin";
 };
 
 type TournamentCard = {
@@ -26,7 +27,8 @@ type TournamentCard = {
   }[];
 };
 
-export const HomePage = ({ navigate }: HomePageProps) => {
+export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
+  const isAdminMode = mode === "admin";
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,47 +44,39 @@ export const HomePage = ({ navigate }: HomePageProps) => {
       ]);
 
       const categoriesPerTournament = await Promise.all(
-        rawTournaments.map((tournament) =>
-          getTournamentCategories(tournament.id)
-        )
+        rawTournaments.map((tournament) => getTournamentCategories(tournament.id))
       );
 
       const categoriesMap = new Map(allCategories.map((cat) => [cat.id, cat]));
-      const merged: TournamentCard[] = rawTournaments.map(
-        (tournament, index) => ({
-          id: tournament.id,
-          slug: tournament.slug ?? tournament.id,
-          name: tournament.name ?? "Torneo",
-          start_date: tournament.start_date,
-          end_date: tournament.end_date,
-          categories: categoriesPerTournament[index]
-            .map((row) => {
-              const category = categoriesMap.get(row.category_id ?? "");
-              if (!category && !row.is_suma) return null;
-              return {
-                id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
-                name:
-                  row.is_suma && row.suma_value != null
-                    ? `Suma ${row.suma_value}`
-                    : category?.name ?? "Categoría",
-                slug: row.is_suma
-                  ? `suma-${row.suma_value ?? ""}`
-                  : category?.slug ?? null,
-                tournamentCategoryId: row.id,
-                isSuma: Boolean(row.is_suma),
-                sumaValue: row.suma_value ?? null,
-              };
-            })
-            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-        })
-      );
+      const merged: TournamentCard[] = rawTournaments.map((tournament, index) => ({
+        id: tournament.id,
+        slug: tournament.slug ?? tournament.id,
+        name: tournament.name ?? "Torneo",
+        start_date: tournament.start_date,
+        end_date: tournament.end_date,
+        categories: categoriesPerTournament[index]
+          .map((row) => {
+            const category = categoriesMap.get(row.category_id ?? "");
+            if (!category && !row.is_suma) return null;
+            return {
+              id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
+              name:
+                row.is_suma && row.suma_value != null
+                  ? `Suma ${row.suma_value}`
+                  : category?.name ?? "Categoría",
+              slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : category?.slug ?? null,
+              tournamentCategoryId: row.id,
+              isSuma: Boolean(row.is_suma),
+              sumaValue: row.suma_value ?? null,
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+      }));
 
       setTournaments(merged);
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Error cargando torneos"
+        loadError instanceof Error ? loadError.message : "Error cargando torneos"
       );
     } finally {
       setLoading(false);
@@ -97,13 +91,17 @@ export const HomePage = ({ navigate }: HomePageProps) => {
     <section className="grid gap-4">
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-[var(--tm-text)]">Torneos</h1>
-          <button
-            onClick={() => navigate("/eventos/new")}
-            className="tm-btn-primary px-3 py-2 text-sm"
-          >
-            Crear torneo
-          </button>
+          <h1 className="text-2xl font-bold text-[var(--tm-text)]">
+            {isAdminMode ? "Torneos (admin)" : "Torneos"}
+          </h1>
+          {isAdminMode ? (
+            <button
+              onClick={() => navigate("/admin/tournaments/new")}
+              className="tm-btn-primary px-3 py-2 text-sm"
+            >
+              Crear torneo
+            </button>
+          ) : null}
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
@@ -124,37 +122,39 @@ export const HomePage = ({ navigate }: HomePageProps) => {
                   {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate(`/eventos/${tournament.id}/edit`)}
-                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={() =>
-                    void (async () => {
-                      const confirmed = window.confirm(
-                        `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`
-                      );
-                      if (!confirmed) return;
-                      try {
-                        await deleteTournament(tournament.id);
-                        await load();
-                      } catch (deleteError) {
-                        setError(
-                          deleteError instanceof Error
-                            ? deleteError.message
-                            : "No se pudo eliminar el torneo"
+              {isAdminMode ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigate(`/admin/tournaments/${tournament.id}/edit`)}
+                    className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() =>
+                      void (async () => {
+                        const confirmed = window.confirm(
+                          `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`
                         );
-                      }
-                    })()
-                  }
-                  className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
-                >
-                  🗑️
-                </button>
-              </div>
+                        if (!confirmed) return;
+                        try {
+                          await deleteTournament(tournament.id);
+                          await load();
+                        } catch (deleteError) {
+                          setError(
+                            deleteError instanceof Error
+                              ? deleteError.message
+                              : "No se pudo eliminar el torneo"
+                          );
+                        }
+                      })()
+                    }
+                    className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-3 flex flex-wrap flex-start gap-2">
@@ -163,7 +163,9 @@ export const HomePage = ({ navigate }: HomePageProps) => {
                   key={cat.tournamentCategoryId}
                   onClick={() =>
                     navigate(
-                      `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
+                      isAdminMode
+                        ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
+                        : `/public/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
                     )
                   }
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
@@ -172,6 +174,17 @@ export const HomePage = ({ navigate }: HomePageProps) => {
                 </button>
               ))}
             </div>
+
+            {isAdminMode ? (
+              <div className="mt-3">
+                <button
+                  onClick={() => navigate(`/admin/tournaments/${tournament.id}/results`)}
+                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"
+                >
+                  Cargar resultado
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
       </div>

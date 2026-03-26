@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createCategory,
   createTournament,
+  deleteTournamentCategory,
   updateTournament,
 } from "../../../features/tournaments/api/mutations";
 import {
@@ -13,6 +14,7 @@ import {
 type EventCreatePageProps = {
   navigate: (path: string) => void;
   eventId?: string;
+  mode?: "default" | "admin";
 };
 
 type CategoryOption = {
@@ -29,7 +31,12 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => {
+export const EventCreatePage = ({
+  navigate,
+  eventId,
+  mode = "default",
+}: EventCreatePageProps) => {
+  const isAdminMode = mode === "admin";
   const isEditMode = Boolean(eventId);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -52,7 +59,9 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
 
       try {
         const allCategories = await getAllCategories();
-        setCategoriesCatalog(allCategories.map((category) => ({ id: category.id, name: category.name })));
+        setCategoriesCatalog(
+          allCategories.map((category) => ({ id: category.id, name: category.name }))
+        );
 
         if (!eventId) return;
 
@@ -70,7 +79,9 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
         setStartDate(tournament.start_date ?? "");
         setEndDate(tournament.end_date ?? "");
 
-        const categoriesById = new Map(allCategories.map((category) => [category.id, category.name]));
+        const categoriesById = new Map(
+          allCategories.map((category) => [category.id, category.name])
+        );
         const mappedExistingCategories = tournamentCategories.map((row) => ({
           id: row.id,
           label:
@@ -80,7 +91,9 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
         }));
         setExistingCategories(mappedExistingCategories);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el evento");
+        setError(
+          loadError instanceof Error ? loadError.message : "No se pudo cargar el evento"
+        );
       } finally {
         setLoading(false);
       }
@@ -93,6 +106,8 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
     const usedNames = new Set(existingCategories.map((item) => item.label));
     return categoriesCatalog.filter((category) => !usedNames.has(category.name));
   }, [categoriesCatalog, existingCategories, isEditMode]);
+
+  const getBackPath = () => (isAdminMode ? "/admin" : "/");
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -109,7 +124,7 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
           end_date: endDate || null,
         });
 
-        navigate(`/eventos/${eventId}/edit`);
+        navigate(isAdminMode ? `/admin/tournaments/${eventId}/edit` : `/eventos/${eventId}/edit`);
         return;
       }
 
@@ -136,9 +151,15 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
               suma_value: null,
             });
 
-      navigate(`/eventos/${createdTournament.id}/categorias/${createdCategory.id}`);
+      navigate(
+        isAdminMode
+          ? `/admin/tournaments/${createdTournament.id}/categories/${createdCategory.id}`
+          : `/eventos/${createdTournament.id}/categorias/${createdCategory.id}`
+      );
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "No se pudo guardar el evento");
+      setError(
+        submitError instanceof Error ? submitError.message : "No se pudo guardar el evento"
+      );
     } finally {
       setSaving(false);
     }
@@ -152,7 +173,7 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
             {isEditMode ? "Editar evento" : "Crear evento"}
           </h1>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(getBackPath())}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             Volver al home
@@ -180,7 +201,9 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
           />
           <button
             onClick={() => void handleSubmit()}
-            disabled={saving || loading || (!isEditMode && categoryMode === "normal" && !categorySelection)}
+            disabled={
+              saving || loading || (!isEditMode && categoryMode === "normal" && !categorySelection)
+            }
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear evento"}
@@ -237,15 +260,43 @@ export const EventCreatePage = ({ navigate, eventId }: EventCreatePageProps) => 
               <p className="text-xs text-slate-500">Categorías existentes:</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {existingCategories.map((existingCategory) => (
-                  <button
-                    key={existingCategory.id}
-                    onClick={() => navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-                  >
-                    {existingCategory.label}
-                  </button>
+                  <div key={existingCategory.id} className="flex items-center gap-2">
+                    <span className="rounded-full border border-slate-300 px-3 py-1 text-sm">
+                      {existingCategory.label}
+                    </span>
+                    {isAdminMode ? (
+                      <button
+                        onClick={() =>
+                          void (async () => {
+                            await deleteTournamentCategory(existingCategory.id);
+                            setExistingCategories((prev) =>
+                              prev.filter((item) => item.id !== existingCategory.id)
+                            );
+                          })()
+                        }
+                        className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                      >
+                        x
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)}
+                        className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                      >
+                        Abrir
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
+              {isAdminMode ? (
+                <button
+                  type="button"
+                  className="mt-3 rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
+                >
+                  Volver a crear el torneo
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
