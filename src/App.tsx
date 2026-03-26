@@ -9,6 +9,7 @@ import { PlayersPage } from "./features/players/pages/PlayersPage";
 import { AdminHomePage } from "./features/admin/pages/AdminHomePage";
 import { AdminTournamentCreatePage } from "./features/admin/pages/AdminTournamentCreatePage";
 import { AdminTournamentEditPage } from "./features/admin/pages/AdminTournamentEditPage";
+import { AdminCategoryMatchesView } from "./features/admin/pages/AdminCategoryMatchesView";
 
 const OWNER_MODE_ENABLED = true;
 
@@ -132,12 +133,9 @@ export default function App() {
       {normalizedPathname === "/admin" && <AdminHomePage navigate={navigate} />}
       {normalizedPathname === "/admin/tournament/create" && <AdminTournamentCreatePage navigate={navigate} />}
       {adminTournamentCategoryByIdRoute && (
-        <TournamentCategoryPage
-          slug=""
-          category=""
-          eventId={adminTournamentCategoryByIdRoute.eventId}
+        <AdminCategoryMatchesView
+          tournamentId={adminTournamentCategoryByIdRoute.eventId}
           categoryId={adminTournamentCategoryByIdRoute.categoryId}
-          isAdmin
           navigate={navigate}
         />
       )}
