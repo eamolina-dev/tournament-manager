@@ -51,6 +51,12 @@ const matchTournamentPath = (pathname: string) => {
   return { slug: match[1], category: decodeURIComponent(match[2]) };
 };
 
+const matchAdminTournamentCategoryByIdPath = (pathname: string) => {
+  const match = pathname.match(/^\/admin\/tournament\/([^/]+)\/category\/([^/]+)$/);
+  if (!match) return null;
+  return { eventId: match[1], categoryId: match[2] };
+};
+
 const matchAdminTournamentEditPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournament\/([^/]+)\/edit$/);
   if (!match) return null;
@@ -112,6 +118,7 @@ export default function App() {
   };
 
   const tournamentRoute = useMemo(() => matchTournamentPath(normalizedPathname), [normalizedPathname]);
+  const adminTournamentCategoryByIdRoute = useMemo(() => matchAdminTournamentCategoryByIdPath(normalizedPathname), [normalizedPathname]);
   const adminTournamentEditRoute = useMemo(() => matchAdminTournamentEditPath(normalizedPathname), [normalizedPathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(normalizedPathname), [normalizedPathname]);
   const eventRoute = useMemo(() => matchEventPath(normalizedPathname), [normalizedPathname]);
@@ -123,7 +130,17 @@ export default function App() {
     <AppShell pathname={pathForShellNavigation(normalizedPathname)} navigate={navigate}>
       {normalizedPathname === "/public" && <HomePage navigate={navigate} />}
       {normalizedPathname === "/admin" && <AdminHomePage navigate={navigate} />}
-      {normalizedPathname === "/admin/tournament/create" && <AdminTournamentCreatePage />}
+      {normalizedPathname === "/admin/tournament/create" && <AdminTournamentCreatePage navigate={navigate} />}
+      {adminTournamentCategoryByIdRoute && (
+        <TournamentCategoryPage
+          slug=""
+          category=""
+          eventId={adminTournamentCategoryByIdRoute.eventId}
+          categoryId={adminTournamentCategoryByIdRoute.categoryId}
+          isAdmin
+          navigate={navigate}
+        />
+      )}
       {adminTournamentEditRoute && <AdminTournamentEditPage tournamentId={adminTournamentEditRoute.tournamentId} />}
       {normalizedPathname === "/public/eventos/new" && <EventCreatePage navigate={navigate} />}
       {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
@@ -161,6 +178,7 @@ export default function App() {
       {!tournamentRoute &&
         !adminTournamentRoute &&
         !eventRoute &&
+        !adminTournamentCategoryByIdRoute &&
         !adminTournamentEditRoute &&
         !eventEditRoute &&
         !eventCategoryRoute &&
