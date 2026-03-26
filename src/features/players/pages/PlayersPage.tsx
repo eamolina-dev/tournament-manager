@@ -4,6 +4,7 @@ import { createPlayer, deletePlayer, updatePlayer } from "../api/mutations";
 import { getPlayers } from "../api/queries";
 import { getAllCategories } from "../../tournaments/api/queries";
 import type { PlayerListRow } from "../types";
+import { SearchInput } from "../../../shared/components/SearchInput";
 
 type CategoryOption = {
   id: string;
@@ -18,11 +19,18 @@ export const PlayersPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<PlayerListRow | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
 
-  const categoryNameById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
-    [categories],
-  );
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return rows.filter((row) => {
+      const matchesName = !normalizedQuery || row.name.toLocaleLowerCase().includes(normalizedQuery);
+      const matchesCategory =
+        selectedCategoryId === "all" || (row.categoryId ?? "none") === selectedCategoryId;
+      return matchesName && matchesCategory;
+    });
+  }, [rows, query, selectedCategoryId]);
 
   const load = async () => {
     setLoading(true);
@@ -94,6 +102,27 @@ export const PlayersPage = () => {
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar jugador por nombre..."
+          />
+          <select
+            value={selectedCategoryId}
+            onChange={(event) => setSelectedCategoryId(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="all">Todas las categorías</option>
+            <option value="none">Sin categoría</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {loading ? (
           <p className="mt-4 text-sm text-slate-500">Cargando jugadores...</p>
         ) : (
@@ -107,7 +136,7 @@ export const PlayersPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((player) => (
+                {filteredRows.map((player) => (
                   <tr key={player.id} className="border-b border-slate-100 last:border-none">
                     <td className="py-2 text-slate-700">{player.name}</td>
                     <td className="py-2 text-slate-700">{player.category}</td>
@@ -150,10 +179,10 @@ export const PlayersPage = () => {
                     </td>
                   </tr>
                 ))}
-                {!rows.length && (
+                {!filteredRows.length && (
                   <tr>
                     <td colSpan={3} className="py-4 text-center text-slate-500">
-                      No hay jugadores cargados.
+                      No se encontraron jugadores con esos filtros.
                     </td>
                   </tr>
                 )}
