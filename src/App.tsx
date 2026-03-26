@@ -6,6 +6,7 @@ import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 import { PlayersPage } from "./features/players/pages/PlayersPage";
+import { AdminHomePage } from "./features/admin/pages/AdminHomePage";
 
 const OWNER_MODE_ENABLED = true;
 
@@ -55,6 +56,12 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  useEffect(() => {
+    if (pathname !== "/") return;
+    window.history.replaceState({}, "", "/public");
+    setPathname("/public");
+  }, [pathname]);
+
   const navigate = (path: string) => {
     if (path === `${window.location.pathname}${window.location.search}`) return;
     window.history.pushState({}, "", path);
@@ -70,7 +77,8 @@ export default function App() {
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
-      {pathname === "/" && <HomePage navigate={navigate} />}
+      {pathname === "/public" && <HomePage navigate={navigate} />}
+      {pathname === "/admin" && <AdminHomePage />}
       {pathname === "/eventos/new" && <EventCreatePage navigate={navigate} />}
       {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
       {eventRoute && <EventCreatePage navigate={navigate} eventId={eventRoute.eventId} />}
@@ -110,7 +118,8 @@ export default function App() {
         !eventEditRoute &&
         !eventCategoryRoute &&
         !legacyEventRoute &&
-        pathname !== "/" &&
+        pathname !== "/public" &&
+        pathname !== "/admin" &&
         pathname !== "/rankings" &&
         pathname !== "/players" &&
         pathname !== "/admin/tournaments" &&
