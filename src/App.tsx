@@ -7,6 +7,8 @@ import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 import { PlayersPage } from "./features/players/pages/PlayersPage";
 import { AdminHomePage } from "./features/admin/pages/AdminHomePage";
+import { AdminTournamentCreatePage } from "./features/admin/pages/AdminTournamentCreatePage";
+import { AdminTournamentEditPage } from "./features/admin/pages/AdminTournamentEditPage";
 
 const OWNER_MODE_ENABLED = true;
 
@@ -47,6 +49,12 @@ const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/public\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
   return { slug: match[1], category: decodeURIComponent(match[2]) };
+};
+
+const matchAdminTournamentEditPath = (pathname: string) => {
+  const match = pathname.match(/^\/admin\/tournament\/([^/]+)\/edit$/);
+  if (!match) return null;
+  return { tournamentId: match[1] };
 };
 
 const matchAdminTournamentPath = (pathname: string) => {
@@ -104,6 +112,7 @@ export default function App() {
   };
 
   const tournamentRoute = useMemo(() => matchTournamentPath(normalizedPathname), [normalizedPathname]);
+  const adminTournamentEditRoute = useMemo(() => matchAdminTournamentEditPath(normalizedPathname), [normalizedPathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(normalizedPathname), [normalizedPathname]);
   const eventRoute = useMemo(() => matchEventPath(normalizedPathname), [normalizedPathname]);
   const eventEditRoute = useMemo(() => matchEventEditPath(normalizedPathname), [normalizedPathname]);
@@ -113,7 +122,9 @@ export default function App() {
   return (
     <AppShell pathname={pathForShellNavigation(normalizedPathname)} navigate={navigate}>
       {normalizedPathname === "/public" && <HomePage navigate={navigate} />}
-      {normalizedPathname === "/admin" && <AdminHomePage />}
+      {normalizedPathname === "/admin" && <AdminHomePage navigate={navigate} />}
+      {normalizedPathname === "/admin/tournament/create" && <AdminTournamentCreatePage />}
+      {adminTournamentEditRoute && <AdminTournamentEditPage tournamentId={adminTournamentEditRoute.tournamentId} />}
       {normalizedPathname === "/public/eventos/new" && <EventCreatePage navigate={navigate} />}
       {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
       {eventRoute && <EventCreatePage navigate={navigate} eventId={eventRoute.eventId} />}
@@ -139,7 +150,7 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {adminTournamentRoute && (
+      {adminTournamentRoute && !adminTournamentEditRoute && (
         <TournamentCategoryPage
           slug={adminTournamentRoute.slug}
           category={adminTournamentRoute.category}
@@ -150,6 +161,7 @@ export default function App() {
       {!tournamentRoute &&
         !adminTournamentRoute &&
         !eventRoute &&
+        !adminTournamentEditRoute &&
         !eventEditRoute &&
         !eventCategoryRoute &&
         !legacyEventRoute &&
@@ -158,6 +170,7 @@ export default function App() {
         normalizedPathname !== "/public/rankings" &&
         normalizedPathname !== "/public/players" &&
         normalizedPathname !== "/admin/tournaments" &&
+        normalizedPathname !== "/admin/tournament/create" &&
         normalizedPathname !== "/public/eventos/new" && (
         <section className="tm-card">
           <p className="text-sm text-[var(--tm-muted)]">Ruta no encontrada.</p>
