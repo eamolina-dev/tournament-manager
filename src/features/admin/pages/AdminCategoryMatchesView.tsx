@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { MatchCardFull, type MatchSetScore } from "../../matches/components/MatchCard";
 import { propagateMatchWinner, replaceMatchSets, updateMatch } from "../../matches/api/mutations";
-import { getAllCategories, getTournamentById, getTournamentCategories } from "../../tournaments/api/queries";
+import {
+  getAllCategories,
+  getTournamentById,
+  getTournamentBySlug,
+  getTournamentCategories,
+  getTournamentCategoryBySlugs,
+} from "../../tournaments/api/queries";
 import { getTournamentCategoryPageData } from "../../tournaments/services/getTournamentCategoryPageData";
 
 type AdminCategoryMatchesViewProps = {
-  tournamentId: string;
-  categoryId: string;
   navigate: (path: string) => void;
+  tournamentId?: string;
+  categoryId?: string;
+  tournamentSlug?: string;
+  categorySlug?: string;
 };
 
 type MainTab = "Zonas" | "Cruces";
@@ -23,9 +31,11 @@ const stageLabel = (stage?: string) => {
 };
 
 export const AdminCategoryMatchesView = ({
+  navigate,
   tournamentId,
   categoryId,
-  navigate,
+  tournamentSlug,
+  categorySlug,
 }: AdminCategoryMatchesViewProps) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,29 +49,45 @@ export const AdminCategoryMatchesView = ({
     setLoading(true);
     setError(null);
     try {
-      const [tournament, allCategories, tournamentCategories] = await Promise.all([
-        getTournamentById(tournamentId),
-        getAllCategories(),
-        getTournamentCategories(tournamentId),
-      ]);
+      let resolvedTournamentSlug: string | null = null;
+      let resolvedCategorySlug: string | null = null;
 
-      const targetCategory = tournamentCategories.find((item) => item.id === categoryId);
-      if (!tournament?.slug || !targetCategory) {
+      if (tournamentId && categoryId) {
+        const [tournament, allCategories, tournamentCategories] = await Promise.all([
+          getTournamentById(tournamentId),
+          getAllCategories(),
+          getTournamentCategories(tournamentId),
+        ]);
+
+        const targetCategory = tournamentCategories.find((item) => item.id === categoryId);
+        if (tournament?.slug && targetCategory) {
+          const categoryById = new Map(allCategories.map((item) => [item.id, item]));
+          resolvedTournamentSlug = tournament.slug;
+          resolvedCategorySlug = targetCategory.is_suma
+            ? `suma-${targetCategory.suma_value ?? ""}`
+            : categoryById.get(targetCategory.category_id ?? "")?.slug ?? null;
+        }
+      } else if (tournamentSlug && categorySlug) {
+        const [tournament, tournamentCategory] = await Promise.all([
+          getTournamentBySlug(tournamentSlug),
+          getTournamentCategoryBySlugs(tournamentSlug, categorySlug),
+        ]);
+
+        if (tournament && tournamentCategory) {
+          resolvedTournamentSlug = tournamentSlug;
+          resolvedCategorySlug = categorySlug;
+        }
+      }
+
+      if (!resolvedTournamentSlug || !resolvedCategorySlug) {
         setData(null);
         return;
       }
 
-      const categoryById = new Map(allCategories.map((item) => [item.id, item]));
-      const resolvedCategorySlug = targetCategory.is_suma
-        ? `suma-${targetCategory.suma_value ?? ""}`
-        : categoryById.get(targetCategory.category_id ?? "")?.slug;
-
-      if (!resolvedCategorySlug) {
-        setData(null);
-        return;
-      }
-
-      const pageData = await getTournamentCategoryPageData(tournament.slug, resolvedCategorySlug);
+      const pageData = await getTournamentCategoryPageData(
+        resolvedTournamentSlug,
+        resolvedCategorySlug,
+      );
       setData(pageData);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la categoría");
@@ -72,7 +98,7 @@ export const AdminCategoryMatchesView = ({
 
   useEffect(() => {
     void load();
-  }, [tournamentId, categoryId]);
+  }, [tournamentId, categoryId, tournamentSlug, categorySlug]);
 
   const orderedZones = useMemo(
     () => [...(data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -153,7 +179,7 @@ export const AdminCategoryMatchesView = ({
     <section className="grid gap-4">
       <article className="tm-card">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">Carga de resultados</h1>
+          <h1 className="text-2xl font-semibold">Administrar torneo · Cargar resultados</h1>
           <button
             onClick={() => navigate("/admin")}
             className="rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm"

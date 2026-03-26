@@ -166,10 +166,9 @@ export default function App() {
         />
       )}
       {adminTournamentRoute && !adminTournamentEditRoute && (
-        <TournamentCategoryPage
-          slug={adminTournamentRoute.slug}
-          category={adminTournamentRoute.category}
-          isAdmin
+        <AdminCategoryMatchesView
+          tournamentSlug={adminTournamentRoute.slug}
+          categorySlug={adminTournamentRoute.category}
           navigate={navigate}
         />
       )}
