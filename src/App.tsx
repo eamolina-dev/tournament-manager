@@ -8,8 +8,6 @@ import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentC
 import { PlayersPage } from "./features/players/pages/PlayersPage";
 import { AdminTournamentResultsPickerPage } from "./features/tournaments/pages/AdminTournamentResultsPickerPage";
 
-const OWNER_MODE_ENABLED = true;
-
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
@@ -140,7 +138,6 @@ export default function App() {
         <TournamentCategoryPage
           slug={tournamentRoute.slug}
           category={tournamentRoute.category}
-          isOwner={OWNER_MODE_ENABLED}
           navigate={navigate}
         />
       )}
