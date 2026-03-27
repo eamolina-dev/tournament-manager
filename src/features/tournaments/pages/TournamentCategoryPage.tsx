@@ -26,7 +26,10 @@ import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
 import { CreatePlayerModal } from "../../players/components/CreatePlayerModal";
 import { isPlayerCategoryCompatible } from "../../players/services/categoryRules";
-import { formatCategoryName } from "../../../shared/lib/category-display";
+import {
+  formatCategoryName,
+  getGenderShortLabel,
+} from "../../../shared/lib/category-display";
 import type { Database } from "../../../shared/types/database";
 
 type TournamentCategoryPageProps = {
@@ -1357,7 +1360,19 @@ export const TournamentCategoryPage = ({
           tournamentCategoryLevel={data.categoryLevel}
           isSumaTournament={data.isSuma}
           onClose={closeCreatePlayerModal}
-          onSubmit={async ({ name, categoryId }) => {
+          initialGender={
+            getGenderShortLabel(data.gender) === "F"
+              ? "F"
+              : "M"
+          }
+          allowedGenders={
+            getGenderShortLabel(data.gender) === "M"
+              ? ["M"]
+              : getGenderShortLabel(data.gender) === "F"
+                ? ["F"]
+                : ["M", "F"]
+          }
+          onSubmit={async ({ name, categoryId, gender }) => {
             const existingPlayer = players.find(
               (player) => player.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
             );
@@ -1373,8 +1388,9 @@ export const TournamentCategoryPage = ({
             const created = await createPlayer({
               name,
               current_category_id: categoryId,
+              gender,
             });
-            await loadPlayers();
+            await loadPlayers(data.gender);
             setTeamForm((prev) => ({
               ...prev,
               player1Id: prev.player1Id || created.id,

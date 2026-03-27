@@ -5,6 +5,7 @@ import { getPlayers } from "../api/queries";
 import { getAllCategories } from "../../tournaments/api/queries";
 import type { PlayerListRow } from "../types";
 import { SearchInput } from "../../../shared/components/SearchInput";
+import { getGenderShortLabel } from "../../../shared/lib/category-display";
 
 type CategoryOption = {
   id: string;
@@ -63,6 +64,7 @@ export const PlayersPage = () => {
             category: mappedCategory?.name ?? "Sin categoría",
             categoryId: player.current_category_id,
             categoryLevel: mappedCategory?.level ?? null,
+            gender: getGenderShortLabel(player.gender),
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -132,6 +134,7 @@ export const PlayersPage = () => {
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-2">Nombre</th>
                   <th className="py-2">Categoría</th>
+                  <th className="py-2">Género</th>
                   <th className="py-2 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -140,6 +143,7 @@ export const PlayersPage = () => {
                   <tr key={player.id} className="border-b border-slate-100 last:border-none">
                     <td className="py-2 text-slate-700">{player.name}</td>
                     <td className="py-2 text-slate-700">{player.category}</td>
+                    <td className="py-2 text-slate-700">{player.gender ?? "-"}</td>
                     <td className="py-2">
                       <div className="flex justify-end gap-2">
                         <button
@@ -181,7 +185,7 @@ export const PlayersPage = () => {
                 ))}
                 {!filteredRows.length && (
                   <tr>
-                    <td colSpan={3} className="py-4 text-center text-slate-500">
+                    <td colSpan={4} className="py-4 text-center text-slate-500">
                       No se encontraron jugadores con esos filtros.
                     </td>
                   </tr>
@@ -199,8 +203,9 @@ export const PlayersPage = () => {
         categories={categories}
         initialName={editingPlayer?.name ?? ""}
         initialCategoryId={editingPlayer?.categoryId ?? categories[0]?.id ?? ""}
+        initialGender={editingPlayer?.gender ?? "M"}
         onClose={closeModal}
-        onSubmit={async ({ name, categoryId }) => {
+        onSubmit={async ({ name, categoryId, gender }) => {
           const duplicatedPlayer = rows.find(
             (item) =>
               item.name.toLocaleLowerCase() === name.toLocaleLowerCase() &&
@@ -214,11 +219,13 @@ export const PlayersPage = () => {
             await updatePlayer(editingPlayer.id, {
               name,
               current_category_id: categoryId,
+              gender,
             });
           } else {
             await createPlayer({
               name,
               current_category_id: categoryId,
+              gender,
             });
           }
           await load();

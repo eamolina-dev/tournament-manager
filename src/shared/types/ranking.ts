@@ -6,7 +6,7 @@ export type RankingRow = {
   points: number
 }
 
-export type RankingGenderCode = "M" | "F" | "X"
+export type RankingGenderCode = "M" | "F"
 
 export type CategoryRankingDTO = {
   category: CategoryCode
@@ -15,12 +15,11 @@ export type CategoryRankingDTO = {
 
 export const rankingCategories: CategoryCode[] = ["4ta", "5ta", "6ta", "7ma", "8va"]
 
-export const rankingGenderCodes: RankingGenderCode[] = ["M", "F", "X"]
+export const rankingGenderCodes: RankingGenderCode[] = ["M", "F"]
 
 export const createEmptyRankingRowsByGender = (): Record<RankingGenderCode, RankingRow[]> => ({
   M: [],
   F: [],
-  X: [],
 })
 
 export const createEmptyCategoryRankingMap = (): Record<

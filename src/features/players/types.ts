@@ -7,4 +7,5 @@ export type Player = {
 export type PlayerListRow = Player & {
   categoryId: string | null;
   categoryLevel: number | null;
+  gender: "M" | "F" | null;
 };

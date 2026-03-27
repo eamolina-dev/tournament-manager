@@ -31,13 +31,13 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
 
   const playerPointsByCategory = new Map<
     string,
-    { M: ReturnType<typeof computeGlobalRanking>; F: ReturnType<typeof computeGlobalRanking>; X: ReturnType<typeof computeGlobalRanking> }
+    { M: ReturnType<typeof computeGlobalRanking>; F: ReturnType<typeof computeGlobalRanking> }
   >()
 
   for (const category of rankingCategories) {
     const categoryId = categories.categories.find((item) => item.slug === category)?.id
     if (!categoryId) {
-      playerPointsByCategory.set(category, { M: [], F: [], X: [] })
+      playerPointsByCategory.set(category, { M: [], F: [] })
       continue
     }
 
@@ -54,12 +54,11 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
     playerPointsByCategory.set(category, {
       M: rows.filter((row) => row.gender === "M"),
       F: rows.filter((row) => row.gender === "F"),
-      X: rows.filter((row) => row.gender === "X"),
     })
   }
 
   return rankingCategories.map((category) => {
-    const rowsByGender = playerPointsByCategory.get(category) ?? { M: [], F: [], X: [] }
+    const rowsByGender = playerPointsByCategory.get(category) ?? { M: [], F: [] }
 
     return {
       category,
@@ -70,11 +69,6 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
           points: row.points,
         })),
         F: rowsByGender.F.map((row, index) => ({
-          pos: index + 1,
-          player: row.playerName,
-          points: row.points,
-        })),
-        X: rowsByGender.X.map((row, index) => ({
           pos: index + 1,
           player: row.playerName,
           points: row.points,
