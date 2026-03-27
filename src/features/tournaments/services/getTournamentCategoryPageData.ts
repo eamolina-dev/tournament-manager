@@ -12,6 +12,7 @@ import { computeGroupStandings } from "../utils/computeGroupStandings"
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
   categoryId: string | null
+  gender: string | null
   tournamentName: string
   categoryName: string
   isSuma: boolean
@@ -297,6 +298,7 @@ export const getTournamentCategoryPageData = async (
   return {
     tournamentCategoryId,
     categoryId: category.category_id ?? null,
+    gender: category.gender ?? null,
     tournamentName: tournament.name ?? "Torneo",
     categoryName:
       category.is_suma && category.suma_value != null

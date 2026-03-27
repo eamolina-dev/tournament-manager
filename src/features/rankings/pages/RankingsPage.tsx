@@ -3,14 +3,17 @@ import { RankingTable } from "../components/RankingTable"
 import { getRankingsByCategory } from "../../../features/rankings/services/getRankingsByCategory"
 import {
   createEmptyCategoryRankingMap,
+  rankingGenderCodes,
   rankingCategories,
   type CategoryCode,
+  type RankingGenderCode,
 } from "../../../shared/types/ranking"
 import { SearchInput } from "../../../shared/components/SearchInput"
 import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
 
 export const RankingsPage = () => {
   const [selected, setSelected] = useState<CategoryCode>("6ta")
+  const [selectedGender, setSelectedGender] = useState<RankingGenderCode>("M")
   const [rankings, setRankings] = useState(createEmptyCategoryRankingMap)
   const [query, setQuery] = useState("")
 
@@ -20,7 +23,7 @@ export const RankingsPage = () => {
       const mapped = createEmptyCategoryRankingMap()
 
       for (const categoryData of data) {
-        mapped[categoryData.category] = categoryData.rows
+        mapped[categoryData.category] = categoryData.rowsByGender
       }
 
       setRankings(mapped)
@@ -29,7 +32,10 @@ export const RankingsPage = () => {
     void load()
   }, [])
 
-  const rows = useMemo(() => rankings[selected], [rankings, selected])
+  const rows = useMemo(
+    () => rankings[selected][selectedGender],
+    [rankings, selected, selectedGender],
+  )
   const filteredRows = useSearchFilter(rows, query)
 
   return (
@@ -46,6 +52,21 @@ export const RankingsPage = () => {
             }`}
           >
             {category}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {rankingGenderCodes.map((gender) => (
+          <button
+            key={gender}
+            onClick={() => setSelectedGender(gender)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+              gender === selectedGender
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+            }`}
+          >
+            {gender}
           </button>
         ))}
       </div>

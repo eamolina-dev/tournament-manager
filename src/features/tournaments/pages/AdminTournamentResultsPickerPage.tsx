@@ -4,6 +4,7 @@ import {
   getTournamentById,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
+import { formatCategoryName } from "../../../shared/lib/category-display";
 
 type AdminTournamentResultsPickerPageProps = {
   eventId: string;
@@ -32,9 +33,13 @@ export const AdminTournamentResultsPickerPage = ({
       tournamentCategories.map((row) => ({
         id: row.id,
         label:
-          row.is_suma && row.suma_value != null
-            ? `Suma ${row.suma_value}`
-            : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+          formatCategoryName({
+            categoryName:
+              row.is_suma && row.suma_value != null
+                ? `Suma ${row.suma_value}`
+                : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+            gender: row.gender,
+          }),
       }))
     );
     setLoading(false);

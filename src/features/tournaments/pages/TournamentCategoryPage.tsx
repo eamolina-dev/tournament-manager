@@ -26,6 +26,8 @@ import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
 import { CreatePlayerModal } from "../../players/components/CreatePlayerModal";
 import { isPlayerCategoryCompatible } from "../../players/services/categoryRules";
+import { formatCategoryName } from "../../../shared/lib/category-display";
+import type { Database } from "../../../shared/types/database";
 
 type TournamentCategoryPageProps = {
   slug: string;
@@ -82,6 +84,8 @@ type EditedResultsState = Record<
 >;
 
 type MatchErrorState = Record<string, string>;
+type TournamentCategoryGender =
+  Database["public"]["Tables"]["tournament_categories"]["Row"]["gender"];
 
 export const TournamentCategoryPage = ({
   slug,
@@ -144,6 +148,30 @@ export const TournamentCategoryPage = ({
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
   const [savingBracket, setSavingBracket] = useState(false);
 
+  const loadPlayers = async (categoryGender: TournamentCategoryGender) => {
+    const [response, categories] = await Promise.all([
+      getPlayers({ categoryGender }),
+      getAllCategories(),
+    ]);
+    const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
+    setCategoriesCatalog(
+      categories.map((item) => ({ id: item.id, name: item.name, level: item.level ?? null })),
+    );
+
+    setPlayers(
+      response
+        .filter((player) => Boolean(player.id) && Boolean(player.name?.trim()))
+        .map((player) => ({
+          id: player.id,
+          name: player.name?.trim() ?? "",
+          categoryLevel: player.current_category_id
+            ? (categoryLevelById.get(player.current_category_id) ?? null)
+            : null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -184,37 +212,16 @@ export const TournamentCategoryPage = ({
 
       const response = await getTournamentCategoryPageData(tournamentSlug, categorySlug);
       setData(response);
+      if (isAdmin) {
+        await loadPlayers(response?.gender ?? null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPlayers = async () => {
-      const [response, categories] = await Promise.all([getPlayers(), getAllCategories()]);
-    const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
-    setCategoriesCatalog(
-      categories.map((item) => ({ id: item.id, name: item.name, level: item.level ?? null })),
-    );
-
-    setPlayers(
-      response
-        .filter((player) => Boolean(player.id) && Boolean(player.name?.trim()))
-        .map((player) => ({
-          id: player.id,
-          name: player.name?.trim() ?? "",
-          categoryLevel: player.current_category_id
-            ? (categoryLevelById.get(player.current_category_id) ?? null)
-            : null,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    );
-  };
-
   useEffect(() => {
     void load();
-    if (isAdmin) {
-      void loadPlayers();
-    }
   }, [slug, category, eventId, categoryId, isAdmin]);
 
   const activeZone = useMemo(() => {
@@ -608,7 +615,9 @@ export const TournamentCategoryPage = ({
             </button>
           )}
         </div>
-        <p className="text-sm text-slate-500">Categoría {data.categoryName}</p>
+        <p className="text-sm text-slate-500">
+          Categoría {formatCategoryName({ categoryName: data.categoryName, gender: data.gender })}
+        </p>
         {!isAdmin && isOwner && (
           <p className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
             Modo edición activo

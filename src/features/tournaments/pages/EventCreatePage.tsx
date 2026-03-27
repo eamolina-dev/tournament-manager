@@ -10,6 +10,7 @@ import {
   getTournamentById,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
+import { formatCategoryName } from "../../../shared/lib/category-display";
 
 type EventCreatePageProps = {
   navigate: (path: string) => void;
@@ -88,9 +89,13 @@ export const EventCreatePage = ({
         const mappedExistingCategories = tournamentCategories.map((row) => ({
           id: row.id,
           label:
-            row.is_suma && row.suma_value != null
-              ? `Suma ${row.suma_value}`
-              : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+            formatCategoryName({
+              categoryName:
+                row.is_suma && row.suma_value != null
+                  ? `Suma ${row.suma_value}`
+                  : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+              gender: row.gender,
+            }),
         }));
         setExistingCategories(mappedExistingCategories);
       } catch (loadError) {

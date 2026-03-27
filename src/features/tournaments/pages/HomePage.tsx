@@ -5,6 +5,7 @@ import {
   getTournamentCategories,
   getTournaments,
 } from "../../../features/tournaments/api/queries";
+import { formatCategoryName } from "../../../shared/lib/category-display";
 
 type HomePageProps = {
   navigate: (path: string) => void;
@@ -61,9 +62,13 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
             return {
               id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
               name:
-                row.is_suma && row.suma_value != null
-                  ? `Suma ${row.suma_value}`
-                  : category?.name ?? "Categoría",
+                formatCategoryName({
+                  categoryName:
+                    row.is_suma && row.suma_value != null
+                      ? `Suma ${row.suma_value}`
+                      : category?.name ?? "Categoría",
+                  gender: row.gender,
+                }),
               slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : category?.slug ?? null,
               tournamentCategoryId: row.id,
               isSuma: Boolean(row.is_suma),

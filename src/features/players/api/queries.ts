@@ -1,12 +1,23 @@
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type { Player } from "../../../shared/types/entities"
+import type { Database } from "../../../shared/types/database"
+import { isPlayerAllowedInCategory } from "../../../shared/lib/category-display"
 
-export const getPlayers = async (): Promise<Player[]> => {
+type PlayerGender = Database["public"]["Tables"]["players"]["Row"]["gender"]
+
+export const getPlayers = async (options?: { categoryGender?: PlayerGender }): Promise<Player[]> => {
   const { data, error } = await supabase.from("players").select("*")
 
   throwIfError(error)
-  return data
+  if (!options?.categoryGender) return data
+
+  return data.filter((player) =>
+    isPlayerAllowedInCategory({
+      playerGender: player.gender,
+      categoryGender: options.categoryGender ?? null,
+    }),
+  )
 }
 
 export const getPlayersByCircuit = async (circuitId: string): Promise<Player[]> => {

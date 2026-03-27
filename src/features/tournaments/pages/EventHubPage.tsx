@@ -5,6 +5,7 @@ import {
   getTournamentById,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
+import { formatCategoryName } from "../../../shared/lib/category-display";
 
 type EventHubPageProps = {
   eventId: string;
@@ -63,9 +64,13 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
             tournamentCategoryId: row.id,
             categoryId: row.category_id ?? null,
             name:
-              row.is_suma && row.suma_value != null
-                ? `Suma ${row.suma_value}`
-                : category?.name ?? "Categoría",
+              formatCategoryName({
+                categoryName:
+                  row.is_suma && row.suma_value != null
+                    ? `Suma ${row.suma_value}`
+                    : category?.name ?? "Categoría",
+                gender: row.gender,
+              }),
             isSuma: Boolean(row.is_suma),
             sumaValue: row.suma_value ?? null,
           };
