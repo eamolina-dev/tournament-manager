@@ -57,6 +57,12 @@ const matchAdminEventCategoryPath = (pathname: string) => {
   return { eventId: match[1], categoryId: match[2] };
 };
 
+const matchAdminEventCategorySetupPath = (pathname: string) => {
+  const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/categories\/([^/]+)\/setup$/);
+  if (!match) return null;
+  return { eventId: match[1], categoryId: match[2] };
+};
+
 const matchAdminEventResultsPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/results$/);
   if (!match) return null;
@@ -86,6 +92,10 @@ export default function App() {
   const legacyEventRoute = useMemo(() => matchLegacyEventPath(pathname), [pathname]);
   const adminEventEditRoute = useMemo(() => matchAdminEventEditPath(pathname), [pathname]);
   const adminEventCategoryRoute = useMemo(() => matchAdminEventCategoryPath(pathname), [pathname]);
+  const adminEventCategorySetupRoute = useMemo(
+    () => matchAdminEventCategorySetupPath(pathname),
+    [pathname],
+  );
   const adminEventResultsRoute = useMemo(() => matchAdminEventResultsPath(pathname), [pathname]);
 
   return (
@@ -114,6 +124,16 @@ export default function App() {
           categoryId={adminEventCategoryRoute.categoryId}
           isAdmin
           adminViewMode="results"
+          navigate={navigate}
+        />
+      )}
+      {adminEventCategorySetupRoute && (
+        <TournamentCategoryPage
+          slug=""
+          category=""
+          eventId={adminEventCategorySetupRoute.eventId}
+          categoryId={adminEventCategorySetupRoute.categoryId}
+          isAdmin
           navigate={navigate}
         />
       )}
@@ -157,6 +177,7 @@ export default function App() {
         !legacyEventRoute &&
         !adminEventEditRoute &&
         !adminEventCategoryRoute &&
+        !adminEventCategorySetupRoute &&
         !adminEventResultsRoute &&
         pathname !== "/" &&
         pathname !== "/admin" &&

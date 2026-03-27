@@ -20,6 +20,7 @@ type EventCreatePageProps = {
 type CategoryOption = {
   id: string;
   name: string;
+  slug: string | null;
 };
 
 const slugify = (value: string): string =>
@@ -60,7 +61,11 @@ export const EventCreatePage = ({
       try {
         const allCategories = await getAllCategories();
         setCategoriesCatalog(
-          allCategories.map((category) => ({ id: category.id, name: category.name }))
+          allCategories.map((category) => ({
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+          }))
         );
 
         if (!eventId) return;
@@ -151,9 +156,19 @@ export const EventCreatePage = ({
               suma_value: null,
             });
 
+      const selectedCategorySlug =
+        categoryMode === "suma"
+          ? `suma-${sumSelection}`
+          : categoriesCatalog.find((category) => category.id === categorySelection)?.slug;
+
+      if (isAdminMode && selectedCategorySlug) {
+        navigate(`/admin/tournament/${createdTournament.slug}/${selectedCategorySlug}`);
+        return;
+      }
+
       navigate(
         isAdminMode
-          ? `/admin/tournaments/${createdTournament.id}/categories/${createdCategory.id}`
+          ? `/admin/tournaments/${createdTournament.id}/categories/${createdCategory.id}/setup`
           : `/eventos/${createdTournament.id}/categorias/${createdCategory.id}`
       );
     } catch (submitError) {

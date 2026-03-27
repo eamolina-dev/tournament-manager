@@ -9,6 +9,7 @@ import { createTeam, deleteTeam } from "../../../features/teams/api/mutations";
 import {
   getAllCategories,
   getTournamentById,
+  getTournamentBySlug,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import {
@@ -921,6 +922,13 @@ export const TournamentCategoryPage = ({
                   try {
                     await generateFullTournament(data.tournamentCategoryId);
                     await load();
+                    if (isAdmin && !isAdminResultsMode && navigate) {
+                      const resolvedEventId =
+                        eventId || (await getTournamentBySlug(slug))?.id;
+                      if (resolvedEventId) {
+                        navigate(`/admin/tournaments/${resolvedEventId}/results`);
+                      }
+                    }
                   } finally {
                     setSaving(false);
                   }
