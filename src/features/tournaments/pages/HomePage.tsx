@@ -165,7 +165,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                     navigate(
                       isAdminMode
                         ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
-                        : `/public/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
+                        : `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
                     )
                   }
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"

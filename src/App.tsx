@@ -16,12 +16,6 @@ const matchTournamentPath = (pathname: string) => {
   return { slug: match[1], category: decodeURIComponent(match[2]) };
 };
 
-const matchPublicTournamentPath = (pathname: string) => {
-  const match = pathname.match(/^\/public\/tournament\/([^/]+)\/([^/]+)$/);
-  if (!match) return null;
-  return { slug: match[1], category: decodeURIComponent(match[2]) };
-};
-
 const matchAdminTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
@@ -87,7 +81,6 @@ export default function App() {
   };
 
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
-  const publicTournamentRoute = useMemo(() => matchPublicTournamentPath(pathname), [pathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
   const eventRoute = useMemo(() => matchEventPath(pathname), [pathname]);
   const eventEditRoute = useMemo(() => matchEventEditPath(pathname), [pathname]);
@@ -99,8 +92,7 @@ export default function App() {
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
-      {(pathname === "/" || pathname === "/public") && <HomePage navigate={navigate} />}
-      {pathname === "/public/rankings" && <RankingsPage />}
+      {pathname === "/" && <HomePage navigate={navigate} />}
 
       {pathname === "/admin" && <HomePage navigate={navigate} mode="admin" />}
       {pathname === "/admin/players" && <PlayersPage />}
@@ -144,14 +136,6 @@ export default function App() {
       {legacyEventRoute && <EventCreatePage navigate={navigate} eventId={legacyEventRoute.eventId} />}
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
-      {pathname === "/players" && <PlayersPage />}
-      {publicTournamentRoute && (
-        <TournamentCategoryPage
-          slug={publicTournamentRoute.slug}
-          category={publicTournamentRoute.category}
-          navigate={navigate}
-        />
-      )}
       {tournamentRoute && (
         <TournamentCategoryPage
           slug={tournamentRoute.slug}
@@ -169,7 +153,6 @@ export default function App() {
         />
       )}
       {!tournamentRoute &&
-        !publicTournamentRoute &&
         !adminTournamentRoute &&
         !eventRoute &&
         !eventEditRoute &&
@@ -179,13 +162,10 @@ export default function App() {
         !adminEventCategoryRoute &&
         !adminEventResultsRoute &&
         pathname !== "/" &&
-        pathname !== "/public" &&
-        pathname !== "/public/rankings" &&
         pathname !== "/admin" &&
         pathname !== "/admin/players" &&
         pathname !== "/admin/tournaments/new" &&
         pathname !== "/rankings" &&
-        pathname !== "/players" &&
         pathname !== "/admin/tournaments" &&
         pathname !== "/eventos/new" && (
           <section className="tm-card">

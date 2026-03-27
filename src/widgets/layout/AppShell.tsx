@@ -6,8 +6,8 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 const publicNavItems = [
-  { label: "Inicio", href: "/public" },
-  { label: "Rankings", href: "/public/rankings" },
+  { label: "Inicio", href: "/" },
+  { label: "Rankings", href: "/rankings" },
 ];
 
 const adminNavItems = [
@@ -17,12 +17,7 @@ const adminNavItems = [
 
 const getNavItems = (pathname: string) => {
   if (pathname.startsWith("/admin")) return adminNavItems;
-  if (pathname.startsWith("/public")) return publicNavItems;
-  return [
-    { label: "Inicio", href: "/" },
-    { label: "Rankings", href: "/rankings" },
-    { label: "Jugadores", href: "/players" },
-  ];
+  return publicNavItems;
 };
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {

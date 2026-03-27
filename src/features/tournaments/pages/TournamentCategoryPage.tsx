@@ -40,6 +40,22 @@ type TournamentCategoryPageProps = {
 
 const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const;
 const adminResultsTabs = ["Zonas", "Cruces"] as const;
+const eliminationStageOrder = [
+  "round_of_32",
+  "round_of_16",
+  "round_of_8",
+  "quarter",
+  "semi",
+  "final",
+] as const;
+const eliminationStageLabel: Record<(typeof eliminationStageOrder)[number], string> = {
+  round_of_32: "32avos",
+  round_of_16: "Octavos",
+  round_of_8: "Ronda de 8",
+  quarter: "Cuartos",
+  semi: "Semifinal",
+  final: "Final",
+};
 
 type SectionTab = (typeof sectionTabs)[number];
 
@@ -236,6 +252,24 @@ export const TournamentCategoryPage = ({
   const orderedBracketMatches = useMemo(
     () => [...(data?.bracketMatches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
     [data?.bracketMatches],
+  );
+  const adminBracketStages = useMemo(
+    () =>
+      eliminationStageOrder.filter((stage) =>
+        orderedBracketMatches.some((match) => match.stage === stage),
+      ),
+    [orderedBracketMatches],
+  );
+  const [activeAdminBracketStage, setActiveAdminBracketStage] = usePersistentTab<string>({
+    storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
+    tabs: adminBracketStages,
+  });
+  const adminVisibleBracketMatches = useMemo(
+    () =>
+      orderedBracketMatches.filter(
+        (match) => !activeAdminBracketStage || match.stage === activeAdminBracketStage,
+      ),
+    [orderedBracketMatches, activeAdminBracketStage],
   );
   const orderedZoneMatches = useMemo(
     () =>
@@ -1068,8 +1102,22 @@ export const TournamentCategoryPage = ({
 
           {activeTab === "Cruces" && (
             <section className="space-y-4 tm-card">
-              <TournamentBracket matches={orderedBracketMatches} />
-              {orderedBracketMatches.map((match) => (
+              <div className="flex flex-wrap gap-2">
+                {adminBracketStages.map((stage) => (
+                  <button
+                    key={stage}
+                    onClick={() => setActiveAdminBracketStage(stage)}
+                    className={`rounded-full px-3 py-1 text-sm ${
+                      stage === activeAdminBracketStage
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-300 text-slate-700"
+                    }`}
+                  >
+                    {eliminationStageLabel[stage]}
+                  </button>
+                ))}
+              </div>
+              {adminVisibleBracketMatches.map((match) => (
                 <MatchCardFull
                   key={match.id}
                   match={match}
@@ -1082,6 +1130,9 @@ export const TournamentCategoryPage = ({
                   }
                 />
               ))}
+              {!adminVisibleBracketMatches.length && (
+                <p className="text-sm text-slate-500">No hay cruces para esta instancia.</p>
+              )}
               <button
                 onClick={() => void saveBracketResultsBatch()}
                 disabled={savingBracket || !Object.keys(bracketEditedResults).length}
