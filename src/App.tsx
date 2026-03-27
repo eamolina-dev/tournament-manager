@@ -7,6 +7,9 @@ import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 import { PlayersPage } from "./features/players/pages/PlayersPage";
 import { AdminTournamentResultsPickerPage } from "./features/tournaments/pages/AdminTournamentResultsPickerPage";
+import { PublicTournamentPage } from "./features/tournaments/pages/PublicTournamentPage";
+import { AdminTournamentSetupPage } from "./features/tournaments/pages/AdminTournamentSetupPage";
+import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTournamentResultsPage";
 
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
@@ -117,23 +120,16 @@ export default function App() {
         />
       )}
       {adminEventCategoryRoute && (
-        <TournamentCategoryPage
-          slug=""
-          category=""
+        <AdminTournamentResultsPage
           eventId={adminEventCategoryRoute.eventId}
           categoryId={adminEventCategoryRoute.categoryId}
-          isAdmin
-          adminViewMode="results"
           navigate={navigate}
         />
       )}
       {adminEventCategorySetupRoute && (
-        <TournamentCategoryPage
-          slug=""
-          category=""
+        <AdminTournamentSetupPage
           eventId={adminEventCategorySetupRoute.eventId}
           categoryId={adminEventCategorySetupRoute.categoryId}
-          isAdmin
           navigate={navigate}
         />
       )}
@@ -155,17 +151,16 @@ export default function App() {
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
       {tournamentRoute && (
-        <TournamentCategoryPage
+        <PublicTournamentPage
           slug={tournamentRoute.slug}
           category={tournamentRoute.category}
           navigate={navigate}
         />
       )}
       {adminTournamentRoute && (
-        <TournamentCategoryPage
+        <AdminTournamentSetupPage
           slug={adminTournamentRoute.slug}
           category={adminTournamentRoute.category}
-          isAdmin
           navigate={navigate}
         />
       )}
