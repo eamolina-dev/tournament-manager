@@ -200,7 +200,7 @@ export const MatchCard = ({
 
   return (
     <article
-      className={`tm-card ${
+      className={`h-full tm-card ${
         isModified ? "border-emerald-400/60 bg-emerald-950/30" : ""
       }`}
     >

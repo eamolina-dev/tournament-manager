@@ -61,6 +61,7 @@ const eliminationStageLabel: Record<(typeof eliminationStageOrder)[number], stri
   semi: "Semifinal",
   final: "Final",
 };
+const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 
 type SectionTab = (typeof sectionTabs)[number];
 
@@ -987,7 +988,7 @@ export const TournamentCategoryPage = ({
             </p>
 
             {orderedEditableMatches.length ? (
-              <div className="mt-3 space-y-2">
+              <div className={`mt-3 ${matchCardsGridClass}`}>
                 {orderedEditableMatches.map((match) => (
                   <MatchCardFull
                     key={match.id}
@@ -1059,22 +1060,24 @@ export const TournamentCategoryPage = ({
                   </button>
                 ))}
               </div>
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4">
                 {orderedZoneMatches.length ? (
                   <>
-                    {orderedZoneMatches.map((match) => (
-                      <MatchCardFull
-                        key={match.id}
-                        match={match}
-                        isEditable
-                        hideSaveButton
-                        isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
-                        externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
-                        onEditStateChange={({ sets, error }) =>
-                          handleZoneEditStateChange(match.id, { sets, error })
-                        }
-                      />
-                    ))}
+                    <div className={matchCardsGridClass}>
+                      {orderedZoneMatches.map((match) => (
+                        <MatchCardFull
+                          key={match.id}
+                          match={match}
+                          isEditable
+                          hideSaveButton
+                          isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
+                          externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                          onEditStateChange={({ sets, error }) =>
+                            handleZoneEditStateChange(match.id, { sets, error })
+                          }
+                        />
+                      ))}
+                    </div>
                     <div className="mt-2 flex items-center gap-3">
                       <button
                         onClick={() => void saveZoneResultsBatch()}
@@ -1112,19 +1115,21 @@ export const TournamentCategoryPage = ({
                   </button>
                 ))}
               </div>
-              {adminVisibleBracketMatches.map((match) => (
-                <MatchCardFull
-                  key={match.id}
-                  match={match}
-                  isEditable
-                  hideSaveButton
-                  isModified={Boolean(bracketEditedResults[match.id])}
-                  externalError={bracketMatchErrors[match.id]}
-                  onEditStateChange={({ sets, error }) =>
-                    handleBracketEditStateChange(match.id, { sets, error })
-                  }
-                />
-              ))}
+              <div className={matchCardsGridClass}>
+                {adminVisibleBracketMatches.map((match) => (
+                  <MatchCardFull
+                    key={match.id}
+                    match={match}
+                    isEditable
+                    hideSaveButton
+                    isModified={Boolean(bracketEditedResults[match.id])}
+                    externalError={bracketMatchErrors[match.id]}
+                    onEditStateChange={({ sets, error }) =>
+                      handleBracketEditStateChange(match.id, { sets, error })
+                    }
+                  />
+                ))}
+              </div>
               {!adminVisibleBracketMatches.length && (
                 <p className="text-sm text-slate-500">No hay cruces para esta instancia.</p>
               )}
@@ -1200,25 +1205,30 @@ export const TournamentCategoryPage = ({
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4">
                 {orderedZoneMatches.length ? (
                   <>
-                    {orderedZoneMatches.map((match) => (
-                      <MatchCardFull
-                        key={match.id}
-                        match={match}
-                        isEditable={isOwner}
-                        hideSaveButton={isOwner}
-                        isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
-                        externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
-                        onEditStateChange={
-                          isOwner
-                            ? ({ sets, error }) =>
-                                handleZoneEditStateChange(match.id, { sets, error })
-                            : undefined
-                        }
-                      />
-                    ))}
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Partidos
+                    </p>
+                    <div className={matchCardsGridClass}>
+                      {orderedZoneMatches.map((match) => (
+                        <MatchCardFull
+                          key={match.id}
+                          match={match}
+                          isEditable={isOwner}
+                          hideSaveButton={isOwner}
+                          isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
+                          externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                          onEditStateChange={
+                            isOwner
+                              ? ({ sets, error }) =>
+                                  handleZoneEditStateChange(match.id, { sets, error })
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
                     {isOwner && (
                       <div className="mt-2 flex items-center gap-3">
                         <button
@@ -1256,22 +1266,24 @@ export const TournamentCategoryPage = ({
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Edición de cruces
                   </p>
-                  {orderedBracketMatches.map((match) => (
-                    <MatchCardFull
-                      key={match.id}
-                      match={match}
-                      isEditable={isOwner}
-                      hideSaveButton={isOwner}
-                      isModified={Boolean(bracketEditedResults[match.id])}
-                      externalError={bracketMatchErrors[match.id]}
-                      onEditStateChange={
-                        isOwner
-                          ? ({ sets, error }) =>
-                              handleBracketEditStateChange(match.id, { sets, error })
-                          : undefined
-                      }
-                    />
-                  ))}
+                  <div className={matchCardsGridClass}>
+                    {orderedBracketMatches.map((match) => (
+                      <MatchCardFull
+                        key={match.id}
+                        match={match}
+                        isEditable={isOwner}
+                        hideSaveButton={isOwner}
+                        isModified={Boolean(bracketEditedResults[match.id])}
+                        externalError={bracketMatchErrors[match.id]}
+                        onEditStateChange={
+                          isOwner
+                            ? ({ sets, error }) =>
+                                handleBracketEditStateChange(match.id, { sets, error })
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
                   {isOwner && (
                     <div className="mt-2 flex items-center gap-3">
                       <button

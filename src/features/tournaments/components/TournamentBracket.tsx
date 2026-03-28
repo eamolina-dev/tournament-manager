@@ -3,7 +3,7 @@ import {
   SVGViewer,
 } from "@g-loot/react-tournament-brackets"
 import type { Match } from "../types"
-import { MatchCardCompact } from "../../matches/components/MatchCard"
+import { MatchCardFull } from "../../matches/components/MatchCard"
 
 const stageOrder = {
   round_of_32: 1,
@@ -77,30 +77,48 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
   return withTree
 }
 
-const BracketCard = ({ topParty, bottomParty }: any) => (
-  <MatchCardCompact
-    match={{
-      id: `${topParty.id}-${bottomParty.id}`,
-      team1: topParty.name,
-      team2: bottomParty.name,
-      score: topParty.resultText,
-      day: "Domingo",
-      time: "--:--",
-    }}
-  />
-)
+const BracketCard = ({
+  match,
+  topParty,
+  bottomParty,
+  matchById,
+}: {
+  match: { id: string }
+  topParty: { id: string; name: string; resultText?: string }
+  bottomParty: { id: string; name: string; resultText?: string }
+  matchById: Map<string, Match>
+}) => {
+  const sourceMatch = matchById.get(match.id)
+
+  return (
+    <MatchCardFull
+      match={
+        sourceMatch ?? {
+          id: `${topParty.id}-${bottomParty.id}`,
+          team1: topParty.name,
+          team2: bottomParty.name,
+          score: topParty.resultText,
+          day: "Por definir",
+          time: "--:--",
+        }
+      }
+    />
+  )
+}
 
 export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
   if (!matches.length) {
     return <p className="text-sm text-[var(--tm-muted)]">Sin cruces cargados.</p>
   }
 
+  const matchById = new Map(matches.map((match) => [match.id, match]))
+
   return (
     <div className="tm-card min-h-[70vh] w-full overflow-auto">
       <div className="flex min-h-[66vh] min-w-fit items-center justify-center">
         <SingleEliminationBracket
           matches={mapMatches(matches)}
-          matchComponent={(props: any) => <BracketCard {...props} />}
+          matchComponent={(props: any) => <BracketCard {...props} matchById={matchById} />}
           svgWrapper={({ children, ...props }: any) => (
             <SVGViewer width={1200} height={620} {...props}>
               {children}
