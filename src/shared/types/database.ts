@@ -754,28 +754,37 @@ export type Database = {
       tournament_categories: {
         Row: {
           category_id: string | null
+          courts_count: number | null
           created_at: string
           gender: string | null
           id: string
           is_suma: boolean | null
+          match_interval_minutes: number | null
+          schedule_start_times: Json | null
           suma_value: number | null
           tournament_id: string | null
         }
         Insert: {
           category_id?: string | null
+          courts_count?: number | null
           created_at?: string
           gender?: string | null
           id?: string
           is_suma?: boolean | null
+          match_interval_minutes?: number | null
+          schedule_start_times?: Json | null
           suma_value?: number | null
           tournament_id?: string | null
         }
         Update: {
           category_id?: string | null
+          courts_count?: number | null
           created_at?: string
           gender?: string | null
           id?: string
           is_suma?: boolean | null
+          match_interval_minutes?: number | null
+          schedule_start_times?: Json | null
           suma_value?: number | null
           tournament_id?: string | null
         }
