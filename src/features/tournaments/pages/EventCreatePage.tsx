@@ -23,6 +23,23 @@ type CategoryOption = {
   name: string;
 };
 
+type TournamentCategoryGender = "M" | "F" | "X";
+
+type CategoryDraftItem = {
+  key: string;
+  label: string;
+  category_id: string | null;
+  is_suma: boolean;
+  suma_value: number | null;
+  gender: TournamentCategoryGender;
+};
+
+const genderOptions: { value: TournamentCategoryGender; label: string }[] = [
+  { value: "M", label: "Masculino" },
+  { value: "F", label: "Femenino" },
+  { value: "X", label: "Mixto" },
+];
+
 const slugify = (value: string): string =>
   value
     .toLowerCase()
@@ -45,9 +62,11 @@ export const EventCreatePage = ({
   const [categoryMode, setCategoryMode] = useState<"normal" | "suma">("normal");
   const [categorySelection, setCategorySelection] = useState("");
   const [sumSelection, setSumSelection] = useState(13);
+  const [genderSelection, setGenderSelection] = useState<TournamentCategoryGender>("M");
   const [existingCategories, setExistingCategories] = useState<
-    { id: string; label: string }[]
+    (CategoryDraftItem & { id: string })[]
   >([]);
+  const [draftCategories, setDraftCategories] = useState<CategoryDraftItem[]>([]);
   const [categoriesCatalog, setCategoriesCatalog] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
@@ -88,6 +107,15 @@ export const EventCreatePage = ({
         );
         const mappedExistingCategories = tournamentCategories.map((row) => ({
           id: row.id,
+          category_id: row.category_id ?? null,
+          is_suma: Boolean(row.is_suma),
+          suma_value: row.suma_value ?? null,
+          gender: ((row.gender ?? "M").toUpperCase() === "F"
+            ? "F"
+            : (row.gender ?? "M").toUpperCase() === "X"
+              ? "X"
+              : "M") as TournamentCategoryGender,
+          key: `${row.is_suma ? "suma" : "normal"}:${row.category_id ?? row.suma_value ?? "none"}:${((row.gender ?? "M").toUpperCase() === "F" ? "F" : (row.gender ?? "M").toUpperCase() === "X" ? "X" : "M") as TournamentCategoryGender}`,
           label:
             formatCategoryName({
               categoryName:
@@ -108,14 +136,68 @@ export const EventCreatePage = ({
     })();
   }, [eventId, isEditMode]);
 
-  const availableCategories = useMemo(() => {
-    if (!isEditMode) return categoriesCatalog;
-
-    const usedNames = new Set(existingCategories.map((item) => item.label));
-    return categoriesCatalog.filter((category) => !usedNames.has(category.name));
-  }, [categoriesCatalog, existingCategories, isEditMode]);
-
   const getBackPath = () => (isAdminMode ? "/admin" : "/");
+
+  const selectedCategoryName = useMemo(
+    () => categoriesCatalog.find((category) => category.id === categorySelection)?.name ?? "",
+    [categoriesCatalog, categorySelection]
+  );
+
+  const currentDraftItem = useMemo((): CategoryDraftItem | null => {
+    const categoryName = categoryMode === "suma" ? `Suma ${sumSelection}` : selectedCategoryName;
+    if (!categoryName) return null;
+
+    const item: CategoryDraftItem = {
+      key: `${categoryMode}:${categoryMode === "suma" ? sumSelection : categorySelection}:${genderSelection}`,
+      label: formatCategoryName({
+        categoryName,
+        gender: genderSelection,
+      }),
+      category_id: categoryMode === "normal" ? categorySelection || null : null,
+      is_suma: categoryMode === "suma",
+      suma_value: categoryMode === "suma" ? sumSelection : null,
+      gender: genderSelection,
+    };
+
+    return item;
+  }, [categoryMode, categorySelection, genderSelection, selectedCategoryName, sumSelection]);
+
+  const allConfiguredKeys = useMemo(
+    () => new Set([...existingCategories.map((item) => item.key), ...draftCategories.map((item) => item.key)]),
+    [draftCategories, existingCategories]
+  );
+
+  const handleAddCategory = async () => {
+    if (!currentDraftItem) return;
+    if (allConfiguredKeys.has(currentDraftItem.key)) {
+      setError("Esta combinación de categoría y género ya fue agregada.");
+      return;
+    }
+
+    setError(null);
+
+    if (!isEditMode) {
+      setDraftCategories((prev) => [...prev, currentDraftItem]);
+      return;
+    }
+
+    if (!eventId) return;
+
+    try {
+      const createdCategory = await createCategory({
+        tournament_id: eventId,
+        category_id: currentDraftItem.category_id,
+        is_suma: currentDraftItem.is_suma,
+        suma_value: currentDraftItem.suma_value,
+        gender: currentDraftItem.gender,
+      });
+      setExistingCategories((prev) => [...prev, { id: createdCategory.id, ...currentDraftItem }]);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error ? submitError.message : "No se pudo agregar la categoría"
+      );
+    }
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -144,25 +226,33 @@ export const EventCreatePage = ({
         end_date: endDate || null,
       });
 
-      const createdCategory =
-        categoryMode === "suma"
-          ? await createCategory({
-              tournament_id: createdTournament.id,
-              is_suma: true,
-              suma_value: sumSelection,
-              category_id: null,
-            })
-          : await createCategory({
-              tournament_id: createdTournament.id,
-              category_id: categorySelection || null,
-              is_suma: false,
-              suma_value: null,
-            });
+      const categoriesToCreate = draftCategories;
+      if (!categoriesToCreate.length) {
+        setError("Agregá al menos una categoría con su género para continuar.");
+        return;
+      }
+
+      const createdCategories = await Promise.all(
+        categoriesToCreate.map((item) =>
+          createCategory({
+            tournament_id: createdTournament.id,
+            category_id: item.category_id,
+            is_suma: item.is_suma,
+            suma_value: item.suma_value,
+            gender: item.gender,
+          })
+        )
+      );
+      const firstCreatedCategory = createdCategories[0];
+      if (!firstCreatedCategory) {
+        setError("No se pudo crear la categoría inicial del torneo.");
+        return;
+      }
 
       navigate(
         isAdminMode
-          ? `/admin/tournaments/${createdTournament.id}/categories/${createdCategory.id}/setup`
-          : `/eventos/${createdTournament.id}/categorias/${createdCategory.id}`
+          ? `/admin/tournaments/${createdTournament.id}/categories/${firstCreatedCategory.id}/setup`
+          : `/eventos/${createdTournament.id}/categorias/${firstCreatedCategory.id}`
       );
     } catch (submitError) {
       setError(
@@ -209,9 +299,7 @@ export const EventCreatePage = ({
           />
           <button
             onClick={() => void handleSubmit()}
-            disabled={
-              saving || loading || (!isEditMode && categoryMode === "normal" && !categorySelection)
-            }
+            disabled={saving || loading || (!isEditMode && draftCategories.length === 0)}
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear evento"}
@@ -226,8 +314,7 @@ export const EventCreatePage = ({
               onChange={(event) =>
                 setCategoryMode(event.target.value === "suma" ? "suma" : "normal")
               }
-              disabled={isEditMode}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="normal">Categoría normal</option>
               <option value="suma">Categoría suma</option>
@@ -237,11 +324,10 @@ export const EventCreatePage = ({
               <select
                 value={categorySelection}
                 onChange={(event) => setCategorySelection(event.target.value)}
-                disabled={isEditMode}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="">Seleccionar categoría...</option>
-                {availableCategories.map((category) => (
+                {categoriesCatalog.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
@@ -251,8 +337,7 @@ export const EventCreatePage = ({
               <select
                 value={sumSelection}
                 onChange={(event) => setSumSelection(Number(event.target.value))}
-                disabled={isEditMode}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
                   <option key={sumValue} value={sumValue}>
@@ -261,6 +346,35 @@ export const EventCreatePage = ({
                 ))}
               </select>
             )}
+
+            <select
+              value={genderSelection}
+              onChange={(event) =>
+                setGenderSelection(
+                  event.target.value === "F"
+                    ? "F"
+                    : event.target.value === "X"
+                      ? "X"
+                      : "M"
+                )
+              }
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              {genderOptions.map((genderOption) => (
+                <option key={genderOption.value} value={genderOption.value}>
+                  {genderOption.label}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => void handleAddCategory()}
+              disabled={!currentDraftItem || allConfiguredKeys.has(currentDraftItem.key)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+            >
+              Agregar
+            </button>
           </div>
 
           {isEditMode ? (
@@ -306,7 +420,36 @@ export const EventCreatePage = ({
                 </button>
               ) : null}
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-3">
+              <p className="text-xs text-slate-500">Categorías a crear:</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {draftCategories.map((draftCategory) => (
+                  <div key={draftCategory.key} className="flex items-center gap-2">
+                    <span className="rounded-full border border-slate-300 px-3 py-1 text-sm">
+                      {draftCategory.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraftCategories((prev) =>
+                          prev.filter((item) => item.key !== draftCategory.key)
+                        )
+                      }
+                      className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+                {draftCategories.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    Aún no agregaste categorías. Sumá al menos una para crear el evento.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
 
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
