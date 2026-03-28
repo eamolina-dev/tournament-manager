@@ -10,6 +10,7 @@ import {
 } from "../../../shared/types/ranking"
 import { SearchInput } from "../../../shared/components/SearchInput"
 import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
+import { TableLayout } from "../../../shared/components/TableLayout"
 
 export const RankingsPage = () => {
   const [selected, setSelected] = useState<CategoryCode>("6ta")
@@ -40,50 +41,54 @@ export const RankingsPage = () => {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
-        {rankingCategories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelected(category)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              category === selected
-                ? "bg-slate-900 text-white"
-                : "border border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {rankingGenderCodes.map((gender) => (
-          <button
-            key={gender}
-            onClick={() => setSelectedGender(gender)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              gender === selectedGender
-                ? "bg-slate-900 text-white"
-                : "border border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            {gender}
-          </button>
-        ))}
-      </div>
+      <TableLayout
+        controls={
+          <>
+            <div className="flex flex-wrap gap-2">
+              {rankingCategories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelected(category)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                    category === selected
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {rankingGenderCodes.map((gender) => (
+                <button
+                  key={gender}
+                  onClick={() => setSelectedGender(gender)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                    gender === selectedGender
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
 
-      <SearchInput
-        value={query}
-        onChange={setQuery}
-        placeholder="Buscar jugador en ranking..."
-      />
-
-      {filteredRows.length ? (
-        <RankingTable rows={filteredRows} />
-      ) : (
-        <section className="tm-card text-sm text-slate-500">
-          No se encontraron jugadores.
-        </section>
-      )}
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar jugador en ranking..."
+            />
+          </>
+        }
+      >
+        {filteredRows.length ? (
+          <RankingTable rows={filteredRows} />
+        ) : (
+          <p className="text-sm text-slate-500">No se encontraron jugadores.</p>
+        )}
+      </TableLayout>
     </section>
   )
 }

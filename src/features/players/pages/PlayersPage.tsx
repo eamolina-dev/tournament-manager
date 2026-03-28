@@ -22,6 +22,7 @@ export const PlayersPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
+  const [selectedGender, setSelectedGender] = useState("all");
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -29,9 +30,12 @@ export const PlayersPage = () => {
       const matchesName = !normalizedQuery || row.name.toLocaleLowerCase().includes(normalizedQuery);
       const matchesCategory =
         selectedCategoryId === "all" || (row.categoryId ?? "none") === selectedCategoryId;
-      return matchesName && matchesCategory;
+      const matchesGender =
+        selectedGender === "all" ||
+        (selectedGender === "none" ? !row.gender : row.gender === selectedGender);
+      return matchesName && matchesCategory && matchesGender;
     });
-  }, [rows, query, selectedCategoryId]);
+  }, [rows, query, selectedCategoryId, selectedGender]);
 
   const load = async () => {
     setLoading(true);
@@ -104,7 +108,7 @@ export const PlayersPage = () => {
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
           <SearchInput
             value={query}
             onChange={setQuery}
@@ -122,6 +126,17 @@ export const PlayersPage = () => {
                 {category.name}
               </option>
             ))}
+          </select>
+          <select
+            value={selectedGender}
+            onChange={(event) => setSelectedGender(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="all">Todos los géneros</option>
+            <option value="M">Masculino (M)</option>
+            <option value="F">Femenino (F)</option>
+            <option value="X">Mixto (X)</option>
+            <option value="none">Sin género</option>
           </select>
         </div>
 
