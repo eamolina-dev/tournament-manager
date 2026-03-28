@@ -1,5 +1,4 @@
 import type { MatchInsert } from "../../../shared/types/entities"
-import { scheduleGroupMatches } from "./autoScheduleMatches"
 import type { PlannedGroup } from "./generateGroups"
 
 export const generateGroupMatches = (
@@ -37,7 +36,7 @@ export const generateGroupMatches = (
     )
   })
 
-  return scheduleGroupMatches(baseMatches)
+  return baseMatches
 }
 
 export const isValidGroupMatch = (match: MatchInsert): boolean =>

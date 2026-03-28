@@ -10,6 +10,7 @@ import {
   validateTeamRefs,
 } from "./generateGroups"
 import { generateGroupMatches, isValidGroupMatch } from "./generateGroupMatches"
+import { scheduleGeneratedMatches } from "./scheduleGeneratedMatches"
 
 type InsertedGroup = { id: string; name: string; group_key: string }
 
@@ -263,6 +264,8 @@ export const generateFullTournament = async (
       tournamentCategoryId,
       qualifiedTeamsCount,
     })
+
+    await scheduleGeneratedMatches(tournamentCategoryId)
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
