@@ -205,19 +205,19 @@ export const MatchCard = ({
       }`}
     >
       <div className="overflow-x-auto">
-        <div className="min-w-[280px] rounded-lg border border-[var(--tm-border)] bg-[var(--tm-surface-soft)] p-2">
-          <div className="grid grid-cols-[minmax(124px,1fr)_repeat(3,minmax(3rem,2.2rem))] items-center gap-x-1 gap-y-1 text-center">
+        <div className="min-w-[230px] rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface-soft)] p-1.5">
+          <div className="grid grid-cols-[minmax(108px,1fr)_repeat(3,minmax(2rem,1.8rem))] items-center gap-x-1 gap-y-1 text-center">
             <div />
             {SET_COLUMNS.map((setNumber) => (
               <div
                 key={`header-${setNumber}`}
-                className="text-xs font-semibold uppercase tracking-wide text-[var(--tm-muted)]"
+                className="text-[10px] font-semibold uppercase tracking-wide text-[var(--tm-muted)]"
               >
                 {setNumber}
               </div>
             ))}
 
-            <div className="pr-2 text-left text-sm font-semibold text-[var(--tm-text)]">
+            <div className="truncate pr-1 text-left text-xs font-semibold text-[var(--tm-text)]">
               {match.team1}
             </div>
             {setGridData.map((set, index) => {
@@ -226,7 +226,7 @@ export const MatchCard = ({
               return (
                 <div
                   key={`team1-${index}`}
-                  className="rounded border border-[var(--tm-border)] bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-[var(--tm-text)]"
+                  className="rounded border border-[var(--tm-border)] bg-white px-0.5 py-0.5 text-xs font-medium tabular-nums text-[var(--tm-text)]"
                 >
                   {isEditable ? (
                     <select
@@ -234,7 +234,7 @@ export const MatchCard = ({
                       onChange={(event) =>
                         updateSet(index, "team1", event.target.value)
                       }
-                      className="w-full bg-transparent text-center text-sm font-medium text-[var(--tm-text)] focus:outline-none"
+                      className="w-full bg-transparent text-center text-xs font-medium text-[var(--tm-text)] focus:outline-none"
                     >
                       <option value="">-</option>
                       {options.map((option) => (
@@ -250,14 +250,7 @@ export const MatchCard = ({
               );
             })}
 
-            <div className="py-1 text-left text-xs font-semibold uppercase tracking-wide text-[var(--tm-muted)]">
-              vs
-            </div>
-            {SET_COLUMNS.map((setNumber) => (
-              <div key={`vs-${setNumber}`} className="h-px bg-[var(--tm-border)]" />
-            ))}
-
-            <div className="pr-2 text-left text-sm font-semibold text-[var(--tm-text)]">
+            <div className="truncate pr-1 text-left text-xs font-semibold text-[var(--tm-text)]">
               {match.team2}
             </div>
             {setGridData.map((set, index) => {
@@ -266,7 +259,7 @@ export const MatchCard = ({
               return (
                 <div
                   key={`team2-${index}`}
-                  className="rounded border border-[var(--tm-border)] bg-white px-1 py-0.5 text-sm font-medium tabular-nums text-[var(--tm-text)]"
+                  className="rounded border border-[var(--tm-border)] bg-white px-0.5 py-0.5 text-xs font-medium tabular-nums text-[var(--tm-text)]"
                 >
                   {isEditable ? (
                     <select
@@ -274,7 +267,7 @@ export const MatchCard = ({
                       onChange={(event) =>
                         updateSet(index, "team2", event.target.value)
                       }
-                      className="w-full bg-transparent text-center text-sm font-medium text-[var(--tm-text)] focus:outline-none"
+                      className="w-full bg-transparent text-center text-xs font-medium text-[var(--tm-text)] focus:outline-none"
                     >
                       <option value="">-</option>
                       {options.map((option) => (
@@ -294,10 +287,10 @@ export const MatchCard = ({
       </div>
 
       {visibleScore && (
-        <p className="mt-2 text-xs text-[var(--tm-muted)]">Score: {visibleScore}</p>
+        <p className="mt-1 text-[11px] text-[var(--tm-muted)]">Score: {visibleScore}</p>
       )}
 
-      <p className="mt-2 text-xs text-[var(--tm-muted)]">
+      <p className="mt-1 text-[11px] text-[var(--tm-muted)]">
         {match.day} · {match.time}
         {match.court ? ` · ${match.court}` : ""}
       </p>

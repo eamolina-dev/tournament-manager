@@ -114,13 +114,13 @@ export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
   const matchById = new Map(matches.map((match) => [match.id, match]))
 
   return (
-    <div className="tm-card min-h-[70vh] w-full overflow-auto">
-      <div className="flex min-h-[66vh] min-w-fit items-center justify-center">
+    <div className="tm-card min-h-[82vh] w-full overflow-auto">
+      <div className="flex min-h-[78vh] min-w-fit items-center justify-center">
         <SingleEliminationBracket
           matches={mapMatches(matches)}
           matchComponent={(props: any) => <BracketCard {...props} matchById={matchById} />}
           svgWrapper={({ children, ...props }: any) => (
-            <SVGViewer width={1200} height={620} {...props}>
+            <SVGViewer width={1900} height={960} {...props}>
               {children}
             </SVGViewer>
           )}
