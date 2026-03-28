@@ -6,8 +6,17 @@ import { isPlayerAllowedInCategory } from "../../../shared/lib/category-display"
 
 type PlayerGender = Database["public"]["Tables"]["players"]["Row"]["gender"]
 
-export const getPlayers = async (options?: { categoryGender?: PlayerGender }): Promise<Player[]> => {
-  const { data, error } = await supabase.from("players").select("*")
+export const getPlayers = async (options?: {
+  categoryGender?: PlayerGender
+  categoryId?: string | null
+}): Promise<Player[]> => {
+  let query = supabase.from("players").select("*")
+
+  if (options?.categoryId) {
+    query = query.eq("current_category_id", options.categoryId)
+  }
+
+  const { data, error } = await query
 
   throwIfError(error)
   if (!options?.categoryGender) return data

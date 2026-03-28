@@ -152,9 +152,15 @@ export const TournamentCategoryPage = ({
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
   const [savingBracket, setSavingBracket] = useState(false);
 
-  const loadPlayers = async (categoryGender: TournamentCategoryGender) => {
+  const loadPlayers = async ({
+    categoryGender,
+    categoryId,
+  }: {
+    categoryGender: TournamentCategoryGender;
+    categoryId: string | null;
+  }) => {
     const [response, categories] = await Promise.all([
-      getPlayers({ categoryGender }),
+      getPlayers({ categoryGender, categoryId }),
       getAllCategories(),
     ]);
     const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
@@ -217,7 +223,10 @@ export const TournamentCategoryPage = ({
       const response = await getTournamentCategoryPageData(tournamentSlug, categorySlug);
       setData(response);
       if (isAdmin) {
-        await loadPlayers(response?.gender ?? null);
+        await loadPlayers({
+          categoryGender: response?.gender ?? null,
+          categoryId: response?.categoryId ?? null,
+        });
       }
     } finally {
       setLoading(false);
@@ -1402,7 +1411,10 @@ export const TournamentCategoryPage = ({
               current_category_id: categoryId,
               gender,
             });
-            await loadPlayers(data.gender);
+            await loadPlayers({
+              categoryGender: data.gender,
+              categoryId: data.categoryId,
+            });
             setTeamForm((prev) => ({
               ...prev,
               player1Id: prev.player1Id || created.id,
