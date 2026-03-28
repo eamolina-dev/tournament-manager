@@ -2,6 +2,7 @@ import type { Database } from "../types/database"
 
 type PlayerGender = Database["public"]["Tables"]["players"]["Row"]["gender"]
 type TournamentCategoryGender = Database["public"]["Tables"]["tournament_categories"]["Row"]["gender"]
+type UiGender = "M" | "F" | "X"
 
 const normalizeGender = (value: string | null | undefined): string | null => {
   if (!value) return null
@@ -27,6 +28,27 @@ export const getGenderShortLabel = (
 
   if (["x", "mixto", "mixta", "mixed"].includes(normalized)) {
     return "X"
+  }
+
+  return null
+}
+
+export const toDatabaseGender = (
+  gender: TournamentCategoryGender | PlayerGender | UiGender | null | undefined,
+): "male" | "female" | "mixed" | null => {
+  const normalized = normalizeGender(gender)
+  if (!normalized) return null
+
+  if (["m", "masculino", "masculina", "male", "man", "hombre"].includes(normalized)) {
+    return "male"
+  }
+
+  if (["f", "femenino", "femenina", "female", "woman", "mujer"].includes(normalized)) {
+    return "female"
+  }
+
+  if (["x", "mixto", "mixta", "mixed"].includes(normalized)) {
+    return "mixed"
   }
 
   return null

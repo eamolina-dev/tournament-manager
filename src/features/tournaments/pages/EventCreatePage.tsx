@@ -10,7 +10,7 @@ import {
   getTournamentById,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
-import { formatCategoryName } from "../../../shared/lib/category-display";
+import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
 
 type EventCreatePageProps = {
   navigate: (path: string) => void;
@@ -105,26 +105,25 @@ export const EventCreatePage = ({
         const categoriesById = new Map(
           allCategories.map((category) => [category.id, category.name])
         );
-        const mappedExistingCategories = tournamentCategories.map((row) => ({
-          id: row.id,
-          category_id: row.category_id ?? null,
-          is_suma: Boolean(row.is_suma),
-          suma_value: row.suma_value ?? null,
-          gender: ((row.gender ?? "M").toUpperCase() === "F"
-            ? "F"
-            : (row.gender ?? "M").toUpperCase() === "X"
-              ? "X"
-              : "M") as TournamentCategoryGender,
-          key: `${row.is_suma ? "suma" : "normal"}:${row.category_id ?? row.suma_value ?? "none"}:${((row.gender ?? "M").toUpperCase() === "F" ? "F" : (row.gender ?? "M").toUpperCase() === "X" ? "X" : "M") as TournamentCategoryGender}`,
-          label:
-            formatCategoryName({
-              categoryName:
-                row.is_suma && row.suma_value != null
-                  ? `Suma ${row.suma_value}`
-                  : categoriesById.get(row.category_id ?? "") ?? "Categoría",
-              gender: row.gender,
-            }),
-        }));
+        const mappedExistingCategories = tournamentCategories.map((row) => {
+          const normalizedGender = (getGenderShortLabel(row.gender) ?? "M") as TournamentCategoryGender;
+          return {
+            id: row.id,
+            category_id: row.category_id ?? null,
+            is_suma: Boolean(row.is_suma),
+            suma_value: row.suma_value ?? null,
+            gender: normalizedGender,
+            key: `${row.is_suma ? "suma" : "normal"}:${row.category_id ?? row.suma_value ?? "none"}:${normalizedGender}`,
+            label:
+              formatCategoryName({
+                categoryName:
+                  row.is_suma && row.suma_value != null
+                    ? `Suma ${row.suma_value}`
+                    : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+                gender: row.gender,
+              }),
+          };
+        });
         setExistingCategories(mappedExistingCategories);
       } catch (loadError) {
         setError(

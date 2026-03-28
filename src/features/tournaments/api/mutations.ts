@@ -3,6 +3,7 @@ import { throwIfError } from "../../../shared/lib/throw-if-error"
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../matches/api/queries"
 import { getGroupsByCategory } from "./queries"
 import { getTeamPlayersByCategory } from "../../teams/api/queries"
+import { toDatabaseGender } from "../../../shared/lib/category-display"
 import { computeGroupStandings } from "../utils/computeGroupStandings"
 import {
   resolveTeamSourcesForMatches,
@@ -49,9 +50,14 @@ export const createCategory = async (
     throw new Error("Falta tournament_id para vincular la categoría al torneo.")
   }
 
+  const normalizedInput: TournamentCategoryInsert = {
+    ...input,
+    gender: toDatabaseGender(input.gender ?? null),
+  }
+
   const { data, error } = await supabase
     .from("tournament_categories")
-    .insert(input)
+    .insert(normalizedInput)
     .select("*")
     .single()
 
