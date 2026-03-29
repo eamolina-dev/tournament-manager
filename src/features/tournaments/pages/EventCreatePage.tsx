@@ -71,10 +71,12 @@ export const EventCreatePage = ({
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       setError(null);
+      setSuccessMessage(null);
       setLoading(isEditMode);
 
       try {
@@ -203,6 +205,7 @@ export const EventCreatePage = ({
 
     setSaving(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (isEditMode && eventId) {
@@ -213,7 +216,7 @@ export const EventCreatePage = ({
           end_date: endDate || null,
         });
 
-        navigate(isAdminMode ? `/admin/tournaments/${eventId}/edit` : `/eventos/${eventId}/edit`);
+        setSuccessMessage("Datos del torneo guardados.");
         return;
       }
 
@@ -242,16 +245,16 @@ export const EventCreatePage = ({
           })
         )
       );
-      const firstCreatedCategory = createdCategories[0];
-      if (!firstCreatedCategory) {
+      if (!createdCategories.length) {
         setError("No se pudo crear la categoría inicial del torneo.");
         return;
       }
 
+      setSuccessMessage("Torneo creado. Ahora podés seguir configurando categorías.");
       navigate(
         isAdminMode
-          ? `/admin/tournaments/${createdTournament.id}/categories/${firstCreatedCategory.id}/setup`
-          : `/eventos/${createdTournament.id}/categorias/${firstCreatedCategory.id}`
+          ? `/admin/tournaments/${createdTournament.id}/edit`
+          : `/eventos/${createdTournament.id}/edit`
       );
     } catch (submitError) {
       setError(
@@ -386,19 +389,41 @@ export const EventCreatePage = ({
                       {existingCategory.label}
                     </span>
                     {isAdminMode ? (
-                      <button
-                        onClick={() =>
-                          void (async () => {
-                            await deleteTournamentCategory(existingCategory.id);
-                            setExistingCategories((prev) =>
-                              prev.filter((item) => item.id !== existingCategory.id)
-                            );
-                          })()
-                        }
-                        className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
-                      >
-                        x
-                      </button>
+                      <>
+                        <button
+                          onClick={() =>
+                            navigate(
+                              `/admin/tournaments/${eventId}/categories/${existingCategory.id}/setup`
+                            )
+                          }
+                          className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                        >
+                          Configurar
+                        </button>
+                        <button
+                          onClick={() =>
+                            navigate(
+                              `/admin/tournaments/${eventId}/categories/${existingCategory.id}`
+                            )
+                          }
+                          className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                        >
+                          Ver fixture
+                        </button>
+                        <button
+                          onClick={() =>
+                            void (async () => {
+                              await deleteTournamentCategory(existingCategory.id);
+                              setExistingCategories((prev) =>
+                                prev.filter((item) => item.id !== existingCategory.id)
+                              );
+                            })()
+                          }
+                          className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                        >
+                          x
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)}
@@ -451,6 +476,7 @@ export const EventCreatePage = ({
           )}
         </div>
 
+        {successMessage && <p className="mt-2 text-sm text-emerald-700">{successMessage}</p>}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
     </section>

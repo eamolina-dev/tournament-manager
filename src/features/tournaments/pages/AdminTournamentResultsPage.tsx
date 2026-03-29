@@ -47,7 +47,33 @@ export const AdminTournamentResultsPage = ({
   return (
     <section className="grid gap-4">
       <article className="tm-card">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!resolvedCategoryId}
+              onClick={() => navigate(`/admin/tournaments/${eventId}/categories/${resolvedCategoryId}/setup`)}
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Volver a setup
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/admin/tournaments/${eventId}/results`)}
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-700"
+            >
+              Ir a resultados
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/admin")}
+            className="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-700"
+          >
+            Volver al home
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}

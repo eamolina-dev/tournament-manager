@@ -9,7 +9,6 @@ import { createTeam, deleteTeam } from "../../../features/teams/api/mutations";
 import {
   getAllCategories,
   getTournamentById,
-  getTournamentBySlug,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import {
@@ -151,6 +150,7 @@ export const TournamentCategoryPage = ({
   const [bracketMatchErrors, setBracketMatchErrors] = useState<MatchErrorState>({});
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
   const [savingBracket, setSavingBracket] = useState(false);
+  const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
 
   const loadPlayers = async ({
     categoryGender,
@@ -600,7 +600,11 @@ export const TournamentCategoryPage = ({
       <header className="tm-card">
         {eventId && navigate && (
           <button
-            onClick={() => navigate(`/eventos/${eventId}/edit`)}
+            onClick={() =>
+              navigate(
+                isAdmin ? `/admin/tournaments/${eventId}/edit` : `/eventos/${eventId}/edit`
+              )
+            }
             className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             ← Volver al evento
@@ -941,16 +945,11 @@ export const TournamentCategoryPage = ({
                 void (async () => {
                   if (!canGenerateZones) return;
                   setSaving(true);
+                  setGenerationSuccess(null);
                   try {
                     await generateFullTournament(data.tournamentCategoryId);
                     await load();
-                    if (isAdmin && !isAdminResultsMode && navigate) {
-                      const resolvedEventId =
-                        eventId || (await getTournamentBySlug(slug))?.id;
-                      if (resolvedEventId) {
-                        navigate(`/admin/tournaments/${resolvedEventId}/results`);
-                      }
-                    }
+                    setGenerationSuccess("Fixture generado correctamente.");
                   } finally {
                     setSaving(false);
                   }
@@ -965,6 +964,22 @@ export const TournamentCategoryPage = ({
               <p className="mt-2 text-xs text-amber-600">
                 Necesitás al menos 2 equipos para generar el torneo.
               </p>
+            )}
+            {generationSuccess && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-emerald-700">{generationSuccess}</p>
+                {isAdmin && navigate && eventId ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`)
+                    }
+                    className="rounded-full border border-emerald-300 px-3 py-1 text-xs text-emerald-700"
+                  >
+                    Ir al fixture
+                  </button>
+                ) : null}
+              </div>
             )}
 
             <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3">

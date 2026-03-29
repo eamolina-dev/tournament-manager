@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getMatchesByCategory } from "../../../features/matches/api/queries";
 import { deleteTournament } from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
@@ -25,6 +26,7 @@ type TournamentCard = {
     tournamentCategoryId: string;
     isSuma: boolean;
     sumaValue: number | null;
+    hasMatches: boolean;
   }[];
 };
 
@@ -73,12 +75,28 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
               tournamentCategoryId: row.id,
               isSuma: Boolean(row.is_suma),
               sumaValue: row.suma_value ?? null,
+              hasMatches: false,
             };
           })
           .filter((item): item is NonNullable<typeof item> => Boolean(item)),
       }));
 
-      setTournaments(merged);
+      const mergedWithMatchState = await Promise.all(
+        merged.map(async (tournament) => ({
+          ...tournament,
+          categories: await Promise.all(
+            tournament.categories.map(async (category) => {
+              const matches = await getMatchesByCategory(category.tournamentCategoryId);
+              return {
+                ...category,
+                hasMatches: matches.length > 0,
+              };
+            }),
+          ),
+        })),
+      );
+
+      setTournaments(mergedWithMatchState);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Error cargando torneos"
@@ -166,13 +184,19 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
               {tournament.categories.map((cat) => (
                 <button
                   key={cat.tournamentCategoryId}
-                  onClick={() =>
+                  onClick={() => {
+                    if (isAdminMode && !cat.hasMatches) {
+                      window.alert(
+                        "Esta categoría todavía no tiene fixture generado. Configurala primero."
+                      );
+                      return;
+                    }
                     navigate(
                       isAdminMode
                         ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
                         : `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
-                    )
-                  }
+                    );
+                  }}
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
                 >
                   {cat.name}

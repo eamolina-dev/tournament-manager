@@ -5,6 +5,7 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName } from "../../../shared/lib/category-display";
+import { TournamentCategoryPage } from "./TournamentCategoryPage";
 
 type AdminTournamentResultsPickerPageProps = {
   eventId: string;
@@ -17,6 +18,7 @@ export const AdminTournamentResultsPickerPage = ({
 }: AdminTournamentResultsPickerPageProps) => {
   const [tournamentName, setTournamentName] = useState("Torneo");
   const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -42,6 +44,7 @@ export const AdminTournamentResultsPickerPage = ({
           }),
       }))
     );
+    setSelectedCategoryId((prev) => prev || tournamentCategories[0]?.id || "");
     setLoading(false);
   }, [eventId]);
 
@@ -69,13 +72,31 @@ export const AdminTournamentResultsPickerPage = ({
         {categories.map((category) => (
           <button
             key={category.id}
-            onClick={() => navigate(`/admin/tournaments/${eventId}/categories/${category.id}`)}
-            className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
+            onClick={() => setSelectedCategoryId(category.id)}
+            className={`rounded-full border px-3 py-1 text-sm ${
+              category.id === selectedCategoryId
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-[var(--tm-border)] bg-[#0c2033] text-[var(--tm-surface)]"
+            }`}
           >
             {category.label}
           </button>
         ))}
       </div>
+
+      {selectedCategoryId ? (
+        <div className="mt-4">
+          <TournamentCategoryPage
+            slug=""
+            category=""
+            eventId={eventId}
+            categoryId={selectedCategoryId}
+            isAdmin
+            adminViewMode="results"
+            navigate={navigate}
+          />
+        </div>
+      ) : null}
     </section>
   );
 };
