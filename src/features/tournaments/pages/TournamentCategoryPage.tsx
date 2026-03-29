@@ -13,7 +13,6 @@ import {
 } from "../../../features/tournaments/api/queries";
 import {
   generateFullTournament,
-  resolveEliminationTeamSources,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
 import {
@@ -598,18 +597,6 @@ export const TournamentCategoryPage = ({
   return (
     <section className="flex flex-col gap-4">
       <header className="tm-card">
-        {eventId && navigate && (
-          <button
-            onClick={() =>
-              navigate(
-                isAdmin ? `/admin/tournaments/${eventId}/edit` : `/eventos/${eventId}/edit`
-              )
-            }
-            className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            ← Volver al evento
-          </button>
-        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-slate-900">
             {data.tournamentName}
@@ -617,6 +604,14 @@ export const TournamentCategoryPage = ({
           {!isAdmin && navigate && (
             <button
               onClick={() => navigate("/")}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Volver al home
+            </button>
+          )}
+          {isAdmin && navigate && (
+            <button
+              onClick={() => navigate("/admin")}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               Volver al home
@@ -1003,44 +998,6 @@ export const TournamentCategoryPage = ({
                 </p>
               )}
             </div>
-          </article>
-
-          <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">3. Partidos</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Los partidos se generan automáticamente desde las zonas. Desde acá solo editás resultados, horario y cancha.
-            </p>
-
-            {orderedEditableMatches.length ? (
-              <div className={`mt-3 ${matchCardsGridClass}`}>
-                {orderedEditableMatches.map((match) => (
-                  <MatchCardFull
-                    key={match.id}
-                    match={match}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
-                Cuando generes zonas, se crearán los partidos automáticamente.
-              </p>
-            )}
-          </article>
-
-          <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">4. Cruces</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Resuelve los placeholders de cruces (ej: 1A, 2B) en base a la tabla actual de zonas.
-            </p>
-            <button
-              type="button"
-              onClick={() => void resolveEliminationTeamSources(data.tournamentCategoryId)}
-              className="hidden"
-              aria-hidden
-              tabIndex={-1}
-            >
-              Generar cruces
-            </button>
           </article>
 
           {saving && (

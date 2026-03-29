@@ -385,64 +385,39 @@ export const EventCreatePage = ({
               <div className="mt-2 flex flex-wrap gap-2">
                 {existingCategories.map((existingCategory) => (
                   <div key={existingCategory.id} className="flex items-center gap-2">
-                    <span className="rounded-full border border-slate-300 px-3 py-1 text-sm">
-                      {existingCategory.label}
-                    </span>
-                    {isAdminMode ? (
-                      <>
-                        <button
-                          onClick={() =>
-                            navigate(
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isAdminMode
+                          ? navigate(
                               `/admin/tournaments/${eventId}/categories/${existingCategory.id}/setup`
                             )
-                          }
-                          className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-                        >
-                          Configurar
-                        </button>
-                        <button
-                          onClick={() =>
-                            navigate(
-                              `/admin/tournaments/${eventId}/categories/${existingCategory.id}`
-                            )
-                          }
-                          className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-                        >
-                          Ver fixture
-                        </button>
-                        <button
-                          onClick={() =>
-                            void (async () => {
-                              await deleteTournamentCategory(existingCategory.id);
-                              setExistingCategories((prev) =>
-                                prev.filter((item) => item.id !== existingCategory.id)
-                              );
-                            })()
-                          }
-                          className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
-                        >
-                          x
-                        </button>
-                      </>
-                    ) : (
+                          : navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)
+                      }
+                      className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                    >
+                      {existingCategory.label}
+                    </button>
+                    {isAdminMode ? (
                       <button
-                        onClick={() => navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)}
-                        className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                        onClick={() =>
+                          void (async () => {
+                            await deleteTournamentCategory(existingCategory.id);
+                            setExistingCategories((prev) =>
+                              prev.filter((item) => item.id !== existingCategory.id)
+                            );
+                          })()
+                        }
+                        className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
                       >
-                        Abrir
+                        x
                       </button>
+                    ) : (
+                      null
                     )}
                   </div>
                 ))}
               </div>
-              {isAdminMode ? (
-                <button
-                  type="button"
-                  className="mt-3 rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
-                >
-                  Volver a crear el torneo
-                </button>
-              ) : null}
             </div>
           ) : (
             <div className="mt-3">
