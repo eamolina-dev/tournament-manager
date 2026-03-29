@@ -6,7 +6,6 @@ import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 import { PlayersPage } from "./features/players/pages/PlayersPage";
-import { AdminTournamentResultsPickerPage } from "./features/tournaments/pages/AdminTournamentResultsPickerPage";
 import { PublicTournamentPage } from "./features/tournaments/pages/PublicTournamentPage";
 import { AdminTournamentSetupPage } from "./features/tournaments/pages/AdminTournamentSetupPage";
 import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTournamentResultsPage";
@@ -66,12 +65,6 @@ const matchAdminEventCategorySetupPath = (pathname: string) => {
   return { eventId: match[1], categoryId: match[2] };
 };
 
-const matchAdminEventResultsPath = (pathname: string) => {
-  const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/results$/);
-  if (!match) return null;
-  return { eventId: match[1] };
-};
-
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
 
@@ -99,7 +92,6 @@ export default function App() {
     () => matchAdminEventCategorySetupPath(pathname),
     [pathname],
   );
-  const adminEventResultsRoute = useMemo(() => matchAdminEventResultsPath(pathname), [pathname]);
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
@@ -112,12 +104,6 @@ export default function App() {
       )}
       {adminEventEditRoute && (
         <EventCreatePage navigate={navigate} eventId={adminEventEditRoute.eventId} mode="admin" />
-      )}
-      {adminEventResultsRoute && (
-        <AdminTournamentResultsPickerPage
-          eventId={adminEventResultsRoute.eventId}
-          navigate={navigate}
-        />
       )}
       {adminEventCategoryRoute && (
         <AdminTournamentResultsPage
@@ -173,7 +159,6 @@ export default function App() {
         !adminEventEditRoute &&
         !adminEventCategoryRoute &&
         !adminEventCategorySetupRoute &&
-        !adminEventResultsRoute &&
         pathname !== "/" &&
         pathname !== "/admin" &&
         pathname !== "/admin/players" &&

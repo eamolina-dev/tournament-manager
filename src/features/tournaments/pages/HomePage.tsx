@@ -203,17 +203,6 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                 </button>
               ))}
             </div>
-
-            {isAdminMode ? (
-              <div className="mt-3">
-                <button
-                  onClick={() => navigate(`/admin/tournaments/${tournament.id}/results`)}
-                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"
-                >
-                  Cargar resultado
-                </button>
-              </div>
-            ) : null}
           </article>
         ))}
       </div>

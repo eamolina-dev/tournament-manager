@@ -601,6 +601,18 @@ export const TournamentCategoryPage = ({
           <h1 className="text-2xl font-bold text-slate-900">
             {data.tournamentName}
           </h1>
+          {isAdmin && !isAdminResultsMode && navigate ? (
+            <button
+              onClick={() =>
+                navigate(
+                  eventId ? `/admin/tournaments/${eventId}/edit` : "/admin/tournaments/new"
+                )
+              }
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Volver
+            </button>
+          ) : null}
           {!isAdmin && navigate && (
             <button
               onClick={() => navigate("/")}
@@ -609,7 +621,7 @@ export const TournamentCategoryPage = ({
               Volver al home
             </button>
           )}
-          {isAdmin && navigate && (
+          {isAdmin && isAdminResultsMode && navigate && (
             <button
               onClick={() => navigate("/admin")}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
