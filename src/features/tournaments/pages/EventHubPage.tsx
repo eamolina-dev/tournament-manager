@@ -6,6 +6,7 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName } from "../../../shared/lib/category-display";
+import { validateCategorySelection } from "../../../shared/lib/ui-validations";
 
 type EventHubPageProps = {
   eventId: string;
@@ -101,6 +102,12 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
   }, [categoriesCatalog, categories]);
 
   const handleCreateCategory = async () => {
+    const categoryError = validateCategorySelection(categoryMode, categorySelection);
+    if (categoryError) {
+      setError(categoryError);
+      return;
+    }
+
     setSavingCategory(true);
     setError(null);
 
@@ -115,8 +122,6 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
         navigate(`/eventos/${eventId}/categorias/${created.id}`);
         return;
       }
-
-      if (!categorySelection) return;
 
       const created = await createCategory({
         tournament_id: eventId,

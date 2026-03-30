@@ -29,6 +29,7 @@ import {
   formatCategoryName,
   getGenderShortLabel,
 } from "../../../shared/lib/category-display";
+import { validateTeamPair } from "../../../shared/lib/ui-validations";
 import type { Database } from "../../../shared/types/database";
 
 type TournamentCategoryPageProps = {
@@ -97,7 +98,7 @@ type DraftTeam = {
   key: string;
   name: string;
   player1Id: string;
-  player2Id?: string;
+  player2Id: string;
 };
 
 type EditedResultsState = Record<
@@ -498,8 +499,8 @@ export const TournamentCategoryPage = ({
   const player2Options = selectablePlayers.filter(
     (player) => player.id === teamForm.player2Id || player.id !== teamForm.player1Id,
   );
-  const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
-    [player1Id, player2Id ?? ""]
+const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
+  [player1Id, player2Id ?? ""]
       .filter(Boolean)
       .sort((left, right) => left.localeCompare(right))
       .join("__");
@@ -884,7 +885,7 @@ export const TournamentCategoryPage = ({
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Jugador/a 2 (opcional)
+                  Jugador/a 2
                 </label>
                 <select
                   value={teamForm.player2Id}
@@ -896,7 +897,7 @@ export const TournamentCategoryPage = ({
                   }
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
-                  <option value="">Sin segundo jugador</option>
+                  <option value="">Seleccionar jugador</option>
                   {player2Options.map((player) => (
                     <option key={player.id} value={player.id}>
                       {player.name}
@@ -919,30 +920,30 @@ export const TournamentCategoryPage = ({
                     });
                     const player2Id = await resolvePlayerId({
                       selectedId: teamForm.player2Id,
-                      required: false,
+                      required: true,
                     });
-                    if (!player1Id) return;
-                    if (player2Id && player1Id === player2Id) {
-                      setTeamDraftError("No podés elegir al mismo jugador en ambos lados.");
+                    const pairValidationError = validateTeamPair(player1Id ?? "", player2Id ?? "");
+                    if (pairValidationError) {
+                      setTeamDraftError(pairValidationError);
                       return;
                     }
                     if (
                       blockedPlayerIds.has(player1Id) ||
-                      (player2Id && blockedPlayerIds.has(player2Id))
+                      blockedPlayerIds.has(player2Id)
                     ) {
                       setTeamDraftError("Uno de los jugadores ya está asignado en otro equipo.");
                       return;
                     }
                     if (
                       !canPlayerEnterByCategory(player1Id) ||
-                      (player2Id && !canPlayerEnterByCategory(player2Id))
+                      !canPlayerEnterByCategory(player2Id)
                     ) {
                       setTeamDraftError(
                         "Hay jugadores fuera de la categoría permitida para este torneo.",
                       );
                       return;
                     }
-                    if (data.isSuma && data.sumaValue != null && player2Id) {
+                    if (data.isSuma && data.sumaValue != null) {
                       const player1Level =
                         playersByIdWithCategory.get(player1Id)?.categoryLevel;
                       const player2Level =
@@ -962,8 +963,8 @@ export const TournamentCategoryPage = ({
                     }
 
                     const player1Name = playersById.get(player1Id) ?? "Jugador/a 1";
-                    const player2Name = player2Id ? playersById.get(player2Id) : null;
-                    const teamName = [player1Name, player2Name].filter(Boolean).join(" / ");
+                    const player2Name = playersById.get(player2Id) ?? "Jugador/a 2";
+                    const teamName = [player1Name, player2Name].join(" / ");
                     const teamKey = buildTeamKey(player1Id, player2Id);
 
                     if (draftTeams.some((team) => team.key === teamKey)) {
@@ -986,7 +987,7 @@ export const TournamentCategoryPage = ({
                         key: teamKey,
                         name: teamName,
                         player1Id,
-                        player2Id: player2Id ?? undefined,
+                        player2Id,
                       },
                     ]);
                     setTeamForm({

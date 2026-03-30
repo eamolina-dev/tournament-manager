@@ -43,6 +43,8 @@ export const CreatePlayerModal = ({
   const [gender, setGender] = useState<PlayerGenderOption>(initialGender);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameTouched, setNameTouched] = useState(false);
+  const [categoryTouched, setCategoryTouched] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +53,8 @@ export const CreatePlayerModal = ({
     setGender(initialGender);
     setSaving(false);
     setError(null);
+    setNameTouched(false);
+    setCategoryTouched(false);
   }, [open, initialName, initialCategoryId, initialGender]);
 
   const categoryById = useMemo(
@@ -61,6 +65,12 @@ export const CreatePlayerModal = ({
   if (!open) return null;
 
   const selectedCategory = categoryById.get(categoryId);
+  const nameError = !name.trim() ? "Ingresá un nombre." : null;
+  const categoryError =
+    !categoryId || !categoryById.has(categoryId)
+      ? "Seleccioná una categoría válida."
+      : null;
+  const hasValidationErrors = Boolean(nameError || categoryError);
   const showCompatibilityWarning =
     !isSumaTournament &&
     isCategoryHigherThanTournament({
@@ -82,16 +92,23 @@ export const CreatePlayerModal = ({
               setName(event.target.value);
               setError(null);
             }}
+            onBlur={() => setNameTouched(true)}
             placeholder="Nombre"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className={`w-full rounded-lg px-3 py-2 text-sm ${
+              nameTouched && nameError ? "border border-red-400" : "border border-slate-300"
+            }`}
           />
+          {nameTouched && nameError && <p className="text-xs text-red-600">{nameError}</p>}
           <select
             value={categoryId}
             onChange={(event) => {
               setCategoryId(event.target.value);
               setError(null);
             }}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            onBlur={() => setCategoryTouched(true)}
+            className={`w-full rounded-lg px-3 py-2 text-sm ${
+              categoryTouched && categoryError ? "border border-red-400" : "border border-slate-300"
+            }`}
           >
             <option value="">Seleccionar categoría...</option>
             {categories.map((category) => (
@@ -100,6 +117,9 @@ export const CreatePlayerModal = ({
               </option>
             ))}
           </select>
+          {categoryTouched && categoryError && (
+            <p className="text-xs text-red-600">{categoryError}</p>
+          )}
           <select
             value={gender}
             onChange={(event) => {
@@ -131,16 +151,14 @@ export const CreatePlayerModal = ({
           </button>
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || hasValidationErrors}
             onClick={() =>
               void (async () => {
                 const trimmedName = name.trim();
-                if (!trimmedName) {
-                  setError("Ingresá un nombre.");
-                  return;
-                }
-                if (!categoryId || !categoryById.has(categoryId)) {
-                  setError("Seleccioná una categoría válida.");
+                setNameTouched(true);
+                setCategoryTouched(true);
+
+                if (!trimmedName || !categoryId || !categoryById.has(categoryId)) {
                   return;
                 }
 

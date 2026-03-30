@@ -11,6 +11,10 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
+import {
+  validateCategorySelection,
+  validateTournamentForm,
+} from "../../../shared/lib/ui-validations";
 
 type EventCreatePageProps = {
   navigate: (path: string) => void;
@@ -72,6 +76,12 @@ export const EventCreatePage = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    slug?: string;
+    dates?: string;
+    category?: string;
+  }>({});
 
   useEffect(() => {
     void (async () => {
@@ -170,12 +180,18 @@ export const EventCreatePage = ({
 
   const handleAddCategory = async () => {
     if (!currentDraftItem) return;
+    const categoryError = validateCategorySelection(categoryMode, categorySelection);
+    if (categoryError) {
+      setFormErrors((prev) => ({ ...prev, category: categoryError }));
+      return;
+    }
     if (allConfiguredKeys.has(currentDraftItem.key)) {
       setError("Esta combinación de categoría y género ya fue agregada.");
       return;
     }
 
     setError(null);
+    setFormErrors((prev) => ({ ...prev, category: undefined }));
 
     if (!isEditMode) {
       setDraftCategories((prev) => [...prev, currentDraftItem]);
@@ -201,7 +217,14 @@ export const EventCreatePage = ({
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) return;
+    const nextErrors = validateTournamentForm({
+      name,
+      startDate,
+      endDate,
+      slug: slugify(name),
+    });
+    setFormErrors((prev) => ({ ...prev, ...nextErrors }));
+    if (Object.keys(nextErrors).length > 0) return;
 
     setSaving(true);
     setError(null);
@@ -283,30 +306,95 @@ export const EventCreatePage = ({
         <div className="mt-3 grid gap-2 md:grid-cols-4">
           <input
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              setFormErrors((prev) => ({ ...prev, name: undefined, slug: undefined }));
+            }}
+            onBlur={() =>
+              setFormErrors((prev) => ({
+                ...prev,
+                ...validateTournamentForm({
+                  name,
+                  startDate,
+                  endDate,
+                  slug: slugify(name),
+                }),
+              }))
+            }
             placeholder="Nombre"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className={`rounded-lg px-3 py-2 text-sm ${
+              formErrors.name || formErrors.slug ? "border border-red-400" : "border border-slate-300"
+            }`}
           />
           <input
             type="date"
             value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            onChange={(event) => {
+              setStartDate(event.target.value);
+              setFormErrors((prev) => ({ ...prev, dates: undefined }));
+            }}
+            onBlur={() =>
+              setFormErrors((prev) => ({
+                ...prev,
+                ...validateTournamentForm({
+                  name,
+                  startDate,
+                  endDate,
+                  slug: slugify(name),
+                }),
+              }))
+            }
+            className={`rounded-lg px-3 py-2 text-sm ${
+              formErrors.dates ? "border border-red-400" : "border border-slate-300"
+            }`}
           />
           <input
             type="date"
             value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            onChange={(event) => {
+              setEndDate(event.target.value);
+              setFormErrors((prev) => ({ ...prev, dates: undefined }));
+            }}
+            onBlur={() =>
+              setFormErrors((prev) => ({
+                ...prev,
+                ...validateTournamentForm({
+                  name,
+                  startDate,
+                  endDate,
+                  slug: slugify(name),
+                }),
+              }))
+            }
+            className={`rounded-lg px-3 py-2 text-sm ${
+              formErrors.dates ? "border border-red-400" : "border border-slate-300"
+            }`}
           />
           <button
             onClick={() => void handleSubmit()}
-            disabled={saving || loading || (!isEditMode && draftCategories.length === 0)}
+            disabled={
+              saving ||
+              loading ||
+              (!isEditMode && draftCategories.length === 0) ||
+              Object.keys(
+                validateTournamentForm({
+                  name,
+                  startDate,
+                  endDate,
+                  slug: slugify(name),
+                }),
+              ).length > 0
+            }
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear evento"}
           </button>
         </div>
+        {(formErrors.name || formErrors.slug || formErrors.dates) && (
+          <p className="mt-2 text-sm text-red-600">
+            {formErrors.name ?? formErrors.slug ?? formErrors.dates}
+          </p>
+        )}
 
         <div className="mt-4 rounded-xl border border-slate-200 p-3">
           <p className="text-sm font-semibold text-slate-900">Categoría / tipo</p>
@@ -325,7 +413,10 @@ export const EventCreatePage = ({
             {categoryMode === "normal" ? (
               <select
                 value={categorySelection}
-                onChange={(event) => setCategorySelection(event.target.value)}
+                onChange={(event) => {
+                  setCategorySelection(event.target.value);
+                  setFormErrors((prev) => ({ ...prev, category: undefined }));
+                }}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="">Seleccionar categoría...</option>
@@ -378,6 +469,7 @@ export const EventCreatePage = ({
               Agregar
             </button>
           </div>
+          {formErrors.category && <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>}
 
           {isEditMode ? (
             <div className="mt-3">

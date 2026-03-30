@@ -12,6 +12,10 @@ import {
   getTournaments,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName } from "../../../shared/lib/category-display";
+import {
+  validateCategorySelection,
+  validateTournamentForm,
+} from "../../../shared/lib/ui-validations";
 
 type AdminTournamentsPageProps = {
   navigate: (path: string) => void;
@@ -60,6 +64,7 @@ export const AdminTournamentsPage = ({
     Record<string, "normal" | "suma">
   >({});
   const [sumSelection, setSumSelection] = useState<Record<string, number>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,7 +134,17 @@ export const AdminTournamentsPage = ({
   }, [load]);
 
   const createOrUpdateTournament = async () => {
-    if (!form.name.trim()) return;
+    const validation = validateTournamentForm({
+      name: form.name,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      slug: slugify(form.name),
+    });
+    if (validation.name || validation.slug || validation.dates) {
+      setFormError(validation.name ?? validation.slug ?? validation.dates ?? null);
+      return;
+    }
+    setFormError(null);
 
     const payload = {
       circuit_id: "54b31da0-56ac-4ac0-914e-84a9856ba3c8",
@@ -180,35 +195,49 @@ export const AdminTournamentsPage = ({
         <div className="mt-3 grid gap-2 md:grid-cols-4">
           <input
             value={form.name}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, name: event.target.value }))
-            }
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, name: event.target.value }));
+              setFormError(null);
+            }}
             placeholder="Nombre"
-            className="tm-input px-3 py-2 text-sm"
+            className={`tm-input px-3 py-2 text-sm ${formError ? "border-red-400" : ""}`}
           />
           <input
             type="date"
             value={form.startDate}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, startDate: event.target.value }))
-            }
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, startDate: event.target.value }));
+              setFormError(null);
+            }}
             className="tm-input px-3 py-2 text-sm"
           />
           <input
             type="date"
             value={form.endDate}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, endDate: event.target.value }))
-            }
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, endDate: event.target.value }));
+              setFormError(null);
+            }}
             className="tm-input px-3 py-2 text-sm"
           />
           <button
             onClick={() => void createOrUpdateTournament()}
+            disabled={
+              Object.keys(
+                validateTournamentForm({
+                  name: form.name,
+                  startDate: form.startDate,
+                  endDate: form.endDate,
+                  slug: slugify(form.name),
+                }),
+              ).length > 0
+            }
             className="tm-btn-primary px-3 py-2 text-sm"
           >
             {editingId ? "Guardar cambios" : "Crear torneo"}
           </button>
         </div>
+        {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
@@ -345,6 +374,14 @@ export const AdminTournamentsPage = ({
             <button
               onClick={() => {
                 const mode = categoryMode[tournament.id] ?? "normal";
+                const categoryError = validateCategorySelection(
+                  mode,
+                  categorySelection[tournament.id] ?? "",
+                );
+                if (categoryError) {
+                  setError(categoryError);
+                  return;
+                }
                 if (mode === "suma") {
                   void createCategory({
                     tournament_id: tournament.id,
