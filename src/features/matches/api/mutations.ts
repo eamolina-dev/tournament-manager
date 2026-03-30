@@ -7,6 +7,10 @@ import {
   resolveTeamSourcesForMatches,
   type StandingsByGroup,
 } from "../../tournaments/utils/resolveTeamSourcesForMatches"
+import {
+  assertNonNegativeNumber,
+  assertPositiveInteger,
+} from "../../../shared/lib/validation"
 import type {
   Match,
   MatchInsert,
@@ -22,8 +26,18 @@ export const createMatch = async (input: MatchInsert): Promise<Match> => {
   if (!input.team1_id || !input.team2_id) {
     throw new Error("Faltan team1_id/team2_id para crear el partido.")
   }
+  if (input.team1_id === input.team2_id) {
+    throw new Error("team1_id y team2_id deben ser distintos.")
+  }
   if (input.stage === "group" && !input.group_id) {
     throw new Error("Falta group_id para crear un partido de zona.")
+  }
+  if (
+    input.winner_team_id &&
+    input.winner_team_id !== input.team1_id &&
+    input.winner_team_id !== input.team2_id
+  ) {
+    throw new Error("winner_team_id debe coincidir con team1_id o team2_id.")
   }
 
   const { data, error } = await supabase
@@ -39,6 +53,13 @@ export const createMatch = async (input: MatchInsert): Promise<Match> => {
 export const createMatchSet = async (
   input: MatchSetInsert
 ): Promise<MatchSet> => {
+  if (!input.match_id) {
+    throw new Error("Falta match_id para crear el set.")
+  }
+  assertPositiveInteger(input.set_number, "set_number debe ser un entero mayor a 0.")
+  assertNonNegativeNumber(input.team1_games, "team1_games no puede ser negativo.")
+  assertNonNegativeNumber(input.team2_games, "team2_games no puede ser negativo.")
+
   const { data, error } = await supabase
     .from("match_sets")
     .insert(input)
@@ -53,6 +74,36 @@ export const updateMatch = async (
   matchId: string,
   input: MatchUpdate
 ): Promise<Match> => {
+  if (
+    input.team1_id !== undefined &&
+    input.team2_id !== undefined &&
+    input.team1_id &&
+    input.team2_id &&
+    input.team1_id === input.team2_id
+  ) {
+    throw new Error("team1_id y team2_id deben ser distintos.")
+  }
+  if (input.winner_team_id) {
+    let team1Id = input.team1_id ?? null
+    let team2Id = input.team2_id ?? null
+
+    if (!team1Id || !team2Id) {
+      const { data: currentMatch, error: currentMatchError } = await supabase
+        .from("matches")
+        .select("team1_id, team2_id")
+        .eq("id", matchId)
+        .single()
+
+      throwIfError(currentMatchError)
+      team1Id = team1Id ?? currentMatch.team1_id
+      team2Id = team2Id ?? currentMatch.team2_id
+    }
+
+    if (input.winner_team_id !== team1Id && input.winner_team_id !== team2Id) {
+      throw new Error("winner_team_id debe coincidir con team1_id o team2_id.")
+    }
+  }
+
   const { data, error } = await supabase
     .from("matches")
     .update(input)
@@ -77,6 +128,12 @@ export const replaceMatchSets = async (
   matchId: string,
   sets: { setNumber: number; team1Games: number; team2Games: number }[]
 ): Promise<void> => {
+  for (const set of sets) {
+    assertPositiveInteger(set.setNumber, "setNumber debe ser un entero mayor a 0.")
+    assertNonNegativeNumber(set.team1Games, "team1Games no puede ser negativo.")
+    assertNonNegativeNumber(set.team2Games, "team2Games no puede ser negativo.")
+  }
+
   const { error: deleteError } = await supabase
     .from("match_sets")
     .delete()

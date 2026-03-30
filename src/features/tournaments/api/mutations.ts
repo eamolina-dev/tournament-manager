@@ -1,5 +1,10 @@
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
+import {
+  assertNonEmptyString,
+  assertNonNegativeNumber,
+  assertPositiveInteger,
+} from "../../../shared/lib/validation"
 import { getMatchesByCategory, getMatchSetsByMatchIds } from "../../matches/api/queries"
 import { getGroupsByCategory } from "./queries"
 import { getTeamPlayersByCategory } from "../../teams/api/queries"
@@ -24,19 +29,25 @@ import type {
 export const createTournament = async (
   input: TournamentInsert
 ): Promise<Tournament> => {
-  if (!input.name?.trim()) {
-    throw new Error("Falta el nombre del torneo.")
-  }
-  if (!input.slug?.trim()) {
-    throw new Error("Falta el slug del torneo.")
-  }
+  assertNonEmptyString(input.name, "Falta el nombre del torneo.")
+  assertNonEmptyString(input.slug, "Falta el slug del torneo.")
   if (!input.circuit_id) {
     throw new Error("Falta circuit_id para crear el torneo.")
+  }
+  if (input.start_date && input.end_date && input.start_date > input.end_date) {
+    throw new Error("La fecha de inicio no puede ser mayor a la fecha de fin.")
+  }
+  if (input.sum_limit !== null && input.sum_limit !== undefined) {
+    assertNonNegativeNumber(input.sum_limit, "sum_limit no puede ser negativo.")
   }
 
   const { data, error } = await supabase
     .from("tournaments")
-    .insert(input)
+    .insert({
+      ...input,
+      name: input.name.trim(),
+      slug: input.slug.trim(),
+    })
     .select("*")
     .single()
 
@@ -49,6 +60,18 @@ export const createCategory = async (
 ): Promise<TournamentCategory> => {
   if (!input.tournament_id) {
     throw new Error("Falta tournament_id para vincular la categoría al torneo.")
+  }
+  if (input.courts_count !== null && input.courts_count !== undefined) {
+    assertPositiveInteger(input.courts_count, "courts_count debe ser un entero mayor a 0.")
+  }
+  if (input.match_interval_minutes !== null && input.match_interval_minutes !== undefined) {
+    assertPositiveInteger(
+      input.match_interval_minutes,
+      "match_interval_minutes debe ser un entero mayor a 0.",
+    )
+  }
+  if (input.suma_value !== null && input.suma_value !== undefined) {
+    assertNonNegativeNumber(input.suma_value, "suma_value no puede ser negativo.")
   }
 
   const normalizedInput: TournamentCategoryInsert = {
@@ -70,9 +93,26 @@ export const updateTournament = async (
   tournamentId: string,
   input: TournamentUpdate
 ): Promise<Tournament> => {
+  if (input.name !== undefined) {
+    assertNonEmptyString(input.name, "El nombre del torneo no puede estar vacío.")
+  }
+  if (input.slug !== undefined) {
+    assertNonEmptyString(input.slug, "El slug del torneo no puede estar vacío.")
+  }
+  if (input.start_date && input.end_date && input.start_date > input.end_date) {
+    throw new Error("La fecha de inicio no puede ser mayor a la fecha de fin.")
+  }
+  if (input.sum_limit !== null && input.sum_limit !== undefined) {
+    assertNonNegativeNumber(input.sum_limit, "sum_limit no puede ser negativo.")
+  }
+
   const { data, error } = await supabase
     .from("tournaments")
-    .update(input)
+    .update({
+      ...input,
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.slug !== undefined ? { slug: input.slug.trim() } : {}),
+    })
     .eq("id", tournamentId)
     .select("*")
     .single()
@@ -103,9 +143,27 @@ export const updateTournamentCategory = async (
   tournamentCategoryId: string,
   input: TournamentCategoryUpdate,
 ): Promise<TournamentCategory> => {
+  if (input.courts_count !== null && input.courts_count !== undefined) {
+    assertPositiveInteger(input.courts_count, "courts_count debe ser un entero mayor a 0.")
+  }
+  if (input.match_interval_minutes !== null && input.match_interval_minutes !== undefined) {
+    assertPositiveInteger(
+      input.match_interval_minutes,
+      "match_interval_minutes debe ser un entero mayor a 0.",
+    )
+  }
+  if (input.suma_value !== null && input.suma_value !== undefined) {
+    assertNonNegativeNumber(input.suma_value, "suma_value no puede ser negativo.")
+  }
+
   const { data, error } = await supabase
     .from("tournament_categories")
-    .update(input)
+    .update({
+      ...input,
+      ...(input.gender !== undefined
+        ? { gender: toDatabaseGender(input.gender ?? null) }
+        : {}),
+    })
     .eq("id", tournamentCategoryId)
     .select("*")
     .single()
