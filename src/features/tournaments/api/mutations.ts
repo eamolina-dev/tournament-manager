@@ -16,6 +16,7 @@ import type {
   Tournament,
   TournamentCategory,
   TournamentCategoryInsert,
+  TournamentCategoryUpdate,
   TournamentInsert,
   TournamentUpdate,
 } from "../../../shared/types/entities"
@@ -97,6 +98,21 @@ export const deleteTournamentCategory = async (
 }
 
 export { generateFullTournament }
+
+export const updateTournamentCategory = async (
+  tournamentCategoryId: string,
+  input: TournamentCategoryUpdate,
+): Promise<TournamentCategory> => {
+  const { data, error } = await supabase
+    .from("tournament_categories")
+    .update(input)
+    .eq("id", tournamentCategoryId)
+    .select("*")
+    .single()
+
+  throwIfError(error)
+  return data
+}
 
 export const generatePlayoffsAfterGroups = async (
   tournamentCategoryId: string

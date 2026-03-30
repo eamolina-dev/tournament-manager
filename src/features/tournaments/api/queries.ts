@@ -28,10 +28,10 @@ export const getTournamentById = async (
 
 export const getTournamentBySlug = async (
   tournamentSlug: string
-): Promise<Pick<Tournament, "id" | "name"> | null> => {
+): Promise<Pick<Tournament, "id" | "name" | "start_date" | "end_date"> | null> => {
   const { data, error } = await supabase
     .from("tournaments")
-    .select("id, name")
+    .select("id, name, start_date, end_date")
     .eq("slug", tournamentSlug)
     .maybeSingle()
 
@@ -77,6 +77,10 @@ export const getTournamentCategoryBySlugs = async (
       gender,
       is_suma,
       suma_value,
+      category_id,
+      schedule_start_times,
+      match_interval_minutes,
+      courts_count,
       category:categories(name, slug, level)
     `)
     .eq("tournament_id", tournament.id)

@@ -14,10 +14,15 @@ export type TournamentCategoryPageData = {
   categoryId: string | null
   gender: string | null
   tournamentName: string
+  tournamentStartDate: string | null
+  tournamentEndDate: string | null
   categoryName: string
   isSuma: boolean
   sumaValue: number | null
   categoryLevel: number | null
+  scheduleStartTimes: unknown
+  matchIntervalMinutes: number | null
+  courtsCount: number | null
   champion?: string
   finalist?: string
   semifinalists?: [string, string]
@@ -300,6 +305,8 @@ export const getTournamentCategoryPageData = async (
     categoryId: category.category_id ?? null,
     gender: category.gender ?? null,
     tournamentName: tournament.name ?? "Torneo",
+    tournamentStartDate: tournament.start_date,
+    tournamentEndDate: tournament.end_date,
     categoryName:
       category.is_suma && category.suma_value != null
         ? `Suma ${category.suma_value}`
@@ -307,6 +314,9 @@ export const getTournamentCategoryPageData = async (
     isSuma: Boolean(category.is_suma),
     sumaValue: category.suma_value ?? null,
     categoryLevel: category.category?.level ?? null,
+    scheduleStartTimes: category.schedule_start_times,
+    matchIntervalMinutes: category.match_interval_minutes,
+    courtsCount: category.courts_count,
     champion,
     finalist,
     semifinalists:
