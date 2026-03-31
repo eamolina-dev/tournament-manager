@@ -32,6 +32,7 @@ import {
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
+import { filterValidZonesAndPhases } from "../services/schedulingUtils";
 import {
   MatchCardFull,
   type MatchSetScore,
@@ -207,11 +208,11 @@ const DroppableZone = ({ zoneId, className, children }: DroppableZoneProps) => {
   );
 };
 
-const schedulingPhases: { key: SchedulingPhaseKey; label: string }[] = [
-  { key: "quarterfinals", label: "Cuartos de final" },
-  { key: "semifinals", label: "Semifinales" },
-  { key: "finals", label: "Finales" },
-];
+const schedulingPhaseLabels: Record<SchedulingPhaseKey, string> = {
+  quarterfinals: "Cuartos de final",
+  semifinals: "Semifinales",
+  finals: "Finales",
+};
 
 const getScheduleDays = (
   startDate: string | null | undefined,
@@ -829,6 +830,22 @@ export const TournamentCategoryPage = ({
     () => zoneBoardColumns.filter((zone) => zone.id !== "unassigned"),
     [zoneBoardColumns]
   );
+  const schedulingData = useMemo(
+    () =>
+      filterValidZonesAndPhases(
+        normalizedZoneColumns,
+        teamsForZoneBoard.map((team) => team.id)
+      ),
+    [normalizedZoneColumns, teamsForZoneBoard]
+  );
+  const schedulingPhases = useMemo(
+    () =>
+      schedulingData.validPhaseKeys.map((key) => ({
+        key,
+        label: schedulingPhaseLabels[key],
+      })),
+    [schedulingData.validPhaseKeys]
+  );
   const teamPointsById = useMemo(() => {
     const scoreMap = new Map<string, number>();
     orderedZones.forEach((zone) => {
@@ -988,7 +1005,12 @@ export const TournamentCategoryPage = ({
 
     setSaving(true);
     try {
-      await generateFullTournament(data.tournamentCategoryId);
+      await generateFullTournament(data.tournamentCategoryId, {
+        scheduling: {
+          zoneDayById,
+          phaseByDay,
+        },
+      });
       await load();
       setGenerationSuccess("Partidos generados correctamente.");
     } catch (error) {
@@ -1819,7 +1841,7 @@ export const TournamentCategoryPage = ({
                   1. Día por zona
                 </p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {zoneBoardColumns.map((zone) => (
+                  {schedulingData.validZones.map((zone) => (
                     <label key={zone.id} className="space-y-1">
                       <span className="text-xs text-slate-600">
                         {zone.name}

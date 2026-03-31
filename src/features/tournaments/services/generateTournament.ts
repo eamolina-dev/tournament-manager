@@ -125,7 +125,14 @@ const verifyGeneratedStructure = async (
 
 export const generateFullTournament = async (
   tournamentCategoryId: string,
-  options?: { dryRun?: boolean; debug?: boolean },
+  options?: {
+    dryRun?: boolean
+    debug?: boolean
+    scheduling?: {
+      zoneDayById?: Record<string, string>
+      phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
+    }
+  },
 ): Promise<{
   dryRun: boolean
   tournamentCategoryId: string
@@ -265,7 +272,7 @@ export const generateFullTournament = async (
       qualifiedTeamsCount,
     })
 
-    await scheduleGeneratedMatches(tournamentCategoryId)
+    await scheduleGeneratedMatches(tournamentCategoryId, options?.scheduling)
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
