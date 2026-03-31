@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   propagateMatchWinner,
   replaceMatchSets,
+  updateMatch,
 } from "../../../features/matches/api/mutations";
 import { createPlayer } from "../../../features/players/api/mutations";
 import { getPlayers } from "../../../features/players/api/queries";
@@ -1112,7 +1113,21 @@ export const TournamentCategoryPage = ({
     sets: MatchSetScore[];
     winnerTeamId: string | null;
     shouldReload?: boolean;
-  }) => {
+  }): Promise<void> => {
+    if (!matchId) {
+      throw new Error("No se pudo guardar el resultado: falta el ID del partido.");
+    }
+    const hasInvalidSet = sets.some(
+      (set) =>
+        Number.isNaN(set.team1) ||
+        Number.isNaN(set.team2) ||
+        set.team1 < 0 ||
+        set.team2 < 0
+    );
+    if (hasInvalidSet) {
+      throw new Error("No se pudo guardar el resultado: hay sets inválidos.");
+    }
+
     await replaceMatchSets(
       matchId,
       sets.map((set, index) => ({
@@ -1125,7 +1140,9 @@ export const TournamentCategoryPage = ({
       winner_team_id: winnerTeamId,
     });
     try {
-      await propagateMatchWinner(updatedMatch);
+      if (updatedMatch?.winner_team_id) {
+        await propagateMatchWinner(updatedMatch);
+      }
     } catch (error) {
       console.error("No se pudo propagar el ganador del match:", error);
     }

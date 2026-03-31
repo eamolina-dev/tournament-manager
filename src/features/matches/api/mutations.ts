@@ -389,9 +389,18 @@ const propagateMatchWinnerInternal = async (
   }
 }
 
-export const propagateMatchWinner = async (match: Match): Promise<void> => {
-  if (!match.winner_team_id) return
-  await propagateMatchWinnerInternal(match, new Set<string>())
+export const propagateMatchWinner = async (
+  match: Match | null | undefined
+): Promise<void> => {
+  if (!match?.id || !match.winner_team_id) return
+  if (
+    (match.team1_id && match.winner_team_id === match.team1_id) ||
+    (match.team2_id && match.winner_team_id === match.team2_id)
+  ) {
+    await propagateMatchWinnerInternal(match, new Set<string>())
+  } else {
+    throw new Error("winner_team_id no coincide con los equipos del partido.")
+  }
   if (match.tournament_category_id) {
     await recalculateProgressiveTeamResults(match.tournament_category_id)
   }

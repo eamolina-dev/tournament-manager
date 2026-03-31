@@ -17,7 +17,7 @@ export const getMatchesByCategory = async (
     .eq("tournament_category_id", tournamentCategoryId)
 
   throwIfError(error)
-  return data
+  return data ?? []
 }
 
 export const getMatchSets = async (matchId: string): Promise<MatchSet[]> => {
@@ -27,7 +27,7 @@ export const getMatchSets = async (matchId: string): Promise<MatchSet[]> => {
     .eq("match_id", matchId)
 
   throwIfError(error)
-  return data
+  return data ?? []
 }
 
 export const getMatchSetsByMatchIds = async (
@@ -41,7 +41,7 @@ export const getMatchSetsByMatchIds = async (
     .in("match_id", matchIds)
 
   throwIfError(error)
-  return data
+  return data ?? []
 }
 
 export const getBracket = async (): Promise<BracketMatch[]> => {

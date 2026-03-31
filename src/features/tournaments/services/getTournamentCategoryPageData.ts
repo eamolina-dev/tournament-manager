@@ -103,6 +103,7 @@ const toDay = (iso?: string | null): "Viernes" | "Sabado" | "Domingo" => {
 const toTime = (iso?: string | null): string => {
   if (!iso) return "--:--"
   const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return "--:--"
   return `${`${date.getHours()}`.padStart(2, "0")}:${`${date.getMinutes()}`.padStart(2, "0")}`
 }
 
@@ -126,6 +127,7 @@ const toScoreString = (
 ): string | undefined => {
   if (!sets.length) return undefined
   return sets
+    .slice()
     .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
     .map((set) => `${set.team1_games ?? 0}-${set.team2_games ?? 0}`)
     .join(" ")
