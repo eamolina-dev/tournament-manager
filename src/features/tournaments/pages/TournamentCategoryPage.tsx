@@ -1,4 +1,20 @@
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   propagateMatchWinner,
   replaceMatchSets,
@@ -127,6 +143,10 @@ type ZoneTeam = {
   id: string;
   name: string;
 };
+type ZoneValidationResult = {
+  warnings: string[];
+  zoneWarningsById: Record<string, string>;
+};
 type MatchGenerationDraft = {
   zones: ZoneBoardColumn[];
   scheduling: {
@@ -136,6 +156,46 @@ type MatchGenerationDraft = {
     courtsCount: number;
     phaseByDay: Record<SchedulingPhaseKey, string>;
   };
+};
+
+type SortableTeamCardProps = {
+  team: ZoneTeam;
+};
+type DroppableZoneProps = {
+  zoneId: string;
+  className: string;
+  children: ReactNode;
+};
+
+const SortableTeamCard = ({ team }: SortableTeamCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: team.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      {...attributes}
+      {...listeners}
+      className={`cursor-grab rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm active:cursor-grabbing ${
+        isDragging ? "opacity-60" : ""
+      }`}
+    >
+      {team.name}
+    </div>
+  );
+};
+
+const DroppableZone = ({ zoneId, className, children }: DroppableZoneProps) => {
+  const { setNodeRef } = useDroppable({ id: zoneId });
+  return (
+    <div ref={setNodeRef} id={zoneId} className={className}>
+      {children}
+    </div>
+  );
 };
 
 const schedulingPhases: { key: SchedulingPhaseKey; label: string }[] = [
@@ -665,29 +725,137 @@ export const TournamentCategoryPage = ({
     setZoneConfigSuccess("Zonas guardadas correctamente.");
   };
 
-  const moveTeamToZone = (activeTeamId: string, targetZoneId: string) => {
-    const sourceZone = zoneBoardColumns.find((zone) => zone.teamIds.includes(activeTeamId));
-    const targetZone = zoneBoardColumns.find((zone) => zone.id === targetZoneId);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+  );
+  const normalizedZoneColumns = useMemo(
+    () => zoneBoardColumns.filter((zone) => zone.id !== "unassigned"),
+    [zoneBoardColumns],
+  );
+  const teamPointsById = useMemo(() => {
+    const scoreMap = new Map<string, number>();
+    orderedZones.forEach((zone) => {
+      zone.standings.forEach((standing) => {
+        scoreMap.set(standing.teamId, standing.pts);
+      });
+    });
+    return scoreMap;
+  }, [orderedZones]);
+  const validateZones = (zones: ZoneBoardColumn[]): ZoneValidationResult => {
+    const warnings: string[] = [];
+    const zoneWarningsById: Record<string, string> = {};
+    const zonesWithFourTeams = zones.filter((zone) => zone.teamIds.length === 4).length;
+
+    zones.forEach((zone) => {
+      if (zone.teamIds.length < 3 || zone.teamIds.length > 4) {
+        zoneWarningsById[zone.id] =
+          "Cada zona debe tener entre 3 y 4 equipos.";
+      }
+    });
+
+    if (zonesWithFourTeams > 2) {
+      warnings.push("Solo puede haber 2 zonas con 4 equipos como máximo.");
+    }
+    if (Object.values(zoneWarningsById).length > 0) {
+      warnings.push("Hay zonas que no cumplen la regla de 3 o 4 equipos.");
+    }
+
+    return { warnings, zoneWarningsById };
+  };
+  const zoneValidation = useMemo(
+    () => validateZones(normalizedZoneColumns),
+    [normalizedZoneColumns],
+  );
+
+  const moveTeam = ({
+    activeTeamId,
+    targetZoneId,
+    overTeamId,
+  }: {
+    activeTeamId: string;
+    targetZoneId: string;
+    overTeamId?: string;
+  }) => {
+    if (targetZoneId === "unassigned") return;
+    const sourceZone = normalizedZoneColumns.find((zone) =>
+      zone.teamIds.includes(activeTeamId),
+    );
+    const targetZone = normalizedZoneColumns.find((zone) => zone.id === targetZoneId);
     if (!sourceZone || !targetZone) return;
-    const nextZones = zoneBoardColumns.map((zone) => ({ ...zone, teamIds: [...zone.teamIds] }));
+
+    const nextZones = normalizedZoneColumns.map((zone) => ({
+      ...zone,
+      teamIds: [...zone.teamIds],
+    }));
     const sourceDraft = nextZones.find((zone) => zone.id === sourceZone.id);
     const targetDraft = nextZones.find((zone) => zone.id === targetZone.id);
     if (!sourceDraft || !targetDraft) return;
 
     sourceDraft.teamIds = sourceDraft.teamIds.filter((teamId) => teamId !== activeTeamId);
+
     if (!targetDraft.teamIds.includes(activeTeamId)) {
-      targetDraft.teamIds.push(activeTeamId);
+      if (overTeamId && targetDraft.teamIds.includes(overTeamId)) {
+        const overIndex = targetDraft.teamIds.indexOf(overTeamId);
+        targetDraft.teamIds.splice(overIndex, 0, activeTeamId);
+      } else {
+        targetDraft.teamIds.push(activeTeamId);
+      }
     }
     setManualZones(nextZones);
   };
-  const handleTeamDragStart = (event: DragEvent<HTMLDivElement>, teamId: string) => {
-    event.dataTransfer.setData("text/team-id", teamId);
+
+  const resolveDropZoneId = (overId: string): string | null => {
+    if (overId === "unassigned") return "unassigned";
+    if (normalizedZoneColumns.some((zone) => zone.id === overId)) return overId;
+    const containingZone = normalizedZoneColumns.find((zone) =>
+      zone.teamIds.includes(overId),
+    );
+    return containingZone?.id ?? null;
   };
-  const handleZoneDrop = (event: DragEvent<HTMLDivElement>, zoneId: string) => {
-    event.preventDefault();
-    const teamId = event.dataTransfer.getData("text/team-id");
-    if (!teamId) return;
-    moveTeamToZone(teamId, zoneId);
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const activeId = String(event.active.id);
+    const overId = event.over?.id ? String(event.over.id) : null;
+    if (!overId) return;
+    const targetZoneId = resolveDropZoneId(overId);
+    if (!targetZoneId) return;
+    moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const activeId = String(event.active.id);
+    const overId = event.over?.id ? String(event.over.id) : null;
+    if (!overId) return;
+    const targetZoneId = resolveDropZoneId(overId);
+    if (!targetZoneId) return;
+    moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
+  };
+
+  const handleOrderZonesByLevel = () => {
+    const sorted = [...normalizedZoneColumns].sort((left, right) => {
+      const leftIsFour = left.teamIds.length === 4;
+      const rightIsFour = right.teamIds.length === 4;
+      if (leftIsFour !== rightIsFour) {
+        return leftIsFour ? 1 : -1;
+      }
+      const leftPoints = left.teamIds.reduce(
+        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+        0,
+      );
+      const rightPoints = right.teamIds.reduce(
+        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+        0,
+      );
+      return rightPoints - leftPoints;
+    });
+
+    const relabeled = sorted.map((zone, index) => ({
+      ...zone,
+      name: `Zona ${String.fromCharCode(65 + index)}`,
+    }));
+    setManualZones(relabeled);
   };
 
   const handleGenerateMatches = async () => {
@@ -1374,59 +1542,89 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               >
                 Guardar Zonas
               </button>
+              <button
+                type="button"
+                onClick={handleOrderZonesByLevel}
+                disabled={!normalizedZoneColumns.length}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                Order zones by level
+              </button>
             </div>
             {manualZoneError && <p className="mt-2 text-xs text-red-600">{manualZoneError}</p>}
             {zoneConfigSuccess && (
               <p className="mt-2 text-xs text-emerald-700">{zoneConfigSuccess}</p>
             )}
+            {zoneValidation.warnings.map((warning) => (
+              <p key={warning} className="mt-2 text-xs text-amber-700">
+                {warning}
+              </p>
+            ))}
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
-              {zoneColumnsWithUnassigned.map((zone) => (
-                <div key={zone.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-700">{zone.name}</p>
-                    {zone.id !== "unassigned" ? (
-                      <input
-                        value={zone.name}
-                        onChange={(event) =>
-                          setManualZones((prev) =>
-                            (prev.length ? prev : zoneBoardColumns).map((item) =>
-                              item.id === zone.id ? { ...item, name: event.target.value } : item,
-                            ),
-                          )
-                        }
-                        className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
-                      />
-                    ) : null}
-                  </div>
-                  <div
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => handleZoneDrop(event, zone.id)}
-                    className="min-h-24 space-y-2 rounded-md p-1"
-                  >
-                    {zone.teamIds.map((teamId) => {
-                      const team = teamsByIdForZones.get(teamId);
-                      if (!team) return null;
-                      return (
-                        <div
-                          key={team.id}
-                          draggable
-                          onDragStart={(event) => handleTeamDragStart(event, team.id)}
-                          className="cursor-grab rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm active:cursor-grabbing"
-                        >
-                          {team.name}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {zoneColumnsWithUnassigned.map((zone) => {
+                  const zonePoints = zone.teamIds.reduce(
+                    (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+                    0,
+                  );
+                  return (
+                    <div
+                      key={zone.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700">{zone.name}</p>
+                          {zone.id !== "unassigned" && (
+                            <p className="text-xs text-slate-500">Puntos totales: {zonePoints}</p>
+                          )}
                         </div>
-                      );
-                    })}
-                    {!zone.teamIds.length && (
-                      <p className="rounded border border-dashed border-slate-300 px-2 py-3 text-center text-xs text-slate-500">
-                        Soltá equipos acá
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                        {zone.id !== "unassigned" ? (
+                          <input
+                            value={zone.name}
+                            onChange={(event) =>
+                              setManualZones((prev) =>
+                                (prev.length ? prev : zoneBoardColumns).map((item) =>
+                                  item.id === zone.id
+                                    ? { ...item, name: event.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                            className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
+                          />
+                        ) : null}
+                      </div>
+                      {zoneValidation.zoneWarningsById[zone.id] && (
+                        <p className="mb-2 text-xs text-amber-700">
+                          {zoneValidation.zoneWarningsById[zone.id]}
+                        </p>
+                      )}
+                      <SortableContext items={zone.teamIds} strategy={rectSortingStrategy}>
+                        <DroppableZone zoneId={zone.id} className="min-h-24 space-y-2 rounded-md p-1">
+                          {zone.teamIds.map((teamId) => {
+                            const team = teamsByIdForZones.get(teamId);
+                            if (!team) return null;
+                            return <SortableTeamCard key={team.id} team={team} />;
+                          })}
+                          {!zone.teamIds.length && (
+                            <p className="rounded border border-dashed border-slate-300 px-2 py-3 text-center text-xs text-slate-500">
+                              Soltá equipos acá
+                            </p>
+                          )}
+                        </DroppableZone>
+                      </SortableContext>
+                    </div>
+                  );
+                })}
+              </div>
+            </DndContext>
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
