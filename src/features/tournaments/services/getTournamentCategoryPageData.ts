@@ -57,7 +57,10 @@ export type TournamentCategoryPageData = {
     id: string
     team1: string
     team2: string
+    team1Id?: string | null
+    team2Id?: string | null
     score?: string
+    sets?: { team1: number; team2: number }[]
     day: "Viernes" | "Sabado" | "Domingo"
     time: string
     court?: string

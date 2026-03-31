@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   propagateMatchWinner,
   replaceMatchSets,
+  updateMatch,
 } from "../../../features/matches/api/mutations";
 import { createPlayer } from "../../../features/players/api/mutations";
 import { getPlayers } from "../../../features/players/api/queries";
