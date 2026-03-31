@@ -69,7 +69,10 @@ const eliminationStageOrder = [
   "semi",
   "final",
 ] as const;
-const eliminationStageLabel: Record<(typeof eliminationStageOrder)[number], string> = {
+const eliminationStageLabel: Record<
+  (typeof eliminationStageOrder)[number],
+  string
+> = {
   round_of_32: "32avos",
   round_of_16: "Octavos",
   round_of_8: "Ronda de 8",
@@ -168,8 +171,14 @@ type DroppableZoneProps = {
 };
 
 const SortableTeamCard = ({ team }: SortableTeamCardProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: team.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: team.id });
 
   return (
     <div
@@ -206,7 +215,7 @@ const schedulingPhases: { key: SchedulingPhaseKey; label: string }[] = [
 
 const getScheduleDays = (
   startDate: string | null | undefined,
-  endDate: string | null | undefined,
+  endDate: string | null | undefined
 ): ScheduleDayOption[] => {
   if (!startDate) {
     return [
@@ -217,8 +226,12 @@ const getScheduleDays = (
   }
 
   const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${(endDate ?? startDate)}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+  const end = new Date(`${endDate ?? startDate}T00:00:00`);
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start > end
+  ) {
     return [
       { key: "friday", date: "", label: "Viernes" },
       { key: "saturday", date: "", label: "Sábado" },
@@ -253,11 +266,16 @@ const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
   }
 
   const safe: Record<string, string> = {};
-  Object.entries(value as Record<string, unknown>).forEach(([key, rawValue]) => {
-    if (typeof rawValue === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(rawValue)) {
-      safe[key] = rawValue;
+  Object.entries(value as Record<string, unknown>).forEach(
+    ([key, rawValue]) => {
+      if (
+        typeof rawValue === "string" &&
+        /^([01]\d|2[0-3]):[0-5]\d$/.test(rawValue)
+      ) {
+        safe[key] = rawValue;
+      }
     }
-  });
+  );
 
   return safe;
 };
@@ -285,11 +303,11 @@ export const TournamentCategoryPage = ({
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
   const orderedZones = useMemo(
     () => [...(data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
-    [data?.zones],
+    [data?.zones]
   );
   const zoneTabs = useMemo(
     () => orderedZones.map((zone) => zone.id),
-    [orderedZones],
+    [orderedZones]
   );
   const [zoneId, setZoneId] = usePersistentTab<string>({
     storageKey: `tournament:${slug}:${category}:zone-tab`,
@@ -316,35 +334,45 @@ export const TournamentCategoryPage = ({
   const [zoneMatchErrors, setZoneMatchErrors] = useState<
     Record<string, MatchErrorState>
   >({});
-  const [bracketEditedResults, setBracketEditedResults] = useState<EditedResultsState>(
-    {},
+  const [bracketEditedResults, setBracketEditedResults] =
+    useState<EditedResultsState>({});
+  const [bracketMatchErrors, setBracketMatchErrors] = useState<MatchErrorState>(
+    {}
   );
-  const [bracketMatchErrors, setBracketMatchErrors] = useState<MatchErrorState>({});
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
   const [savingBracket, setSavingBracket] = useState(false);
-  const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
-  const [scheduleStartTimesInput, setScheduleStartTimesInput] = useState<Record<string, string>>(
-    {},
+  const [generationSuccess, setGenerationSuccess] = useState<string | null>(
+    null
   );
+  const [scheduleStartTimesInput, setScheduleStartTimesInput] = useState<
+    Record<string, string>
+  >({});
   const [matchIntervalMinutesInput, setMatchIntervalMinutesInput] = useState(
-    defaultMatchIntervalMinutes,
+    defaultMatchIntervalMinutes
   );
   const [courtsCountInput, setCourtsCountInput] = useState(defaultCourtsCount);
-  const [phaseByDay, setPhaseByDay] = useState<Record<SchedulingPhaseKey, string>>({
+  const [phaseByDay, setPhaseByDay] = useState<
+    Record<SchedulingPhaseKey, string>
+  >({
     quarterfinals: "",
     semifinals: "",
     finals: "",
   });
-  const [scheduleConfigError, setScheduleConfigError] = useState<string | null>(null);
-  const [scheduleConfigSuccess, setScheduleConfigSuccess] = useState<string | null>(null);
+  const [scheduleConfigError, setScheduleConfigError] = useState<string | null>(
+    null
+  );
+  const [scheduleConfigSuccess, setScheduleConfigSuccess] = useState<
+    string | null
+  >(null);
   const [manualZones, setManualZones] = useState<ZoneBoardColumn[]>([]);
   const [manualZoneError, setManualZoneError] = useState<string | null>(null);
-  const [zoneConfigSuccess, setZoneConfigSuccess] = useState<string | null>(null);
+  const [zoneConfigSuccess, setZoneConfigSuccess] = useState<string | null>(
+    null
+  );
   const [zoneDayById, setZoneDayById] = useState<Record<string, string>>({});
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [lastGenerationDraft, setLastGenerationDraft] = useState<MatchGenerationDraft | null>(
-    null,
-  );
+  const [lastGenerationDraft, setLastGenerationDraft] =
+    useState<MatchGenerationDraft | null>(null);
 
   const loadPlayers = async ({
     categoryGender,
@@ -355,9 +383,15 @@ export const TournamentCategoryPage = ({
       getPlayers({ categoryGender }),
       getAllCategories(),
     ]);
-    const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
+    const categoryLevelById = new Map(
+      categories.map((item) => [item.id, item.level ?? null])
+    );
     setCategoriesCatalog(
-      categories.map((item) => ({ id: item.id, name: item.name, level: item.level ?? null })),
+      categories.map((item) => ({
+        id: item.id,
+        name: item.name,
+        level: item.level ?? null,
+      }))
     );
 
     setPlayers(
@@ -367,10 +401,10 @@ export const TournamentCategoryPage = ({
           id: player.id,
           name: player.name?.trim() ?? "",
           categoryLevel: player.current_category_id
-            ? (categoryLevelById.get(player.current_category_id) ?? null)
+            ? categoryLevelById.get(player.current_category_id) ?? null
             : null,
         }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => a.name.localeCompare(b.name))
     );
   };
 
@@ -381,24 +415,29 @@ export const TournamentCategoryPage = ({
       let categorySlug = category;
 
       if (eventId && categoryId) {
-        const [tournament, allCategories, tournamentCategories] = await Promise.all([
-          getTournamentById(eventId),
-          getAllCategories(),
-          getTournamentCategories(eventId),
-        ]);
+        const [tournament, allCategories, tournamentCategories] =
+          await Promise.all([
+            getTournamentById(eventId),
+            getAllCategories(),
+            getTournamentCategories(eventId),
+          ]);
 
         if (!tournament?.slug) {
           setData(null);
           return;
         }
 
-        const targetCategory = tournamentCategories.find((item) => item.id === categoryId);
+        const targetCategory = tournamentCategories.find(
+          (item) => item.id === categoryId
+        );
         if (!targetCategory) {
           setData(null);
           return;
         }
 
-        const categoryById = new Map(allCategories.map((item) => [item.id, item]));
+        const categoryById = new Map(
+          allCategories.map((item) => [item.id, item])
+        );
         const resolvedCategorySlug = targetCategory.is_suma
           ? `suma-${targetCategory.suma_value ?? ""}`
           : categoryById.get(targetCategory.category_id ?? "")?.slug;
@@ -412,7 +451,10 @@ export const TournamentCategoryPage = ({
         categorySlug = resolvedCategorySlug;
       }
 
-      const response = await getTournamentCategoryPageData(tournamentSlug, categorySlug);
+      const response = await getTournamentCategoryPageData(
+        tournamentSlug,
+        categorySlug
+      );
       setData(response);
       if (isAdmin) {
         await loadPlayers({
@@ -433,35 +475,45 @@ export const TournamentCategoryPage = ({
     return orderedZones.find((zone) => zone.id === zoneId) ?? orderedZones[0];
   }, [orderedZones, zoneId]);
   const orderedEditableMatches = useMemo(
-    () => [...(data?.editableMatches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
-    [data?.editableMatches],
+    () =>
+      [...(data?.editableMatches ?? [])].sort(
+        (a, b) => a.matchNumber - b.matchNumber
+      ),
+    [data?.editableMatches]
   );
   const orderedBracketMatches = useMemo(
-    () => [...(data?.bracketMatches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
-    [data?.bracketMatches],
+    () =>
+      [...(data?.bracketMatches ?? [])].sort(
+        (a, b) => a.matchNumber - b.matchNumber
+      ),
+    [data?.bracketMatches]
   );
   const adminBracketStages = useMemo(
     () =>
       eliminationStageOrder.filter((stage) =>
-        orderedBracketMatches.some((match) => match.stage === stage),
+        orderedBracketMatches.some((match) => match.stage === stage)
       ),
-    [orderedBracketMatches],
+    [orderedBracketMatches]
   );
-  const [activeAdminBracketStage, setActiveAdminBracketStage] = usePersistentTab<string>({
-    storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
-    tabs: adminBracketStages,
-  });
+  const [activeAdminBracketStage, setActiveAdminBracketStage] =
+    usePersistentTab<string>({
+      storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
+      tabs: adminBracketStages,
+    });
   const adminVisibleBracketMatches = useMemo(
     () =>
       orderedBracketMatches.filter(
-        (match) => !activeAdminBracketStage || match.stage === activeAdminBracketStage,
+        (match) =>
+          !activeAdminBracketStage || match.stage === activeAdminBracketStage
       ),
-    [orderedBracketMatches, activeAdminBracketStage],
+    [orderedBracketMatches, activeAdminBracketStage]
   );
   const orderedZoneMatches = useMemo(
     () =>
-      [...(activeZone?.matches ?? [])].sort((a, b) => a.matchNumber - b.matchNumber),
-    [activeZone?.matches],
+      [...(activeZone?.matches ?? [])].sort(
+        (a, b) => a.matchNumber - b.matchNumber
+      ),
+    [activeZone?.matches]
   );
 
   const flowStatus = useMemo<FlowStatus>(() => {
@@ -472,16 +524,21 @@ export const TournamentCategoryPage = ({
   }, [data, orderedZones.length, orderedEditableMatches.length]);
   const scheduleDays = useMemo(
     () => getScheduleDays(data?.tournamentStartDate, data?.tournamentEndDate),
-    [data?.tournamentStartDate, data?.tournamentEndDate],
+    [data?.tournamentStartDate, data?.tournamentEndDate]
   );
 
   useEffect(() => {
     if (!data) return;
-    const storedZonesRaw = localStorage.getItem(`tm:zones:${data.tournamentCategoryId}`);
+    const storedZonesRaw = localStorage.getItem(
+      `tm:zones:${data.tournamentCategoryId}`
+    );
     if (storedZonesRaw) {
       try {
         const storedZones = JSON.parse(storedZonesRaw) as ZoneBoardColumn[];
-        if (Array.isArray(storedZones) && storedZones.every((zone) => Array.isArray(zone.teamIds))) {
+        if (
+          Array.isArray(storedZones) &&
+          storedZones.every((zone) => Array.isArray(zone.teamIds))
+        ) {
           setManualZones(storedZones);
         }
       } catch {
@@ -489,16 +546,25 @@ export const TournamentCategoryPage = ({
       }
     }
 
-    const persistedStartTimes = parseScheduleStartTimes(data.scheduleStartTimes);
-    const nextStartTimes = scheduleDays.reduce<Record<string, string>>((acc, day) => {
-      acc[day.key] = persistedStartTimes[day.key] ?? defaultScheduleStartTime;
-      return acc;
-    }, {});
+    const persistedStartTimes = parseScheduleStartTimes(
+      data.scheduleStartTimes
+    );
+    const nextStartTimes = scheduleDays.reduce<Record<string, string>>(
+      (acc, day) => {
+        acc[day.key] = persistedStartTimes[day.key] ?? defaultScheduleStartTime;
+        return acc;
+      },
+      {}
+    );
 
     setScheduleStartTimesInput(nextStartTimes);
-    setMatchIntervalMinutesInput(data.matchIntervalMinutes ?? defaultMatchIntervalMinutes);
+    setMatchIntervalMinutesInput(
+      data.matchIntervalMinutes ?? defaultMatchIntervalMinutes
+    );
     setCourtsCountInput(data.courtsCount ?? defaultCourtsCount);
-    const storedRaw = localStorage.getItem(`tm:scheduling:${data.tournamentCategoryId}`);
+    const storedRaw = localStorage.getItem(
+      `tm:scheduling:${data.tournamentCategoryId}`
+    );
     if (storedRaw) {
       try {
         const stored = JSON.parse(storedRaw) as {
@@ -508,7 +574,8 @@ export const TournamentCategoryPage = ({
         if (stored.phaseByDay) {
           setPhaseByDay((prev) => ({
             ...prev,
-            quarterfinals: stored.phaseByDay?.quarterfinals ?? prev.quarterfinals,
+            quarterfinals:
+              stored.phaseByDay?.quarterfinals ?? prev.quarterfinals,
             semifinals: stored.phaseByDay?.semifinals ?? prev.semifinals,
             finals: stored.phaseByDay?.finals ?? prev.finals,
           }));
@@ -535,11 +602,11 @@ export const TournamentCategoryPage = ({
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
   const teamsForZoneBoard = useMemo<ZoneTeam[]>(
     () => (data?.teams ?? []).map((team) => ({ id: team.id, name: team.name })),
-    [data?.teams],
+    [data?.teams]
   );
   const teamsByIdForZones = useMemo(
     () => new Map(teamsForZoneBoard.map((team) => [team.id, team])),
-    [teamsForZoneBoard],
+    [teamsForZoneBoard]
   );
   const zoneBoardColumns = useMemo(() => {
     if (manualZones.length) {
@@ -553,11 +620,11 @@ export const TournamentCategoryPage = ({
   }, [manualZones, orderedZones]);
   const assignedTeamIds = useMemo(
     () => new Set(zoneBoardColumns.flatMap((zone) => zone.teamIds)),
-    [zoneBoardColumns],
+    [zoneBoardColumns]
   );
   const unassignedTeams = useMemo(
     () => teamsForZoneBoard.filter((team) => !assignedTeamIds.has(team.id)),
-    [teamsForZoneBoard, assignedTeamIds],
+    [teamsForZoneBoard, assignedTeamIds]
   );
   const zoneColumnsWithUnassigned = useMemo<ZoneBoardColumn[]>(
     () => [
@@ -568,31 +635,45 @@ export const TournamentCategoryPage = ({
         teamIds: unassignedTeams.map((team) => team.id),
       },
     ],
-    [zoneBoardColumns, unassignedTeams],
+    [zoneBoardColumns, unassignedTeams]
   );
   useEffect(() => {
     if (!zoneBoardColumns.length || !scheduleDays.length) return;
+
     const fallback = scheduleDays[0]?.key ?? "";
-    setZoneDayById((prev) =>
-      zoneBoardColumns.reduce<Record<string, string>>((acc, zone) => {
-        acc[zone.id] = prev[zone.id] || fallback;
-        return acc;
-      }, {}),
-    );
+
+    setZoneDayById((prev) => {
+      const next = zoneBoardColumns.reduce<Record<string, string>>(
+        (acc, zone) => {
+          acc[zone.id] = prev[zone.id] || fallback;
+          return acc;
+        },
+        {}
+      );
+
+      // 🔥 evitar loop: comparar antes de actualizar
+      const isEqual =
+        Object.keys(next).length === Object.keys(prev).length &&
+        Object.keys(next).every((key) => next[key] === prev[key]);
+
+      return isEqual ? prev : next;
+    });
   }, [zoneBoardColumns, scheduleDays]);
   useEffect(() => {
     setZoneConfigSuccess(null);
   }, [manualZones]);
   const filteredResults = (data?.results ?? []).filter((row) =>
-    row.playerName.toLocaleLowerCase().includes(resultsQuery.trim().toLocaleLowerCase()),
+    row.playerName
+      .toLocaleLowerCase()
+      .includes(resultsQuery.trim().toLocaleLowerCase())
   );
   const playersById = useMemo(
     () => new Map(players.map((player) => [player.id, player.name])),
-    [players],
+    [players]
   );
   const playersByIdWithCategory = useMemo(
     () => new Map(players.map((player) => [player.id, player])),
-    [players],
+    [players]
   );
   const blockedPlayerIds = useMemo(() => {
     const ids = new Set<string>();
@@ -635,10 +716,15 @@ export const TournamentCategoryPage = ({
     setScheduleConfigSuccess(null);
 
     const hasInvalidTime = scheduleDays.some(
-      (day) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleStartTimesInput[day.key] ?? ""),
+      (day) =>
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(
+          scheduleStartTimesInput[day.key] ?? ""
+        )
     );
     if (hasInvalidTime) {
-      setScheduleConfigError("Revisá los horarios de inicio: el formato debe ser HH:MM.");
+      setScheduleConfigError(
+        "Revisá los horarios de inicio: el formato debe ser HH:MM."
+      );
       return;
     }
     if (matchIntervalMinutesInput <= 0) {
@@ -652,10 +738,13 @@ export const TournamentCategoryPage = ({
 
     setSaving(true);
     try {
-      const payloadStartTimes = scheduleDays.reduce<Record<string, string>>((acc, day) => {
-        acc[day.key] = scheduleStartTimesInput[day.key];
-        return acc;
-      }, {});
+      const payloadStartTimes = scheduleDays.reduce<Record<string, string>>(
+        (acc, day) => {
+          acc[day.key] = scheduleStartTimesInput[day.key];
+          return acc;
+        },
+        {}
+      );
       localStorage.setItem(
         `tm:scheduling:${data.tournamentCategoryId}`,
         JSON.stringify({
@@ -664,7 +753,7 @@ export const TournamentCategoryPage = ({
           matchIntervalMinutes: matchIntervalMinutesInput,
           courtsCount: courtsCountInput,
           phaseByDay,
-        }),
+        })
       );
 
       await updateTournamentCategory(data.tournamentCategoryId, {
@@ -678,7 +767,7 @@ export const TournamentCategoryPage = ({
       setScheduleConfigError(
         error instanceof Error
           ? error.message
-          : "No se pudo guardar la configuración de horarios.",
+          : "No se pudo guardar la configuración de horarios."
       );
     } finally {
       setSaving(false);
@@ -689,12 +778,18 @@ export const TournamentCategoryPage = ({
     if (!teamsForZoneBoard.length) {
       return [];
     }
-    const zoneCount = Math.max(2, Math.min(4, Math.ceil(teamsForZoneBoard.length / 4)));
-    const nextZones: ZoneBoardColumn[] = Array.from({ length: zoneCount }, (_, index) => ({
-      id: `manual-zone-${index + 1}`,
-      name: `Zona ${String.fromCharCode(65 + index)}`,
-      teamIds: [],
-    }));
+    const zoneCount = Math.max(
+      2,
+      Math.min(4, Math.ceil(teamsForZoneBoard.length / 4))
+    );
+    const nextZones: ZoneBoardColumn[] = Array.from(
+      { length: zoneCount },
+      (_, index) => ({
+        id: `manual-zone-${index + 1}`,
+        name: `Zona ${String.fromCharCode(65 + index)}`,
+        teamIds: [],
+      })
+    );
     teamsForZoneBoard.forEach((team, index) => {
       nextZones[index % zoneCount].teamIds.push(team.id);
     });
@@ -719,7 +814,7 @@ export const TournamentCategoryPage = ({
     }
     localStorage.setItem(
       `tm:zones:${data.tournamentCategoryId}`,
-      JSON.stringify(zoneBoardColumns),
+      JSON.stringify(zoneBoardColumns)
     );
     setManualZoneError(null);
     setZoneConfigSuccess("Zonas guardadas correctamente.");
@@ -728,11 +823,11 @@ export const TournamentCategoryPage = ({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
-    }),
+    })
   );
   const normalizedZoneColumns = useMemo(
     () => zoneBoardColumns.filter((zone) => zone.id !== "unassigned"),
-    [zoneBoardColumns],
+    [zoneBoardColumns]
   );
   const teamPointsById = useMemo(() => {
     const scoreMap = new Map<string, number>();
@@ -746,12 +841,13 @@ export const TournamentCategoryPage = ({
   const validateZones = (zones: ZoneBoardColumn[]): ZoneValidationResult => {
     const warnings: string[] = [];
     const zoneWarningsById: Record<string, string> = {};
-    const zonesWithFourTeams = zones.filter((zone) => zone.teamIds.length === 4).length;
+    const zonesWithFourTeams = zones.filter(
+      (zone) => zone.teamIds.length === 4
+    ).length;
 
     zones.forEach((zone) => {
       if (zone.teamIds.length < 3 || zone.teamIds.length > 4) {
-        zoneWarningsById[zone.id] =
-          "Cada zona debe tener entre 3 y 4 equipos.";
+        zoneWarningsById[zone.id] = "Cada zona debe tener entre 3 y 4 equipos.";
       }
     });
 
@@ -766,7 +862,7 @@ export const TournamentCategoryPage = ({
   };
   const zoneValidation = useMemo(
     () => validateZones(normalizedZoneColumns),
-    [normalizedZoneColumns],
+    [normalizedZoneColumns]
   );
 
   const moveTeam = ({
@@ -780,9 +876,11 @@ export const TournamentCategoryPage = ({
   }) => {
     if (targetZoneId === "unassigned") return;
     const sourceZone = normalizedZoneColumns.find((zone) =>
-      zone.teamIds.includes(activeTeamId),
+      zone.teamIds.includes(activeTeamId)
     );
-    const targetZone = normalizedZoneColumns.find((zone) => zone.id === targetZoneId);
+    const targetZone = normalizedZoneColumns.find(
+      (zone) => zone.id === targetZoneId
+    );
     if (!sourceZone || !targetZone) return;
 
     const nextZones = normalizedZoneColumns.map((zone) => ({
@@ -793,7 +891,9 @@ export const TournamentCategoryPage = ({
     const targetDraft = nextZones.find((zone) => zone.id === targetZone.id);
     if (!sourceDraft || !targetDraft) return;
 
-    sourceDraft.teamIds = sourceDraft.teamIds.filter((teamId) => teamId !== activeTeamId);
+    sourceDraft.teamIds = sourceDraft.teamIds.filter(
+      (teamId) => teamId !== activeTeamId
+    );
 
     if (!targetDraft.teamIds.includes(activeTeamId)) {
       if (overTeamId && targetDraft.teamIds.includes(overTeamId)) {
@@ -810,7 +910,7 @@ export const TournamentCategoryPage = ({
     if (overId === "unassigned") return "unassigned";
     if (normalizedZoneColumns.some((zone) => zone.id === overId)) return overId;
     const containingZone = normalizedZoneColumns.find((zone) =>
-      zone.teamIds.includes(overId),
+      zone.teamIds.includes(overId)
     );
     return containingZone?.id ?? null;
   };
@@ -842,11 +942,11 @@ export const TournamentCategoryPage = ({
       }
       const leftPoints = left.teamIds.reduce(
         (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0,
+        0
       );
       const rightPoints = right.teamIds.reduce(
         (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0,
+        0
       );
       return rightPoints - leftPoints;
     });
@@ -863,7 +963,9 @@ export const TournamentCategoryPage = ({
     setGenerationError(null);
     setGenerationSuccess(null);
 
-    const readyZones = zoneBoardColumns.length ? zoneBoardColumns : buildAutomaticZones();
+    const readyZones = zoneBoardColumns.length
+      ? zoneBoardColumns
+      : buildAutomaticZones();
     if (!readyZones.length) {
       setGenerationError("Primero configurá equipos y zonas.");
       return;
@@ -891,7 +993,9 @@ export const TournamentCategoryPage = ({
       setGenerationSuccess("Partidos generados correctamente.");
     } catch (error) {
       setGenerationError(
-        error instanceof Error ? error.message : "No se pudieron generar los partidos.",
+        error instanceof Error
+          ? error.message
+          : "No se pudieron generar los partidos."
       );
     } finally {
       setSaving(false);
@@ -901,18 +1005,22 @@ export const TournamentCategoryPage = ({
   const selectablePlayers = useMemo(
     () =>
       players.filter(
-        (player) => !blockedPlayerIds.has(player.id) && canPlayerEnterByCategory(player.id),
+        (player) =>
+          !blockedPlayerIds.has(player.id) &&
+          canPlayerEnterByCategory(player.id)
       ),
-    [players, blockedPlayerIds, data, playersByIdWithCategory],
+    [players, blockedPlayerIds, data, playersByIdWithCategory]
   );
   const player1Options = selectablePlayers.filter(
-    (player) => player.id === teamForm.player1Id || player.id !== teamForm.player2Id,
+    (player) =>
+      player.id === teamForm.player1Id || player.id !== teamForm.player2Id
   );
   const player2Options = selectablePlayers.filter(
-    (player) => player.id === teamForm.player2Id || player.id !== teamForm.player1Id,
+    (player) =>
+      player.id === teamForm.player2Id || player.id !== teamForm.player1Id
   );
-const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
-  [player1Id, player2Id ?? ""]
+  const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
+    [player1Id, player2Id ?? ""]
       .filter(Boolean)
       .sort((left, right) => left.localeCompare(right))
       .join("__");
@@ -933,7 +1041,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
   const parseStoredSets = (
     score?: string,
-    sets?: { team1: number; team2: number }[],
+    sets?: { team1: number; team2: number }[]
   ): MatchSetScore[] => {
     if (sets?.length) return sets;
     if (!score) return [];
@@ -951,13 +1059,13 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
     left.length === right.length &&
     left.every(
       (set, index) =>
-        set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2,
+        set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2
     );
 
   const computeWinnerTeamId = (
     team1Id: string | null | undefined,
     team2Id: string | null | undefined,
-    sets: MatchSetScore[],
+    sets: MatchSetScore[]
   ) => {
     let team1Won = 0;
     let team2Won = 0;
@@ -989,7 +1097,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
         setNumber: index + 1,
         team1Games: set.team1,
         team2Games: set.team2,
-      })),
+      }))
     );
     const updatedMatch = await updateMatch(matchId, {
       winner_team_id: winnerTeamId,
@@ -1006,7 +1114,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
   const handleZoneEditStateChange = (
     zoneMatchId: string,
-    input: { sets: MatchSetScore[] | null; error: string | null },
+    input: { sets: MatchSetScore[] | null; error: string | null }
   ) => {
     if (!activeZone) return;
     const match = activeZone.matches.find((item) => item.id === zoneMatchId);
@@ -1023,7 +1131,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
     setZoneEditedResults((prev) => {
       const zoneEdits = { ...(prev[activeZone.id] ?? {}) };
-      if (!input.sets || input.error || areSetsEqual(input.sets, baselineSets)) {
+      if (
+        !input.sets ||
+        input.error ||
+        areSetsEqual(input.sets, baselineSets)
+      ) {
         delete zoneEdits[zoneMatchId];
       } else {
         zoneEdits[zoneMatchId] = { sets: input.sets };
@@ -1034,7 +1146,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
   const handleBracketEditStateChange = (
     matchId: string,
-    input: { sets: MatchSetScore[] | null; error: string | null },
+    input: { sets: MatchSetScore[] | null; error: string | null }
   ) => {
     const match = orderedBracketMatches.find((item) => item.id === matchId);
     if (!match) return;
@@ -1049,7 +1161,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
     setBracketEditedResults((prev) => {
       const next = { ...prev };
-      if (!input.sets || input.error || areSetsEqual(input.sets, baselineSets)) {
+      if (
+        !input.sets ||
+        input.error ||
+        areSetsEqual(input.sets, baselineSets)
+      ) {
         delete next[matchId];
       } else {
         next[matchId] = { sets: input.sets };
@@ -1079,7 +1195,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           continue;
         }
 
-        const winnerTeamId = computeWinnerTeamId(match.team1Id, match.team2Id, payload.sets);
+        const winnerTeamId = computeWinnerTeamId(
+          match.team1Id,
+          match.team2Id,
+          payload.sets
+        );
         try {
           await saveMatchResult({
             matchId,
@@ -1097,7 +1217,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
       setZoneEditedResults((prev) => ({
         ...prev,
         [activeZone.id]: Object.fromEntries(
-          Object.entries(editedMatches).filter(([matchId]) => Boolean(nextErrors[matchId])),
+          Object.entries(editedMatches).filter(([matchId]) =>
+            Boolean(nextErrors[matchId])
+          )
         ),
       }));
 
@@ -1126,7 +1248,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           continue;
         }
 
-        const winnerTeamId = computeWinnerTeamId(match.team1Id, match.team2Id, payload.sets);
+        const winnerTeamId = computeWinnerTeamId(
+          match.team1Id,
+          match.team2Id,
+          payload.sets
+        );
         try {
           await saveMatchResult({
             matchId,
@@ -1143,8 +1269,10 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
       setBracketMatchErrors(nextErrors);
       setBracketEditedResults((prev) =>
         Object.fromEntries(
-          Object.entries(prev).filter(([matchId]) => Boolean(nextErrors[matchId])),
-        ),
+          Object.entries(prev).filter(([matchId]) =>
+            Boolean(nextErrors[matchId])
+          )
+        )
       );
 
       await load();
@@ -1177,7 +1305,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             <button
               onClick={() =>
                 navigate(
-                  eventId ? `/admin/tournaments/${eventId}/edit` : "/admin/tournaments/new"
+                  eventId
+                    ? `/admin/tournaments/${eventId}/edit`
+                    : "/admin/tournaments/new"
                 )
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -1204,7 +1334,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
           {isAdmin && !eventId && navigate && (
             <button
-              onClick={() => navigate(`/tournament/${slug}/${category}?owner=1`)}
+              onClick={() =>
+                navigate(`/tournament/${slug}/${category}?owner=1`)
+              }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               Ver vista pública
@@ -1212,7 +1344,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           )}
         </div>
         <p className="text-sm text-slate-500">
-          Categoría {formatCategoryName({ categoryName: data.categoryName, gender: data.gender })}
+          Categoría{" "}
+          {formatCategoryName({
+            categoryName: data.categoryName,
+            gender: data.gender,
+          })}
         </p>
         {!isAdmin && isOwner && (
           <p className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
@@ -1239,7 +1375,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               Estado actual: <strong>{flowStatus}</strong>
             </p>
             <p className="text-xs text-slate-500">
-              Avance recomendado: draft → teams_ready → groups_ready → matches_ready
+              Avance recomendado: draft → teams_ready → groups_ready →
+              matches_ready
             </p>
           </header>
 
@@ -1250,8 +1387,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             </p>
             {data.isSuma && data.sumaValue != null ? (
               <p className="mt-1 text-xs text-slate-600">
-                Torneo suma {data.sumaValue}: se valida la pareja al guardar (cat1 + cat2 ≥{" "}
-                {data.sumaValue}).
+                Torneo suma {data.sumaValue}: se valida la pareja al guardar
+                (cat1 + cat2 ≥ {data.sumaValue}).
               </p>
             ) : (
               <p className="mt-1 text-xs text-slate-600">
@@ -1268,7 +1405,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               </button>
             </div>
             {!selectablePlayers.length && (
-              <p className="mt-2 text-xs text-slate-500">No hay jugadores disponibles.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                No hay jugadores disponibles.
+              </p>
             )}
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1334,7 +1473,10 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                       selectedId: teamForm.player2Id,
                       required: true,
                     });
-                    const pairValidationError = validateTeamPair(player1Id ?? "", player2Id ?? "");
+                    const pairValidationError = validateTeamPair(
+                      player1Id ?? "",
+                      player2Id ?? ""
+                    );
                     if (pairValidationError) {
                       setTeamDraftError(pairValidationError);
                       return;
@@ -1343,7 +1485,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                       blockedPlayerIds.has(player1Id) ||
                       blockedPlayerIds.has(player2Id)
                     ) {
-                      setTeamDraftError("Uno de los jugadores ya está asignado en otro equipo.");
+                      setTeamDraftError(
+                        "Uno de los jugadores ya está asignado en otro equipo."
+                      );
                       return;
                     }
                     if (
@@ -1351,7 +1495,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                       !canPlayerEnterByCategory(player2Id)
                     ) {
                       setTeamDraftError(
-                        "Hay jugadores fuera de la categoría permitida para este torneo.",
+                        "Hay jugadores fuera de la categoría permitida para este torneo."
                       );
                       return;
                     }
@@ -1362,33 +1506,41 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                         playersByIdWithCategory.get(player2Id)?.categoryLevel;
                       if (player1Level == null || player2Level == null) {
                         setTeamDraftError(
-                          "Ambos jugadores deben tener categoría actual asignada.",
+                          "Ambos jugadores deben tener categoría actual asignada."
                         );
                         return;
                       }
                       if (player1Level + player2Level < data.sumaValue) {
                         setTeamDraftError(
-                          `La pareja no cumple suma ${data.sumaValue}: ${player1Level} + ${player2Level} debe ser mayor o igual.`,
+                          `La pareja no cumple suma ${data.sumaValue}: ${player1Level} + ${player2Level} debe ser mayor o igual.`
                         );
                         return;
                       }
                     }
 
-                    const player1Name = playersById.get(player1Id) ?? "Jugador/a 1";
-                    const player2Name = playersById.get(player2Id) ?? "Jugador/a 2";
+                    const player1Name =
+                      playersById.get(player1Id) ?? "Jugador/a 1";
+                    const player2Name =
+                      playersById.get(player2Id) ?? "Jugador/a 2";
                     const teamName = [player1Name, player2Name].join(" / ");
                     const teamKey = buildTeamKey(player1Id, player2Id);
 
                     if (draftTeams.some((team) => team.key === teamKey)) {
-                      setTeamDraftError("Ese equipo ya está agregado en el borrador.");
+                      setTeamDraftError(
+                        "Ese equipo ya está agregado en el borrador."
+                      );
                       return;
                     }
 
                     const isAlreadySaved = data.teams.some(
-                      (team) => team.name.trim().toLocaleLowerCase() === teamName.toLocaleLowerCase(),
+                      (team) =>
+                        team.name.trim().toLocaleLowerCase() ===
+                        teamName.toLocaleLowerCase()
                     );
                     if (isAlreadySaved) {
-                      setTeamDraftError("Ese equipo ya está guardado en el torneo.");
+                      setTeamDraftError(
+                        "Ese equipo ya está guardado en el torneo."
+                      );
                       return;
                     }
 
@@ -1408,7 +1560,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                     });
                   } catch (error) {
                     setTeamDraftError(
-                      error instanceof Error ? error.message : "No se pudo agregar el equipo.",
+                      error instanceof Error
+                        ? error.message
+                        : "No se pudo agregar el equipo."
                     );
                   } finally {
                     setSaving(false);
@@ -1434,14 +1588,16 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           tournament_category_id: data.tournamentCategoryId,
                           player1_id: team.player1Id,
                           player2_id: team.player2Id,
-                        }),
-                      ),
+                        })
+                      )
                     );
                     setDraftTeams([]);
                     await load();
                   } catch (error) {
                     setTeamDraftError(
-                      error instanceof Error ? error.message : "No se pudieron guardar los equipos.",
+                      error instanceof Error
+                        ? error.message
+                        : "No se pudieron guardar los equipos."
                     );
                   } finally {
                     setSavingDraftTeams(false);
@@ -1453,7 +1609,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               {savingDraftTeams ? "Guardando equipos..." : "Guardar equipos"}
             </button>
 
-            {teamDraftError && <p className="mt-2 text-xs text-red-600">{teamDraftError}</p>}
+            {teamDraftError && (
+              <p className="mt-2 text-xs text-red-600">{teamDraftError}</p>
+            )}
 
             <div className="mt-4 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1477,7 +1635,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Aún no hay equipos creados.</p>
+                <p className="text-sm text-slate-500">
+                  Aún no hay equipos creados.
+                </p>
               )}
             </div>
 
@@ -1495,7 +1655,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                       <span>{team.name}</span>
                       <button
                         onClick={() =>
-                          setDraftTeams((prev) => prev.filter((item) => item.id !== team.id))
+                          setDraftTeams((prev) =>
+                            prev.filter((item) => item.id !== team.id)
+                          )
                         }
                         className="rounded border border-amber-300 px-2 py-0.5 text-xs text-amber-700"
                       >
@@ -1515,7 +1677,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           <article className="rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">2. Zonas</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Armá zonas manualmente o generá una distribución balanceada automática.
+              Armá zonas manualmente o generá una distribución balanceada
+              automática.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
@@ -1551,9 +1714,13 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 Order zones by level
               </button>
             </div>
-            {manualZoneError && <p className="mt-2 text-xs text-red-600">{manualZoneError}</p>}
+            {manualZoneError && (
+              <p className="mt-2 text-xs text-red-600">{manualZoneError}</p>
+            )}
             {zoneConfigSuccess && (
-              <p className="mt-2 text-xs text-emerald-700">{zoneConfigSuccess}</p>
+              <p className="mt-2 text-xs text-emerald-700">
+                {zoneConfigSuccess}
+              </p>
             )}
             {zoneValidation.warnings.map((warning) => (
               <p key={warning} className="mt-2 text-xs text-amber-700">
@@ -1571,7 +1738,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 {zoneColumnsWithUnassigned.map((zone) => {
                   const zonePoints = zone.teamIds.reduce(
                     (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-                    0,
+                    0
                   );
                   return (
                     <div
@@ -1580,9 +1747,13 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-slate-700">{zone.name}</p>
+                          <p className="text-sm font-semibold text-slate-700">
+                            {zone.name}
+                          </p>
                           {zone.id !== "unassigned" && (
-                            <p className="text-xs text-slate-500">Puntos totales: {zonePoints}</p>
+                            <p className="text-xs text-slate-500">
+                              Puntos totales: {zonePoints}
+                            </p>
                           )}
                         </div>
                         {zone.id !== "unassigned" ? (
@@ -1590,11 +1761,12 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                             value={zone.name}
                             onChange={(event) =>
                               setManualZones((prev) =>
-                                (prev.length ? prev : zoneBoardColumns).map((item) =>
-                                  item.id === zone.id
-                                    ? { ...item, name: event.target.value }
-                                    : item,
-                                ),
+                                (prev.length ? prev : zoneBoardColumns).map(
+                                  (item) =>
+                                    item.id === zone.id
+                                      ? { ...item, name: event.target.value }
+                                      : item
+                                )
                               )
                             }
                             className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
@@ -1606,12 +1778,20 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           {zoneValidation.zoneWarningsById[zone.id]}
                         </p>
                       )}
-                      <SortableContext items={zone.teamIds} strategy={rectSortingStrategy}>
-                        <DroppableZone zoneId={zone.id} className="min-h-24 space-y-2 rounded-md p-1">
+                      <SortableContext
+                        items={zone.teamIds}
+                        strategy={rectSortingStrategy}
+                      >
+                        <DroppableZone
+                          zoneId={zone.id}
+                          className="min-h-24 space-y-2 rounded-md p-1"
+                        >
                           {zone.teamIds.map((teamId) => {
                             const team = teamsByIdForZones.get(teamId);
                             if (!team) return null;
-                            return <SortableTeamCard key={team.id} team={team} />;
+                            return (
+                              <SortableTeamCard key={team.id} team={team} />
+                            );
                           })}
                           {!zone.teamIds.length && (
                             <p className="rounded border border-dashed border-slate-300 px-2 py-3 text-center text-xs text-slate-500">
@@ -1641,7 +1821,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   {zoneBoardColumns.map((zone) => (
                     <label key={zone.id} className="space-y-1">
-                      <span className="text-xs text-slate-600">{zone.name}</span>
+                      <span className="text-xs text-slate-600">
+                        {zone.name}
+                      </span>
                       <select
                         value={zoneDayById[zone.id] ?? ""}
                         onChange={(event) =>
@@ -1671,7 +1853,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   {schedulingPhases.map((phase) => (
                     <label key={phase.key} className="space-y-1">
-                      <span className="text-xs text-slate-600">{phase.label}</span>
+                      <span className="text-xs text-slate-600">
+                        {phase.label}
+                      </span>
                       <select
                         value={phaseByDay[phase.key] ?? ""}
                         onChange={(event) =>
@@ -1702,10 +1886,15 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     {scheduleDays.map((day) => (
                       <label key={day.date || day.key} className="space-y-1">
-                        <span className="text-xs text-slate-600">{day.label}</span>
+                        <span className="text-xs text-slate-600">
+                          {day.label}
+                        </span>
                         <input
                           type="time"
-                          value={scheduleStartTimesInput[day.key] ?? defaultScheduleStartTime}
+                          value={
+                            scheduleStartTimesInput[day.key] ??
+                            defaultScheduleStartTime
+                          }
                           onChange={(event) =>
                             setScheduleStartTimesInput((prev) => ({
                               ...prev,
@@ -1731,7 +1920,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                     step={1}
                     value={matchIntervalMinutesInput}
                     onChange={(event) =>
-                      setMatchIntervalMinutesInput(Number(event.target.value) || 0)
+                      setMatchIntervalMinutesInput(
+                        Number(event.target.value) || 0
+                      )
                     }
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   />
@@ -1748,7 +1939,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                     min={1}
                     step={1}
                     value={courtsCountInput}
-                    onChange={(event) => setCourtsCountInput(Number(event.target.value) || 0)}
+                    onChange={(event) =>
+                      setCourtsCountInput(Number(event.target.value) || 0)
+                    }
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   />
                 </label>
@@ -1767,14 +1960,17 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               <p className="mt-2 text-xs text-red-600">{scheduleConfigError}</p>
             )}
             {scheduleConfigSuccess && (
-              <p className="mt-2 text-xs text-emerald-700">{scheduleConfigSuccess}</p>
+              <p className="mt-2 text-xs text-emerald-700">
+                {scheduleConfigSuccess}
+              </p>
             )}
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">4. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Paso 1: verificamos/armamos zonas. Paso 2: generamos partidos en base al scheduling.
+              Paso 1: verificamos/armamos zonas. Paso 2: generamos partidos en
+              base al scheduling.
             </p>
 
             <button
@@ -1790,7 +1986,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 Necesitás al menos 2 equipos para generar el torneo.
               </p>
             )}
-            {generationError && <p className="mt-2 text-xs text-red-600">{generationError}</p>}
+            {generationError && (
+              <p className="mt-2 text-xs text-red-600">{generationError}</p>
+            )}
             {generationSuccess && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="text-xs text-emerald-700">{generationSuccess}</p>
@@ -1798,7 +1996,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   <button
                     type="button"
                     onClick={() =>
-                      navigate(`/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`)
+                      navigate(
+                        `/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`
+                      )
                     }
                     className="rounded-full border border-emerald-300 px-3 py-1 text-xs text-emerald-700"
                   >
@@ -1836,7 +2036,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   Borrador de generación (estructura inicial)
                 </p>
                 <p className="mt-1 text-xs text-slate-600">
-                  Este bloque prepara datos para extender la lógica de generación.
+                  Este bloque prepara datos para extender la lógica de
+                  generación.
                 </p>
                 <pre className="mt-2 max-h-48 overflow-auto rounded bg-white p-2 text-xs text-slate-700">
                   {JSON.stringify(lastGenerationDraft, null, 2)}
@@ -1845,9 +2046,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             )}
           </article>
 
-          {saving && (
-            <p className="text-xs text-slate-500">Procesando...</p>
-          )}
+          {saving && <p className="text-xs text-slate-500">Procesando...</p>}
         </section>
       )}
 
@@ -1896,8 +2095,12 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           match={match}
                           isEditable
                           hideSaveButton
-                          isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
-                          externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                          isModified={Boolean(
+                            zoneEditedResults[activeZone.id]?.[match.id]
+                          )}
+                          externalError={
+                            zoneMatchErrors[activeZone.id]?.[match.id]
+                          }
                           onEditStateChange={({ sets, error }) =>
                             handleZoneEditStateChange(match.id, { sets, error })
                           }
@@ -1909,16 +2112,21 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                         onClick={() => void saveZoneResultsBatch()}
                         disabled={
                           savingZoneId === activeZone.id ||
-                          !Object.keys(zoneEditedResults[activeZone.id] ?? {}).length
+                          !Object.keys(zoneEditedResults[activeZone.id] ?? {})
+                            .length
                         }
                         className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {savingZoneId === activeZone.id ? "Guardando..." : "Guardar resultados"}
+                        {savingZoneId === activeZone.id
+                          ? "Guardando..."
+                          : "Guardar resultados"}
                       </button>
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>
+                  <p className="text-sm text-slate-500">
+                    No hay partidos cargados en esta zona.
+                  </p>
                 )}
               </div>
             </section>
@@ -1957,11 +2165,15 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 ))}
               </div>
               {!adminVisibleBracketMatches.length && (
-                <p className="text-sm text-slate-500">No hay cruces para esta instancia.</p>
+                <p className="text-sm text-slate-500">
+                  No hay cruces para esta instancia.
+                </p>
               )}
               <button
                 onClick={() => void saveBracketResultsBatch()}
-                disabled={savingBracket || !Object.keys(bracketEditedResults).length}
+                disabled={
+                  savingBracket || !Object.keys(bracketEditedResults).length
+                }
                 className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingBracket ? "Guardando..." : "Guardar resultados"}
@@ -2044,12 +2256,19 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           match={match}
                           isEditable={isOwner}
                           hideSaveButton={isOwner}
-                          isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
-                          externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
+                          isModified={Boolean(
+                            zoneEditedResults[activeZone.id]?.[match.id]
+                          )}
+                          externalError={
+                            zoneMatchErrors[activeZone.id]?.[match.id]
+                          }
                           onEditStateChange={
                             isOwner
                               ? ({ sets, error }) =>
-                                  handleZoneEditStateChange(match.id, { sets, error })
+                                  handleZoneEditStateChange(match.id, {
+                                    sets,
+                                    error,
+                                  })
                               : undefined
                           }
                         />
@@ -2061,7 +2280,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           onClick={() => void saveZoneResultsBatch()}
                           disabled={
                             savingZoneId === activeZone.id ||
-                            !Object.keys(zoneEditedResults[activeZone.id] ?? {}).length
+                            !Object.keys(zoneEditedResults[activeZone.id] ?? {})
+                              .length
                           }
                           className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -2070,7 +2290,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                             : "Guardar resultados"}
                         </button>
                         <span className="text-xs text-slate-500">
-                          Editados: {Object.keys(zoneEditedResults[activeZone.id] ?? {}).length}
+                          Editados:{" "}
+                          {
+                            Object.keys(zoneEditedResults[activeZone.id] ?? {})
+                              .length
+                          }
                         </span>
                       </div>
                     )}
@@ -2104,7 +2328,10 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                         onEditStateChange={
                           isOwner
                             ? ({ sets, error }) =>
-                                handleBracketEditStateChange(match.id, { sets, error })
+                                handleBracketEditStateChange(match.id, {
+                                  sets,
+                                  error,
+                                })
                             : undefined
                         }
                       />
@@ -2114,7 +2341,10 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                     <div className="mt-2 flex items-center gap-3">
                       <button
                         onClick={() => void saveBracketResultsBatch()}
-                        disabled={savingBracket || !Object.keys(bracketEditedResults).length}
+                        disabled={
+                          savingBracket ||
+                          !Object.keys(bracketEditedResults).length
+                        }
                         className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingBracket ? "Guardando..." : "Guardar resultados"}
@@ -2153,7 +2383,9 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                           key={row.playerId}
                           className="border-b border-slate-100 last:border-none"
                         >
-                          <td className="py-2 text-slate-700">{row.playerName}</td>
+                          <td className="py-2 text-slate-700">
+                            {row.playerName}
+                          </td>
                           <td className="py-2 text-center">
                             {row.isInCompetition ? (
                               <span
@@ -2171,7 +2403,10 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="py-4 text-center text-slate-500">
+                        <td
+                          colSpan={3}
+                          className="py-4 text-center text-slate-500"
+                        >
                           No se encontraron jugadores.
                         </td>
                       </tr>
@@ -2198,21 +2433,18 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           tournamentCategoryLevel={data.categoryLevel}
           isSumaTournament={data.isSuma}
           onClose={closeCreatePlayerModal}
-          initialGender={
-            getGenderShortLabel(data.gender) === "F"
-              ? "F"
-              : "M"
-          }
+          initialGender={getGenderShortLabel(data.gender) === "F" ? "F" : "M"}
           allowedGenders={
             getGenderShortLabel(data.gender) === "M"
               ? ["M"]
               : getGenderShortLabel(data.gender) === "F"
-                ? ["F"]
-                : ["M", "F"]
+              ? ["F"]
+              : ["M", "F"]
           }
           onSubmit={async ({ name, categoryId, gender }) => {
             const existingPlayer = players.find(
-              (player) => player.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+              (player) =>
+                player.name.toLocaleLowerCase() === name.toLocaleLowerCase()
             );
             if (existingPlayer) {
               setTeamForm((prev) => ({
@@ -2267,14 +2499,14 @@ const ScheduleSection = ({
   const dayMatches = matches.filter((match) => match.day === day);
 
   const courts = Array.from(
-    new Set(dayMatches.map((match) => match.court ?? "-")),
+    new Set(dayMatches.map((match) => match.court ?? "-"))
   ).sort(sortCourts);
   const timeSlots = Array.from(
-    new Set(dayMatches.map((match) => match.time)),
+    new Set(dayMatches.map((match) => match.time))
   ).sort(sortTimes);
 
   const matchesByCell = new Map(
-    dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match]),
+    dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match])
   );
 
   return (
