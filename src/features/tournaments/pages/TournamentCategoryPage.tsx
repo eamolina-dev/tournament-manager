@@ -130,6 +130,7 @@ type ZoneTeam = {
 type MatchGenerationDraft = {
   zones: ZoneBoardColumn[];
   scheduling: {
+    zoneDayById: Record<string, string>;
     startTimesByDay: Record<string, string>;
     matchIntervalMinutes: number;
     courtsCount: number;
@@ -280,6 +281,8 @@ export const TournamentCategoryPage = ({
   const [scheduleConfigSuccess, setScheduleConfigSuccess] = useState<string | null>(null);
   const [manualZones, setManualZones] = useState<ZoneBoardColumn[]>([]);
   const [manualZoneError, setManualZoneError] = useState<string | null>(null);
+  const [zoneConfigSuccess, setZoneConfigSuccess] = useState<string | null>(null);
+  const [zoneDayById, setZoneDayById] = useState<Record<string, string>>({});
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastGenerationDraft, setLastGenerationDraft] = useState<MatchGenerationDraft | null>(
     null,
@@ -416,6 +419,17 @@ export const TournamentCategoryPage = ({
 
   useEffect(() => {
     if (!data) return;
+    const storedZonesRaw = localStorage.getItem(`tm:zones:${data.tournamentCategoryId}`);
+    if (storedZonesRaw) {
+      try {
+        const storedZones = JSON.parse(storedZonesRaw) as ZoneBoardColumn[];
+        if (Array.isArray(storedZones) && storedZones.every((zone) => Array.isArray(zone.teamIds))) {
+          setManualZones(storedZones);
+        }
+      } catch {
+        // no-op: ignore malformed local zones cache
+      }
+    }
 
     const persistedStartTimes = parseScheduleStartTimes(data.scheduleStartTimes);
     const nextStartTimes = scheduleDays.reduce<Record<string, string>>((acc, day) => {
@@ -431,6 +445,7 @@ export const TournamentCategoryPage = ({
       try {
         const stored = JSON.parse(storedRaw) as {
           phaseByDay?: Partial<Record<SchedulingPhaseKey, string>>;
+          zoneDayById?: Record<string, string>;
         };
         if (stored.phaseByDay) {
           setPhaseByDay((prev) => ({
@@ -440,6 +455,9 @@ export const TournamentCategoryPage = ({
             semifinals: stored.phaseByDay?.semifinals ?? prev.semifinals,
             finals: stored.phaseByDay?.finals ?? prev.finals,
           }));
+        }
+        if (stored.zoneDayById) {
+          setZoneDayById(stored.zoneDayById);
         }
       } catch {
         // no-op: ignore malformed local scheduling cache
@@ -496,6 +514,19 @@ export const TournamentCategoryPage = ({
     ],
     [zoneBoardColumns, unassignedTeams],
   );
+  useEffect(() => {
+    if (!zoneBoardColumns.length || !scheduleDays.length) return;
+    const fallback = scheduleDays[0]?.key ?? "";
+    setZoneDayById((prev) =>
+      zoneBoardColumns.reduce<Record<string, string>>((acc, zone) => {
+        acc[zone.id] = prev[zone.id] || fallback;
+        return acc;
+      }, {}),
+    );
+  }, [zoneBoardColumns, scheduleDays]);
+  useEffect(() => {
+    setZoneConfigSuccess(null);
+  }, [manualZones]);
   const filteredResults = (data?.results ?? []).filter((row) =>
     row.playerName.toLocaleLowerCase().includes(resultsQuery.trim().toLocaleLowerCase()),
   );
@@ -572,6 +603,7 @@ export const TournamentCategoryPage = ({
       localStorage.setItem(
         `tm:scheduling:${data.tournamentCategoryId}`,
         JSON.stringify({
+          zoneDayById,
           startTimesByDay: payloadStartTimes,
           matchIntervalMinutes: matchIntervalMinutesInput,
           courtsCount: courtsCountInput,
@@ -584,7 +616,7 @@ export const TournamentCategoryPage = ({
         match_interval_minutes: matchIntervalMinutesInput,
         courts_count: courtsCountInput,
       });
-      setScheduleConfigSuccess("Configuración de horarios guardada.");
+      setScheduleConfigSuccess("Horarios guardados.");
       await load();
     } catch (error) {
       setScheduleConfigError(
@@ -621,6 +653,20 @@ export const TournamentCategoryPage = ({
     }
     setManualZones(nextZones);
     setManualZoneError(null);
+  };
+
+  const handleSaveZones = () => {
+    if (!data) return;
+    if (!zoneBoardColumns.length) {
+      setManualZoneError("No hay zonas para guardar.");
+      return;
+    }
+    localStorage.setItem(
+      `tm:zones:${data.tournamentCategoryId}`,
+      JSON.stringify(zoneBoardColumns),
+    );
+    setManualZoneError(null);
+    setZoneConfigSuccess("Zonas guardadas correctamente.");
   };
 
   const moveTeamToZone = (activeTeamId: string, targetZoneId: string) => {
@@ -665,6 +711,7 @@ export const TournamentCategoryPage = ({
     const generationDraft: MatchGenerationDraft = {
       zones: readyZones,
       scheduling: {
+        zoneDayById,
         startTimesByDay: scheduleStartTimesInput,
         matchIntervalMinutes: matchIntervalMinutesInput,
         courtsCount: courtsCountInput,
@@ -1324,8 +1371,18 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   Usar zonas actuales del torneo
                 </button>
               )}
+              <button
+                type="button"
+                onClick={handleSaveZones}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                Guardar Zonas
+              </button>
             </div>
             {manualZoneError && <p className="mt-2 text-xs text-red-600">{manualZoneError}</p>}
+            {zoneConfigSuccess && (
+              <p className="mt-2 text-xs text-emerald-700">{zoneConfigSuccess}</p>
+            )}
 
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
               {zoneColumnsWithUnassigned.map((zone) => (
@@ -1385,65 +1442,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             <div className="mt-3 space-y-3">
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  1. Horario de inicio por día
-                </p>
-                <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {scheduleDays.map((day) => (
-                    <label key={day.date || day.key} className="space-y-1">
-                      <span className="text-xs text-slate-600">{day.label}</span>
-                      <input
-                        type="time"
-                        value={scheduleStartTimesInput[day.key] ?? defaultScheduleStartTime}
-                        onChange={(event) =>
-                          setScheduleStartTimesInput((prev) => ({
-                            ...prev,
-                            [day.key]: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-3">
-                <label className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    2. Intervalo entre partidos (minutos)
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={matchIntervalMinutesInput}
-                    onChange={(event) =>
-                      setMatchIntervalMinutesInput(Number(event.target.value) || 0)
-                    }
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </label>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-3">
-                <label className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    3. Cantidad de canchas
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={courtsCountInput}
-                    onChange={(event) => setCourtsCountInput(Number(event.target.value) || 0)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </label>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  4. Asignar fases a días
+                  1. Asignar fases a días
                 </p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   {schedulingPhases.map((phase) => (
@@ -1470,6 +1469,96 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   ))}
                 </div>
               </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  2. Día por zona
+                </p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {zoneBoardColumns.map((zone) => (
+                    <label key={zone.id} className="space-y-1">
+                      <span className="text-xs text-slate-600">{zone.name}</span>
+                      <select
+                        value={zoneDayById[zone.id] ?? ""}
+                        onChange={(event) =>
+                          setZoneDayById((prev) => ({
+                            ...prev,
+                            [zone.id]: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        <option value="">Seleccionar día</option>
+                        {scheduleDays.map((day) => (
+                          <option key={day.date || day.key} value={day.key}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    3. Horario de inicio por día
+                  </span>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    {scheduleDays.map((day) => (
+                      <label key={day.date || day.key} className="space-y-1">
+                        <span className="text-xs text-slate-600">{day.label}</span>
+                        <input
+                          type="time"
+                          value={scheduleStartTimesInput[day.key] ?? defaultScheduleStartTime}
+                          onChange={(event) =>
+                            setScheduleStartTimesInput((prev) => ({
+                              ...prev,
+                              [day.key]: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    4. Intervalo entre partidos (minutos)
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={matchIntervalMinutesInput}
+                    onChange={(event) =>
+                      setMatchIntervalMinutesInput(Number(event.target.value) || 0)
+                    }
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    5. Cantidad de canchas
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={courtsCountInput}
+                    onChange={(event) => setCourtsCountInput(Number(event.target.value) || 0)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
             </div>
 
             <button
@@ -1477,7 +1566,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               onClick={() => void saveScheduleConfig()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Guardar scheduling
+              Guardar Horarios
             </button>
 
             {scheduleConfigError && (
