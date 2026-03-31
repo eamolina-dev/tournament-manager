@@ -13,15 +13,20 @@ type ScheduleOptions = {
   phaseByDay?: Partial<Record<SchedulingPhaseKey, string>>
 }
 
+const WEEKDAY_OFFSET: Record<string, number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+  friday: 4,
+  saturday: 5,
+  sunday: 6,
+}
+
 const toIsoLike = (day: string, time: string): string => {
   const [hours, minutes] = time.split(":").map(Number)
-  const baseDate = new Date("2026-01-01T00:00:00Z")
-  const dayOffset =
-    {
-      friday: 1,
-      saturday: 2,
-      sunday: 3,
-    }[day] ?? 0
+  const baseDate = new Date("2026-01-05T00:00:00Z")
+  const dayOffset = WEEKDAY_OFFSET[day] ?? 0
 
   baseDate.setUTCDate(baseDate.getUTCDate() + dayOffset)
   baseDate.setUTCHours(hours ?? 0, minutes ?? 0, 0, 0)
