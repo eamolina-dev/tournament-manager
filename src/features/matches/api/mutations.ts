@@ -347,25 +347,41 @@ const propagateMatchWinnerInternal = async (
 
   const team1Source = nextMatch.team1_source ? parseSource(nextMatch.team1_source) : null
   const team2Source = nextMatch.team2_source ? parseSource(nextMatch.team2_source) : null
-  const shouldAssignToTeam1 =
-    match.next_match_slot === 1 ||
-    (team1Source?.type === "playoff" &&
-      nextMatch.team1_source?.trim().toUpperCase() === winnerToken)
-  const shouldAssignToTeam2 =
-    match.next_match_slot === 2 ||
-    (team2Source?.type === "playoff" &&
-      nextMatch.team2_source?.trim().toUpperCase() === winnerToken)
+  const sourceMatchesTeam1 =
+    team1Source?.type === "playoff" &&
+    nextMatch.team1_source?.trim().toUpperCase() === winnerToken
+  const sourceMatchesTeam2 =
+    team2Source?.type === "playoff" &&
+    nextMatch.team2_source?.trim().toUpperCase() === winnerToken
+  const slotMatchesTeam1 = match.next_match_slot === 1
+  const slotMatchesTeam2 = match.next_match_slot === 2
+  const hasSourceMatch = sourceMatchesTeam1 || sourceMatchesTeam2
+
+  const shouldAssignToTeam1 = hasSourceMatch ? sourceMatchesTeam1 : slotMatchesTeam1
+  const shouldAssignToTeam2 = hasSourceMatch ? sourceMatchesTeam2 : slotMatchesTeam2
+
+  if (shouldAssignToTeam1 && shouldAssignToTeam2) {
+    console.warn(
+      "Winner propagation ambiguity: both slots match winner token for next match.",
+      {
+        matchId: match.id,
+        nextMatchId: nextMatch.id,
+        winnerToken,
+        nextMatchSlot: match.next_match_slot,
+        team1Source: nextMatch.team1_source,
+        team2Source: nextMatch.team2_source,
+      },
+    )
+  }
 
   if (
     shouldAssignToTeam1 &&
-    !shouldAssignToTeam2 &&
     nextMatch.team2_id !== match.winner_team_id
   ) {
     updatePayload.team1_id = match.winner_team_id
   }
   if (
     shouldAssignToTeam2 &&
-    !shouldAssignToTeam1 &&
     (updatePayload.team1_id ?? nextMatch.team1_id) !== match.winner_team_id
   ) {
     updatePayload.team2_id = match.winner_team_id
