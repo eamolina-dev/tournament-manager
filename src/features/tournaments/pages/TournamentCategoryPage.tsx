@@ -117,7 +117,7 @@ type ScheduleDayOption = {
   date: string;
   label: string;
 };
-type SchedulingPhaseKey = "zones" | "quarterfinals" | "semifinals" | "finals";
+type SchedulingPhaseKey = "quarterfinals" | "semifinals" | "finals";
 type ZoneBoardColumn = {
   id: string;
   name: string;
@@ -139,7 +139,6 @@ type MatchGenerationDraft = {
 };
 
 const schedulingPhases: { key: SchedulingPhaseKey; label: string }[] = [
-  { key: "zones", label: "Zonas" },
   { key: "quarterfinals", label: "Cuartos de final" },
   { key: "semifinals", label: "Semifinales" },
   { key: "finals", label: "Finales" },
@@ -272,7 +271,6 @@ export const TournamentCategoryPage = ({
   );
   const [courtsCountInput, setCourtsCountInput] = useState(defaultCourtsCount);
   const [phaseByDay, setPhaseByDay] = useState<Record<SchedulingPhaseKey, string>>({
-    zones: "",
     quarterfinals: "",
     semifinals: "",
     finals: "",
@@ -450,7 +448,6 @@ export const TournamentCategoryPage = ({
         if (stored.phaseByDay) {
           setPhaseByDay((prev) => ({
             ...prev,
-            zones: stored.phaseByDay?.zones ?? prev.zones,
             quarterfinals: stored.phaseByDay?.quarterfinals ?? prev.quarterfinals,
             semifinals: stored.phaseByDay?.semifinals ?? prev.semifinals,
             finals: stored.phaseByDay?.finals ?? prev.finals,
@@ -469,7 +466,6 @@ export const TournamentCategoryPage = ({
     if (!scheduleDays.length) return;
     const fallback = scheduleDays[0]?.key ?? "";
     setPhaseByDay((prev) => ({
-      zones: prev.zones || fallback,
       quarterfinals: prev.quarterfinals || fallback,
       semifinals: prev.semifinals || fallback,
       finals: prev.finals || fallback,
@@ -1442,18 +1438,18 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             <div className="mt-3 space-y-3">
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  1. Asignar fases a días
+                  1. Día por zona
                 </p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {schedulingPhases.map((phase) => (
-                    <label key={phase.key} className="space-y-1">
-                      <span className="text-xs text-slate-600">{phase.label}</span>
+                  {zoneBoardColumns.map((zone) => (
+                    <label key={zone.id} className="space-y-1">
+                      <span className="text-xs text-slate-600">{zone.name}</span>
                       <select
-                        value={phaseByDay[phase.key] ?? ""}
+                        value={zoneDayById[zone.id] ?? ""}
                         onChange={(event) =>
-                          setPhaseByDay((prev) => ({
+                          setZoneDayById((prev) => ({
                             ...prev,
-                            [phase.key]: event.target.value,
+                            [zone.id]: event.target.value,
                           }))
                         }
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -1472,18 +1468,18 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
 
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  2. Día por zona
+                  2. Asignar fases a días
                 </p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {zoneBoardColumns.map((zone) => (
-                    <label key={zone.id} className="space-y-1">
-                      <span className="text-xs text-slate-600">{zone.name}</span>
+                  {schedulingPhases.map((phase) => (
+                    <label key={phase.key} className="space-y-1">
+                      <span className="text-xs text-slate-600">{phase.label}</span>
                       <select
-                        value={zoneDayById[zone.id] ?? ""}
+                        value={phaseByDay[phase.key] ?? ""}
                         onChange={(event) =>
-                          setZoneDayById((prev) => ({
+                          setPhaseByDay((prev) => ({
                             ...prev,
-                            [zone.id]: event.target.value,
+                            [phase.key]: event.target.value,
                           }))
                         }
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
