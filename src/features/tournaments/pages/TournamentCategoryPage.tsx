@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import {
   propagateMatchWinner,
   replaceMatchSets,
@@ -117,6 +117,32 @@ type ScheduleDayOption = {
   date: string;
   label: string;
 };
+type SchedulingPhaseKey = "zones" | "quarterfinals" | "semifinals" | "finals";
+type ZoneBoardColumn = {
+  id: string;
+  name: string;
+  teamIds: string[];
+};
+type ZoneTeam = {
+  id: string;
+  name: string;
+};
+type MatchGenerationDraft = {
+  zones: ZoneBoardColumn[];
+  scheduling: {
+    startTimesByDay: Record<string, string>;
+    matchIntervalMinutes: number;
+    courtsCount: number;
+    phaseByDay: Record<SchedulingPhaseKey, string>;
+  };
+};
+
+const schedulingPhases: { key: SchedulingPhaseKey; label: string }[] = [
+  { key: "zones", label: "Zonas" },
+  { key: "quarterfinals", label: "Cuartos de final" },
+  { key: "semifinals", label: "Semifinales" },
+  { key: "finals", label: "Finales" },
+];
 
 const getScheduleDays = (
   startDate: string | null | undefined,
@@ -244,8 +270,20 @@ export const TournamentCategoryPage = ({
     defaultMatchIntervalMinutes,
   );
   const [courtsCountInput, setCourtsCountInput] = useState(defaultCourtsCount);
+  const [phaseByDay, setPhaseByDay] = useState<Record<SchedulingPhaseKey, string>>({
+    zones: "",
+    quarterfinals: "",
+    semifinals: "",
+    finals: "",
+  });
   const [scheduleConfigError, setScheduleConfigError] = useState<string | null>(null);
   const [scheduleConfigSuccess, setScheduleConfigSuccess] = useState<string | null>(null);
+  const [manualZones, setManualZones] = useState<ZoneBoardColumn[]>([]);
+  const [manualZoneError, setManualZoneError] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [lastGenerationDraft, setLastGenerationDraft] = useState<MatchGenerationDraft | null>(
+    null,
+  );
 
   const loadPlayers = async ({
     categoryGender,
@@ -388,9 +426,76 @@ export const TournamentCategoryPage = ({
     setScheduleStartTimesInput(nextStartTimes);
     setMatchIntervalMinutesInput(data.matchIntervalMinutes ?? defaultMatchIntervalMinutes);
     setCourtsCountInput(data.courtsCount ?? defaultCourtsCount);
+    const storedRaw = localStorage.getItem(`tm:scheduling:${data.tournamentCategoryId}`);
+    if (storedRaw) {
+      try {
+        const stored = JSON.parse(storedRaw) as {
+          phaseByDay?: Partial<Record<SchedulingPhaseKey, string>>;
+        };
+        if (stored.phaseByDay) {
+          setPhaseByDay((prev) => ({
+            ...prev,
+            zones: stored.phaseByDay?.zones ?? prev.zones,
+            quarterfinals: stored.phaseByDay?.quarterfinals ?? prev.quarterfinals,
+            semifinals: stored.phaseByDay?.semifinals ?? prev.semifinals,
+            finals: stored.phaseByDay?.finals ?? prev.finals,
+          }));
+        }
+      } catch {
+        // no-op: ignore malformed local scheduling cache
+      }
+    }
   }, [data, scheduleDays]);
 
+  useEffect(() => {
+    if (!scheduleDays.length) return;
+    const fallback = scheduleDays[0]?.key ?? "";
+    setPhaseByDay((prev) => ({
+      zones: prev.zones || fallback,
+      quarterfinals: prev.quarterfinals || fallback,
+      semifinals: prev.semifinals || fallback,
+      finals: prev.finals || fallback,
+    }));
+  }, [scheduleDays]);
+
   const canGenerateZones = (data?.teams.length ?? 0) >= 2;
+  const teamsForZoneBoard = useMemo<ZoneTeam[]>(
+    () => (data?.teams ?? []).map((team) => ({ id: team.id, name: team.name })),
+    [data?.teams],
+  );
+  const teamsByIdForZones = useMemo(
+    () => new Map(teamsForZoneBoard.map((team) => [team.id, team])),
+    [teamsForZoneBoard],
+  );
+  const zoneBoardColumns = useMemo(() => {
+    if (manualZones.length) {
+      return manualZones;
+    }
+    return orderedZones.map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+      teamIds: zone.standings.map((standing) => standing.teamId),
+    }));
+  }, [manualZones, orderedZones]);
+  const assignedTeamIds = useMemo(
+    () => new Set(zoneBoardColumns.flatMap((zone) => zone.teamIds)),
+    [zoneBoardColumns],
+  );
+  const unassignedTeams = useMemo(
+    () => teamsForZoneBoard.filter((team) => !assignedTeamIds.has(team.id)),
+    [teamsForZoneBoard, assignedTeamIds],
+  );
+  const zoneColumnsWithUnassigned = useMemo<ZoneBoardColumn[]>(
+    () => [
+      ...zoneBoardColumns,
+      {
+        id: "unassigned",
+        name: "Sin zona",
+        teamIds: unassignedTeams.map((team) => team.id),
+      },
+    ],
+    [zoneBoardColumns, unassignedTeams],
+  );
   const filteredResults = (data?.results ?? []).filter((row) =>
     row.playerName.toLocaleLowerCase().includes(resultsQuery.trim().toLocaleLowerCase()),
   );
@@ -464,6 +569,15 @@ export const TournamentCategoryPage = ({
         acc[day.key] = scheduleStartTimesInput[day.key];
         return acc;
       }, {});
+      localStorage.setItem(
+        `tm:scheduling:${data.tournamentCategoryId}`,
+        JSON.stringify({
+          startTimesByDay: payloadStartTimes,
+          matchIntervalMinutes: matchIntervalMinutesInput,
+          courtsCount: courtsCountInput,
+          phaseByDay,
+        }),
+      );
 
       await updateTournamentCategory(data.tournamentCategoryId, {
         schedule_start_times: payloadStartTimes,
@@ -477,6 +591,96 @@ export const TournamentCategoryPage = ({
         error instanceof Error
           ? error.message
           : "No se pudo guardar la configuración de horarios.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const buildAutomaticZones = (): ZoneBoardColumn[] => {
+    if (!teamsForZoneBoard.length) {
+      return [];
+    }
+    const zoneCount = Math.max(2, Math.min(4, Math.ceil(teamsForZoneBoard.length / 4)));
+    const nextZones: ZoneBoardColumn[] = Array.from({ length: zoneCount }, (_, index) => ({
+      id: `manual-zone-${index + 1}`,
+      name: `Zona ${String.fromCharCode(65 + index)}`,
+      teamIds: [],
+    }));
+    teamsForZoneBoard.forEach((team, index) => {
+      nextZones[index % zoneCount].teamIds.push(team.id);
+    });
+    return nextZones;
+  };
+
+  const handleGenerateZonesAutomatically = () => {
+    const nextZones = buildAutomaticZones();
+    if (!nextZones.length) {
+      setManualZoneError("Primero necesitás equipos para generar zonas.");
+      return;
+    }
+    setManualZones(nextZones);
+    setManualZoneError(null);
+  };
+
+  const moveTeamToZone = (activeTeamId: string, targetZoneId: string) => {
+    const sourceZone = zoneBoardColumns.find((zone) => zone.teamIds.includes(activeTeamId));
+    const targetZone = zoneBoardColumns.find((zone) => zone.id === targetZoneId);
+    if (!sourceZone || !targetZone) return;
+    const nextZones = zoneBoardColumns.map((zone) => ({ ...zone, teamIds: [...zone.teamIds] }));
+    const sourceDraft = nextZones.find((zone) => zone.id === sourceZone.id);
+    const targetDraft = nextZones.find((zone) => zone.id === targetZone.id);
+    if (!sourceDraft || !targetDraft) return;
+
+    sourceDraft.teamIds = sourceDraft.teamIds.filter((teamId) => teamId !== activeTeamId);
+    if (!targetDraft.teamIds.includes(activeTeamId)) {
+      targetDraft.teamIds.push(activeTeamId);
+    }
+    setManualZones(nextZones);
+  };
+  const handleTeamDragStart = (event: DragEvent<HTMLDivElement>, teamId: string) => {
+    event.dataTransfer.setData("text/team-id", teamId);
+  };
+  const handleZoneDrop = (event: DragEvent<HTMLDivElement>, zoneId: string) => {
+    event.preventDefault();
+    const teamId = event.dataTransfer.getData("text/team-id");
+    if (!teamId) return;
+    moveTeamToZone(teamId, zoneId);
+  };
+
+  const handleGenerateMatches = async () => {
+    if (!canGenerateZones || !data) return;
+    setGenerationError(null);
+    setGenerationSuccess(null);
+
+    const readyZones = zoneBoardColumns.length ? zoneBoardColumns : buildAutomaticZones();
+    if (!readyZones.length) {
+      setGenerationError("Primero configurá equipos y zonas.");
+      return;
+    }
+    if (!manualZones.length) {
+      setManualZones(readyZones);
+    }
+
+    const generationDraft: MatchGenerationDraft = {
+      zones: readyZones,
+      scheduling: {
+        startTimesByDay: scheduleStartTimesInput,
+        matchIntervalMinutes: matchIntervalMinutesInput,
+        courtsCount: courtsCountInput,
+        phaseByDay,
+      },
+    };
+    setLastGenerationDraft(generationDraft);
+
+    setSaving(true);
+    try {
+      await generateFullTournament(data.tournamentCategoryId);
+      await load();
+      setGenerationSuccess("Partidos generados correctamente.");
+    } catch (error) {
+      setGenerationError(
+        error instanceof Error ? error.message : "No se pudieron generar los partidos.",
       );
     } finally {
       setSaving(false);
@@ -1100,8 +1304,76 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           <article className="rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">2. Zonas</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Esta sección se completará en una próxima tarea.
+              Armá zonas manualmente o generá una distribución balanceada automática.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateZonesAutomatically}
+                disabled={!teamsForZoneBoard.length}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              >
+                Generar zonas automáticamente
+              </button>
+              {!!manualZones.length && (
+                <button
+                  type="button"
+                  onClick={() => setManualZones([])}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  Usar zonas actuales del torneo
+                </button>
+              )}
+            </div>
+            {manualZoneError && <p className="mt-2 text-xs text-red-600">{manualZoneError}</p>}
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              {zoneColumnsWithUnassigned.map((zone) => (
+                <div key={zone.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-700">{zone.name}</p>
+                    {zone.id !== "unassigned" ? (
+                      <input
+                        value={zone.name}
+                        onChange={(event) =>
+                          setManualZones((prev) =>
+                            (prev.length ? prev : zoneBoardColumns).map((item) =>
+                              item.id === zone.id ? { ...item, name: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
+                      />
+                    ) : null}
+                  </div>
+                  <div
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => handleZoneDrop(event, zone.id)}
+                    className="min-h-24 space-y-2 rounded-md p-1"
+                  >
+                    {zone.teamIds.map((teamId) => {
+                      const team = teamsByIdForZones.get(teamId);
+                      if (!team) return null;
+                      return (
+                        <div
+                          key={team.id}
+                          draggable
+                          onDragStart={(event) => handleTeamDragStart(event, team.id)}
+                          className="cursor-grab rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm active:cursor-grabbing"
+                        >
+                          {team.name}
+                        </div>
+                      );
+                    })}
+                    {!zone.teamIds.length && (
+                      <p className="rounded border border-dashed border-slate-300 px-2 py-3 text-center text-xs text-slate-500">
+                        Soltá equipos acá
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
@@ -1168,6 +1440,36 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                   />
                 </label>
               </div>
+
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  4. Asignar fases a días
+                </p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {schedulingPhases.map((phase) => (
+                    <label key={phase.key} className="space-y-1">
+                      <span className="text-xs text-slate-600">{phase.label}</span>
+                      <select
+                        value={phaseByDay[phase.key] ?? ""}
+                        onChange={(event) =>
+                          setPhaseByDay((prev) => ({
+                            ...prev,
+                            [phase.key]: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        <option value="">Seleccionar día</option>
+                        {scheduleDays.map((day) => (
+                          <option key={day.date || day.key} value={day.key}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <button
@@ -1189,28 +1491,15 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           <article className="rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">4. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Generá torneo automáticamente a partir de los equipos cargados (zonas + partidos + cruces).
+              Paso 1: verificamos/armamos zonas. Paso 2: generamos partidos en base al scheduling.
             </p>
 
             <button
               disabled={!canGenerateZones || saving}
-              onClick={() =>
-                void (async () => {
-                  if (!canGenerateZones) return;
-                  setSaving(true);
-                  setGenerationSuccess(null);
-                  try {
-                    await generateFullTournament(data.tournamentCategoryId);
-                    await load();
-                    setGenerationSuccess("Fixture generado correctamente.");
-                  } finally {
-                    setSaving(false);
-                  }
-                })()
-              }
+              onClick={() => void handleGenerateMatches()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Generar torneo
+              Generar partidos
             </button>
 
             {!canGenerateZones && (
@@ -1218,6 +1507,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 Necesitás al menos 2 equipos para generar el torneo.
               </p>
             )}
+            {generationError && <p className="mt-2 text-xs text-red-600">{generationError}</p>}
             {generationSuccess && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="text-xs text-emerald-700">{generationSuccess}</p>
@@ -1256,6 +1546,20 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
                 </p>
               )}
             </div>
+
+            {lastGenerationDraft && (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Borrador de generación (estructura inicial)
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Este bloque prepara datos para extender la lógica de generación.
+                </p>
+                <pre className="mt-2 max-h-48 overflow-auto rounded bg-white p-2 text-xs text-slate-700">
+                  {JSON.stringify(lastGenerationDraft, null, 2)}
+                </pre>
+              </div>
+            )}
           </article>
 
           {saving && (
