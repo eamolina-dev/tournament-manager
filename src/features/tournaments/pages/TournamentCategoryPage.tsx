@@ -43,7 +43,7 @@ type TournamentCategoryPageProps = {
   navigate?: (path: string) => void;
 };
 
-const sectionTabs = ["Zonas", "Cruces", "Resultados", "Horarios"] as const;
+const sectionTabs = ["Zonas", "Cruces", "Posiciones", "Horarios"] as const;
 const adminResultsTabs = ["Zonas", "Cruces"] as const;
 const eliminationStageOrder = [
   "round_of_32",
@@ -249,13 +249,11 @@ export const TournamentCategoryPage = ({
 
   const loadPlayers = async ({
     categoryGender,
-    categoryId,
   }: {
     categoryGender: TournamentCategoryGender;
-    categoryId: string | null;
   }) => {
     const [response, categories] = await Promise.all([
-      getPlayers({ categoryGender, categoryId }),
+      getPlayers({ categoryGender }),
       getAllCategories(),
     ]);
     const categoryLevelById = new Map(categories.map((item) => [item.id, item.level ?? null]));
@@ -320,7 +318,6 @@ export const TournamentCategoryPage = ({
       if (isAdmin) {
         await loadPlayers({
           categoryGender: response?.gender ?? null,
-          categoryId: response?.categoryId ?? null,
         });
       }
     } finally {
@@ -832,7 +829,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           </header>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">1. Equipos</h3>
+            <h3 className="font-semibold text-slate-900">1. Jugadores</h3>
             <p className="mt-1 text-xs text-slate-500">
               Seleccioná jugadores existentes o crealos en el momento.
             </p>
@@ -1101,7 +1098,14 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">2. Scheduling</h3>
+            <h3 className="font-semibold text-slate-900">2. Zonas</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Esta sección se completará en una próxima tarea.
+            </p>
+          </article>
+
+          <article className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">3. Horarios</h3>
             <p className="mt-1 text-xs text-slate-500">
               Definí horarios base para generar el fixture automáticamente.
             </p>
@@ -1183,7 +1187,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">3. Generación</h3>
+            <h3 className="font-semibold text-slate-900">4. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
               Generá torneo automáticamente a partir de los equipos cargados (zonas + partidos + cruces).
             </p>
@@ -1261,7 +1265,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
       )}
 
       {isAdminResultsMode && (
-        <>
+        <section className="space-y-4 tm-card">
           <div className="flex flex-wrap gap-2">
             {adminResultsTabs.map((tab) => (
               <button
@@ -1279,7 +1283,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           </div>
 
           {activeTab === "Zonas" && activeZone && (
-            <section className="tm-card">
+            <section>
               <div className="mb-3 flex flex-wrap gap-2">
                 {orderedZones.map((zone) => (
                   <button
@@ -1334,7 +1338,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           )}
 
           {activeTab === "Cruces" && (
-            <section className="space-y-4 tm-card">
+            <section className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {adminBracketStages.map((stage) => (
                   <button
@@ -1377,11 +1381,11 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               </button>
             </section>
           )}
-        </>
+        </section>
       )}
 
       {!isAdmin && (
-        <>
+        <section className="space-y-4 tm-card">
           <div className="flex flex-wrap gap-2">
             {sectionTabs.map((tab) => (
               <button
@@ -1399,7 +1403,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
           </div>
 
           {activeTab === "Zonas" && activeZone && (
-            <section className="tm-card">
+            <section>
               <div className="mb-3 flex flex-wrap gap-2">
                 {orderedZones.map((zone) => (
                   <button
@@ -1493,7 +1497,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             </section>
           )}
           {activeTab === "Cruces" && (
-            <section className="space-y-4 tm-card">
+            <section className="space-y-4">
               <TournamentBracket matches={orderedBracketMatches} />
 
               {orderedBracketMatches.length ? (
@@ -1537,8 +1541,8 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               ) : null}
             </section>
           )}
-          {activeTab === "Resultados" && (
-            <section className="tm-card">
+          {activeTab === "Posiciones" && (
+            <section>
               <div className="mb-3">
                 <SearchInput
                   value={resultsQuery}
@@ -1596,7 +1600,7 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
               storageKey={`tournament:${slug}:${category}:schedule-day-tab`}
             />
           )}
-        </>
+        </section>
       )}
 
       {isAdmin && (
@@ -1639,7 +1643,6 @@ const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
             });
             await loadPlayers({
               categoryGender: data.gender,
-              categoryId: data.categoryId,
             });
             setTeamForm((prev) => ({
               ...prev,
@@ -1688,7 +1691,7 @@ const ScheduleSection = ({
   );
 
   return (
-    <section className="tm-card">
+    <section>
       <div className="mb-3 flex gap-2">
         {dayTabs.map((item) => (
           <button

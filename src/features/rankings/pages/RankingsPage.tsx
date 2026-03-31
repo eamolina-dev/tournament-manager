@@ -37,6 +37,23 @@ export const RankingsPage = () => {
     () => rankings[selected][selectedGender],
     [rankings, selected, selectedGender],
   )
+  const availableCategories = useMemo(
+    () =>
+      rankingCategories.filter((category) =>
+        rankingGenderCodes.some(
+          (gender) => rankings[category][gender].length > 0,
+        ),
+      ),
+    [rankings],
+  )
+
+  useEffect(() => {
+    if (!availableCategories.length) return
+    if (!availableCategories.includes(selected)) {
+      setSelected(availableCategories[0])
+    }
+  }, [availableCategories, selected])
+
   const filteredRows = useSearchFilter(rows, query)
 
   return (
@@ -45,7 +62,7 @@ export const RankingsPage = () => {
         controls={
           <>
             <div className="flex flex-wrap gap-2">
-              {rankingCategories.map((category) => (
+              {availableCategories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelected(category)}

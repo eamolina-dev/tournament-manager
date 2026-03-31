@@ -36,6 +36,20 @@ export const PlayersPage = () => {
       return matchesName && matchesCategory && matchesGender;
     });
   }, [rows, query, selectedCategoryId, selectedGender]);
+  const categoryOptions = useMemo(() => {
+    const usedCategoryIds = new Set(rows.map((row) => row.categoryId).filter(Boolean));
+    return categories.filter((category) => usedCategoryIds.has(category.id));
+  }, [categories, rows]);
+
+  useEffect(() => {
+    if (
+      selectedCategoryId !== "all" &&
+      selectedCategoryId !== "none" &&
+      !categoryOptions.some((category) => category.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId("all");
+    }
+  }, [categoryOptions, selectedCategoryId]);
 
   const load = async () => {
     setLoading(true);
@@ -121,7 +135,7 @@ export const PlayersPage = () => {
           >
             <option value="all">Todas las categorías</option>
             <option value="none">Sin categoría</option>
-            {categories.map((category) => (
+            {categoryOptions.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
