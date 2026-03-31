@@ -111,14 +111,14 @@ export const resolveTeamSourcesForMatches = (
     let nextTeam1Id = match.team1_id
     let nextTeam2Id = match.team2_id
 
-    if (resolvedTeam1Id && (match.team1_id === null || match.team1_id === resolvedTeam1Id)) {
+    if (resolvedTeam1Id) {
       const wouldDuplicate = (match.team2_id ?? resolvedTeam2Id) === resolvedTeam1Id
       if (!wouldDuplicate) {
         nextTeam1Id = resolvedTeam1Id
       }
     }
 
-    if (resolvedTeam2Id && (match.team2_id === null || match.team2_id === resolvedTeam2Id)) {
+    if (resolvedTeam2Id) {
       const wouldDuplicate = (nextTeam1Id ?? match.team1_id) === resolvedTeam2Id
       if (!wouldDuplicate) {
         nextTeam2Id = resolvedTeam2Id
