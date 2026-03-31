@@ -29,10 +29,9 @@ export const PlayersPage = () => {
     return rows.filter((row) => {
       const matchesName = !normalizedQuery || row.name.toLocaleLowerCase().includes(normalizedQuery);
       const matchesCategory =
-        selectedCategoryId === "all" || (row.categoryId ?? "none") === selectedCategoryId;
+        selectedCategoryId === "all" || row.categoryId === selectedCategoryId;
       const matchesGender =
-        selectedGender === "all" ||
-        (selectedGender === "none" ? !row.gender : row.gender === selectedGender);
+        selectedGender === "all" || row.gender === selectedGender;
       return matchesName && matchesCategory && matchesGender;
     });
   }, [rows, query, selectedCategoryId, selectedGender]);
@@ -44,7 +43,6 @@ export const PlayersPage = () => {
   useEffect(() => {
     if (
       selectedCategoryId !== "all" &&
-      selectedCategoryId !== "none" &&
       !categoryOptions.some((category) => category.id === selectedCategoryId)
     ) {
       setSelectedCategoryId("all");
@@ -134,7 +132,6 @@ export const PlayersPage = () => {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="all">Todas las categorías</option>
-            <option value="none">Sin categoría</option>
             {categoryOptions.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -149,8 +146,6 @@ export const PlayersPage = () => {
             <option value="all">Todos los géneros</option>
             <option value="M">Masculino (M)</option>
             <option value="F">Femenino (F)</option>
-            <option value="X">Mixto (X)</option>
-            <option value="none">Sin género</option>
           </select>
         </div>
 
