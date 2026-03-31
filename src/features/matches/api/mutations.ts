@@ -291,13 +291,13 @@ const propagateGroupToPlayoffInternal = async (
 
     if (
       update.team1_id &&
-      (currentMatch.team1_id === null || currentMatch.team1_id === update.team1_id)
+      currentMatch.team2_id !== update.team1_id
     ) {
       updatePayload.team1_id = update.team1_id
     }
     if (
       update.team2_id &&
-      (currentMatch.team2_id === null || currentMatch.team2_id === update.team2_id)
+      (updatePayload.team1_id ?? currentMatch.team1_id) !== update.team2_id
     ) {
       updatePayload.team2_id = update.team2_id
     }
@@ -392,6 +392,9 @@ const propagateMatchWinnerInternal = async (
 export const propagateMatchWinner = async (match: Match): Promise<void> => {
   if (!match.winner_team_id) return
   await propagateMatchWinnerInternal(match, new Set<string>())
+  if (match.tournament_category_id) {
+    await recalculateProgressiveTeamResults(match.tournament_category_id)
+  }
 }
 
 export const advanceWinner = async (matchId: string): Promise<void> => {
