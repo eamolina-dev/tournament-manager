@@ -1238,6 +1238,20 @@ export const TournamentCategoryPage = ({
     const editedMatches = zoneEditedResults[activeZone.id] ?? {};
     const entries = Object.entries(editedMatches);
     if (!entries.length) return;
+    const existingErrors = zoneMatchErrors[activeZone.id] ?? {};
+    const preValidationErrors: MatchErrorState = { ...existingErrors };
+
+    for (const [matchId, payload] of entries) {
+      if (!payload.sets.length) {
+        preValidationErrors[matchId] = "Debés cargar al menos un set.";
+      }
+    }
+
+    if (Object.keys(preValidationErrors).length > 0) {
+      setZoneMatchErrors((prev) => ({ ...prev, [activeZone.id]: preValidationErrors }));
+      window.alert("Hay resultados inválidos. Corregí los errores antes de guardar.");
+      return;
+    }
 
     setSavingZoneId(activeZone.id);
     const nextErrors: MatchErrorState = {};
@@ -1291,6 +1305,19 @@ export const TournamentCategoryPage = ({
   const saveBracketResultsBatch = async () => {
     const entries = Object.entries(bracketEditedResults);
     if (!entries.length) return;
+    const preValidationErrors: MatchErrorState = { ...bracketMatchErrors };
+
+    for (const [matchId, payload] of entries) {
+      if (!payload.sets.length) {
+        preValidationErrors[matchId] = "Debés cargar al menos un set.";
+      }
+    }
+
+    if (Object.keys(preValidationErrors).length > 0) {
+      setBracketMatchErrors(preValidationErrors);
+      window.alert("Hay resultados inválidos. Corregí los errores antes de guardar.");
+      return;
+    }
 
     setSavingBracket(true);
     const nextErrors: MatchErrorState = {};
