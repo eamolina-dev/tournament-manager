@@ -44,7 +44,7 @@ export type TournamentCategoryPageData = {
       team2Id?: string | null
       score?: string
       sets?: { team1: number; team2: number }[]
-      day: "Viernes" | "Sabado" | "Domingo"
+      day: string
       time: string
     court?: string
     stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
@@ -58,7 +58,7 @@ export type TournamentCategoryPageData = {
     team1: string
     team2: string
     score?: string
-    day: "Viernes" | "Sabado" | "Domingo"
+    day: string
     time: string
     court?: string
     stage?: "quarter" | "semi" | "final" | "round_of_32" | "round_of_16" | "round_of_8"
@@ -69,7 +69,7 @@ export type TournamentCategoryPageData = {
     id: string
     team1: string
     team2: string
-    day: "Viernes" | "Sabado" | "Domingo"
+    day: string
     time: string
     court?: string
     matchNumber: number
@@ -82,7 +82,7 @@ export type TournamentCategoryPageData = {
     team2: string
     team1Id: string | null
     team2Id: string | null
-    day: "Viernes" | "Sabado" | "Domingo"
+    day: string
     time: string
     court?: string
     score?: string
@@ -91,13 +91,15 @@ export type TournamentCategoryPageData = {
   }[]
 }
 
-const toDay = (iso?: string | null): "Viernes" | "Sabado" | "Domingo" => {
-  if (!iso) return "Viernes"
+const weekdayFormatter = new Intl.DateTimeFormat("es-AR", { weekday: "long" })
+
+const toDay = (iso?: string | null): string => {
+  if (!iso) return "Sin día"
   const date = new Date(iso)
-  const day = date.getDay()
-  if (day === 6) return "Sabado"
-  if (day === 0) return "Domingo"
-  return "Viernes"
+  if (Number.isNaN(date.getTime())) return "Sin día"
+
+  const weekday = weekdayFormatter.format(date)
+  return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
 
 const toTime = (iso?: string | null): string => {

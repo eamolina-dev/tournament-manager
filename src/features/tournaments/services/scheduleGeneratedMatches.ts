@@ -1,5 +1,6 @@
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
+import { getScheduleDays } from "./scheduleDays"
 import { generateMatchSlots, type SchedulingPhaseKey } from "./schedulingUtils"
 
 type MatchForScheduling = {
@@ -13,24 +14,11 @@ type ScheduleOptions = {
   phaseByDay?: Partial<Record<SchedulingPhaseKey, string>>
 }
 
-const WEEKDAY_OFFSET: Record<string, number> = {
-  monday: 0,
-  tuesday: 1,
-  wednesday: 2,
-  thursday: 3,
-  friday: 4,
-  saturday: 5,
-  sunday: 6,
-}
-
-const toIsoLike = (day: string, time: string): string => {
+const toLocalTimestamp = (day: string, time: string): string => {
   const [hours, minutes] = time.split(":").map(Number)
-  const baseDate = new Date("2026-01-05T00:00:00Z")
-  const dayOffset = WEEKDAY_OFFSET[day] ?? 0
-
-  baseDate.setUTCDate(baseDate.getUTCDate() + dayOffset)
-  baseDate.setUTCHours(hours ?? 0, minutes ?? 0, 0, 0)
-  return baseDate.toISOString().slice(0, 19)
+  const safeHours = Number.isFinite(hours) ? `${hours}`.padStart(2, "0") : "00"
+  const safeMinutes = Number.isFinite(minutes) ? `${minutes}`.padStart(2, "0") : "00"
+  return `${day}T${safeHours}:${safeMinutes}:00`
 }
 
 const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
@@ -54,7 +42,12 @@ export const scheduleGeneratedMatches = async (
 ): Promise<void> => {
   const { data: categoryData, error: categoryError } = await supabase
     .from("tournament_categories")
-    .select("schedule_start_times, match_interval_minutes, courts_count")
+    .select(`
+      schedule_start_times,
+      match_interval_minutes,
+      courts_count,
+      tournament:tournaments(start_date, end_date)
+    `)
     .eq("id", tournamentCategoryId)
     .maybeSingle()
   throwIfError(categoryError)
@@ -64,12 +57,20 @@ export const scheduleGeneratedMatches = async (
   const startTimesByDay = parseScheduleStartTimes(categoryData.schedule_start_times)
   const intervalMinutes = categoryData.match_interval_minutes
   const courtsCount = categoryData.courts_count
+  const availableDays = getScheduleDays(
+    categoryData.tournament?.start_date ?? null,
+    categoryData.tournament?.end_date ?? null,
+  )
+  const availableDayKeys = new Set(availableDays.map((day) => day.key))
+  const fallbackDay = availableDays[0]?.key
 
-  if (!intervalMinutes || !courtsCount || intervalMinutes <= 0 || courtsCount <= 0) {
+  if (!intervalMinutes || !courtsCount || intervalMinutes <= 0 || courtsCount <= 0 || !fallbackDay) {
     return
   }
 
-  const fallbackDay = Object.keys(startTimesByDay)[0] ?? "friday"
+  const filteredStartTimesByDay = Object.fromEntries(
+    Object.entries(startTimesByDay).filter(([day]) => availableDayKeys.has(day)),
+  )
 
   const { data: matches, error: matchesError } = await supabase
     .from("matches")
@@ -82,11 +83,21 @@ export const scheduleGeneratedMatches = async (
   if (!safeMatches.length) return
 
   const slots = generateMatchSlots(safeMatches, {
-    startTimeByDay: startTimesByDay,
+    startTimeByDay: filteredStartTimesByDay,
     intervalMinutes,
     courtsCount,
-    zoneDayById: options?.zoneDayById,
-    phaseByDay: options?.phaseByDay,
+    zoneDayById: options?.zoneDayById
+      ? Object.fromEntries(
+          Object.entries(options.zoneDayById).filter(([, day]) => availableDayKeys.has(day)),
+        )
+      : undefined,
+    phaseByDay: options?.phaseByDay
+      ? Object.fromEntries(
+          Object.entries(options.phaseByDay).filter(
+            (entry): entry is [SchedulingPhaseKey, string] => availableDayKeys.has(entry[1] ?? ""),
+          ),
+        )
+      : undefined,
     fallbackDay,
   })
 
@@ -94,7 +105,7 @@ export const scheduleGeneratedMatches = async (
     const { error: updateError } = await supabase
       .from("matches")
       .update({
-        scheduled_at: toIsoLike(slot.day, slot.time),
+        scheduled_at: toLocalTimestamp(slot.day, slot.time),
         court: slot.court,
         order_in_day: slot.orderInDay,
       })

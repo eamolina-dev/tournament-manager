@@ -40,6 +40,10 @@ import {
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
+import {
+  getScheduleDays,
+  type ScheduleDayOption,
+} from "../../../features/tournaments/services/scheduleDays";
 import { filterValidZonesAndPhases } from "../services/schedulingUtils";
 import {
   MatchCardFull,
@@ -93,24 +97,6 @@ const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 const defaultScheduleStartTime = "09:00";
 const defaultMatchIntervalMinutes = 60;
 const defaultCourtsCount = 1;
-const weekdayLabelByKey: Record<string, string> = {
-  sunday: "Domingo",
-  monday: "Lunes",
-  tuesday: "Martes",
-  wednesday: "Miércoles",
-  thursday: "Jueves",
-  friday: "Viernes",
-  saturday: "Sábado",
-};
-const englishWeekdayByIndex = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-] as const;
 
 type SectionTab = (typeof sectionTabs)[number];
 
@@ -140,11 +126,6 @@ type MatchErrorState = Record<string, string>;
 type TournamentCategoryGender =
   Database["public"]["Tables"]["tournament_categories"]["Row"]["gender"];
 
-type ScheduleDayOption = {
-  key: string;
-  date: string;
-  label: string;
-};
 type SchedulingPhaseKey = "quarterfinals" | "semifinals" | "finals";
 type ZoneBoardColumn = {
   id: string;
@@ -239,53 +220,6 @@ const areZoneColumnsEqual = (
       )
     );
   });
-
-const getScheduleDays = (
-  startDate: string | null | undefined,
-  endDate: string | null | undefined
-): ScheduleDayOption[] => {
-  if (!startDate) {
-    return [
-      { key: "friday", date: "", label: "Viernes" },
-      { key: "saturday", date: "", label: "Sábado" },
-      { key: "sunday", date: "", label: "Domingo" },
-    ];
-  }
-
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate ?? startDate}T00:00:00`);
-  if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime()) ||
-    start > end
-  ) {
-    return [
-      { key: "friday", date: "", label: "Viernes" },
-      { key: "saturday", date: "", label: "Sábado" },
-      { key: "sunday", date: "", label: "Domingo" },
-    ];
-  }
-
-  const days: ScheduleDayOption[] = [];
-  const cursor = new Date(start);
-
-  while (cursor <= end) {
-    const isoDate = cursor.toISOString().slice(0, 10);
-    const weekdayKey = englishWeekdayByIndex[cursor.getDay()];
-    const displayDate = cursor.toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-    days.push({
-      key: weekdayKey,
-      date: isoDate,
-      label: `${weekdayLabelByKey[weekdayKey]} (${displayDate})`,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return days;
-};
 
 const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
