@@ -92,21 +92,40 @@ export type TournamentCategoryPageData = {
 }
 
 const weekdayFormatter = new Intl.DateTimeFormat("es-AR", { weekday: "long" })
+const datePrefixPattern = /^(\d{4})-(\d{2})-(\d{2})/
+const timePattern = /T(\d{2}):(\d{2})/
 
 const toDay = (iso?: string | null): string => {
   if (!iso) return "Sin día"
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "Sin día"
 
-  const weekday = weekdayFormatter.format(date)
+  const dateMatch = iso.match(datePrefixPattern)
+  if (!dateMatch) return "Sin día"
+
+  const year = Number(dateMatch[1])
+  const month = Number(dateMatch[2])
+  const day = Number(dateMatch[3])
+  const parsed = new Date(year, month - 1, day)
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return "Sin día"
+  }
+
+  const weekday = weekdayFormatter.format(parsed)
   return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
 
 const toTime = (iso?: string | null): string => {
   if (!iso) return "--:--"
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "--:--"
-  return `${`${date.getHours()}`.padStart(2, "0")}:${`${date.getMinutes()}`.padStart(2, "0")}`
+
+  const match = iso.match(timePattern)
+  if (!match) return "--:--"
+
+  return `${match[1]}:${match[2]}`
 }
 
 const normalizeStage = (

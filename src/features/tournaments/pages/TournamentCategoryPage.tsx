@@ -1961,7 +1961,10 @@ export const TournamentCategoryPage = ({
                           {day.label}
                         </span>
                         <input
-                          type="time"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="HH:mm"
+                          pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
                           value={
                             scheduleStartTimesInput[day.key] ??
                             defaultScheduleStartTime
@@ -2530,15 +2533,13 @@ export const TournamentCategoryPage = ({
   );
 };
 
-const dayTabs = ["Viernes", "Sabado", "Domingo"] as const;
-
 const ScheduleSection = ({
   matches,
   storageKey,
 }: {
   matches: {
     id: string;
-    day: "Viernes" | "Sabado" | "Domingo";
+    day: string;
     time: string;
     court?: string;
     team1: string;
@@ -2546,10 +2547,14 @@ const ScheduleSection = ({
   }[];
   storageKey: string;
 }) => {
-  const [day, setDay] = usePersistentTab<(typeof dayTabs)[number]>({
+  const dayTabs = useMemo(
+    () => Array.from(new Set(matches.map((match) => match.day))),
+    [matches]
+  );
+  const [day, setDay] = usePersistentTab<string>({
     storageKey,
     tabs: dayTabs,
-    defaultTab: "Viernes",
+    defaultTab: dayTabs[0],
   });
   const dayMatches = matches.filter((match) => match.day === day);
 

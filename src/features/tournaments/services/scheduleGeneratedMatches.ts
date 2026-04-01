@@ -28,7 +28,7 @@ const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
 
   const safe: Record<string, string> = {}
   Object.entries(value as Record<string, unknown>).forEach(([key, rawValue]) => {
-    if (typeof rawValue === "string") {
+    if (typeof rawValue === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(rawValue)) {
       safe[key] = rawValue
     }
   })
