@@ -19,6 +19,113 @@ import type {
   MatchUpdate,
 } from "../../../shared/types/entities"
 
+
+type MatchSetScoreInput = { setNumber: number; team1Games: number; team2Games: number }
+
+const assertValidRegularSet = (set: MatchSetScoreInput): void => {
+  const winnerGames = Math.max(set.team1Games, set.team2Games)
+  const loserGames = Math.min(set.team1Games, set.team2Games)
+  const diff = winnerGames - loserGames
+
+  if (winnerGames < 6) {
+    throw new Error(`Set ${set.setNumber}: no hay ganador válido.`)
+  }
+
+  const isSixToX = winnerGames === 6 && loserGames >= 0 && loserGames <= 4
+  const isSevenFive = winnerGames === 7 && loserGames === 5
+  const isSevenSix = winnerGames === 7 && loserGames === 6
+
+  if (!isSixToX && !isSevenFive && !isSevenSix) {
+    throw new Error(`Set ${set.setNumber}: score inválido.`)
+  }
+
+  if (!isSevenSix && diff < 2) {
+    throw new Error(`Set ${set.setNumber}: debe ganarse por diferencia mínima de 2.`)
+  }
+}
+
+const assertValidSuperTieBreak = (set: MatchSetScoreInput): void => {
+  const winnerGames = Math.max(set.team1Games, set.team2Games)
+  const loserGames = Math.min(set.team1Games, set.team2Games)
+
+  if (winnerGames < 10 || winnerGames - loserGames < 2) {
+    throw new Error(
+      `Set ${set.setNumber}: el super tie-break debe ganarse con al menos 10 puntos y 2 de diferencia.`,
+    )
+  }
+}
+
+const validateMatchResultSets = (sets: MatchSetScoreInput[]): void => {
+  if (!sets.length) {
+    throw new Error("Debés cargar al menos un set.")
+  }
+
+  if (sets.length > 3) {
+    throw new Error("Solo se permiten hasta 3 sets por partido.")
+  }
+
+  for (const set of sets) {
+    assertPositiveInteger(set.setNumber, "setNumber debe ser un entero mayor a 0.")
+    assertNonNegativeNumber(set.team1Games, "team1Games no puede ser negativo.")
+    assertNonNegativeNumber(set.team2Games, "team2Games no puede ser negativo.")
+
+    if (set.team1Games === set.team2Games) {
+      throw new Error(`Set ${set.setNumber}: no puede terminar empatado.`)
+    }
+
+    if (set.setNumber === 3) {
+      assertValidSuperTieBreak(set)
+      continue
+    }
+
+    assertValidRegularSet(set)
+  }
+}
+
+const resolveWinnerFromSets = (sets: MatchSetScoreInput[]): 1 | 2 => {
+  const regularSets = sets.filter((set) => set.setNumber <= 2)
+  let team1RegularWins = 0
+  let team2RegularWins = 0
+
+  for (const set of regularSets) {
+    if (set.team1Games > set.team2Games) team1RegularWins += 1
+    if (set.team2Games > set.team1Games) team2RegularWins += 1
+  }
+
+  if (team1RegularWins === 2) return 1
+  if (team2RegularWins === 2) return 2
+
+  const thirdSet = sets.find((set) => set.setNumber === 3)
+  if (!thirdSet) {
+    throw new Error(
+      "No se puede definir ganador: falta el super tie-break para desempatar los dos sets iniciales.",
+    )
+  }
+
+  return thirdSet.team1Games > thirdSet.team2Games ? 1 : 2
+}
+
+const assertWinnerConsistentWithSets = async (
+  matchId: string,
+  winnerTeamId: string,
+  sets: MatchSetScoreInput[],
+): Promise<void> => {
+  const { data: match, error: matchError } = await supabase
+    .from("matches")
+    .select("team1_id, team2_id")
+    .eq("id", matchId)
+    .single()
+
+  throwIfError(matchError)
+
+  const winnerBySets = resolveWinnerFromSets(sets)
+  const expectedWinnerTeamId = winnerBySets === 1 ? match.team1_id : match.team2_id
+
+  if (!expectedWinnerTeamId || expectedWinnerTeamId !== winnerTeamId) {
+    throw new Error("El ganador informado no coincide con el resultado de los sets.")
+  }
+}
+
 export const createMatch = async (input: MatchInsert): Promise<Match> => {
   if (!input.tournament_category_id) {
     throw new Error("Falta tournament_category_id para crear el partido.")
@@ -128,11 +235,7 @@ export const replaceMatchSets = async (
   matchId: string,
   sets: { setNumber: number; team1Games: number; team2Games: number }[]
 ): Promise<void> => {
-  for (const set of sets) {
-    assertPositiveInteger(set.setNumber, "setNumber debe ser un entero mayor a 0.")
-    assertNonNegativeNumber(set.team1Games, "team1Games no puede ser negativo.")
-    assertNonNegativeNumber(set.team2Games, "team2Games no puede ser negativo.")
-  }
+  validateMatchResultSets(sets)
 
   const { error: deleteError } = await supabase
     .from("match_sets")
@@ -159,6 +262,23 @@ export const updateMatchResult = async (
   matchId: string,
   winnerTeamId: string
 ): Promise<Match> => {
+  const { data: matchSets, error: matchSetsError } = await supabase
+    .from("match_sets")
+    .select("set_number, team1_games, team2_games")
+    .eq("match_id", matchId)
+    .order("set_number", { ascending: true })
+
+  throwIfError(matchSetsError)
+
+  const normalizedSets: MatchSetScoreInput[] = (matchSets ?? []).map((set) => ({
+    setNumber: set.set_number,
+    team1Games: set.team1_games ?? -1,
+    team2Games: set.team2_games ?? -1,
+  }))
+
+  validateMatchResultSets(normalizedSets)
+  await assertWinnerConsistentWithSets(matchId, winnerTeamId, normalizedSets)
+
   const { data, error } = await supabase
     .from("matches")
     .update({ winner_team_id: winnerTeamId, status: "completed" })

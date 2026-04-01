@@ -26,6 +26,46 @@ import type {
   TournamentUpdate,
 } from "../../../shared/types/entities"
 
+
+const assertNoTournamentDateOverlap = async ({
+  circuitId,
+  startDate,
+  endDate,
+  ignoreTournamentId,
+}: {
+  circuitId: string
+  startDate: string
+  endDate: string
+  ignoreTournamentId?: string
+}): Promise<void> => {
+  const rangeStart = startDate.trim()
+  const rangeEnd = endDate.trim()
+
+  if (!rangeStart || !rangeEnd) return
+
+  let query = supabase
+    .from("tournaments")
+    .select("id, name, start_date, end_date")
+    .eq("circuit_id", circuitId)
+    .lte("start_date", rangeEnd)
+    .gte("end_date", rangeStart)
+
+  if (ignoreTournamentId) {
+    query = query.neq("id", ignoreTournamentId)
+  }
+
+  const { data, error } = await query.limit(1)
+
+  throwIfError(error)
+
+  if (data && data.length > 0) {
+    const conflict = data[0]
+    throw new Error(
+      `Ya existe un torneo (${conflict.name}) que se superpone en fechas dentro del mismo circuito.`,
+    )
+  }
+}
+
 export const createTournament = async (
   input: TournamentInsert
 ): Promise<Tournament> => {
@@ -36,6 +76,13 @@ export const createTournament = async (
   }
   if (input.start_date && input.end_date && input.start_date > input.end_date) {
     throw new Error("La fecha de inicio no puede ser mayor a la fecha de fin.")
+  }
+  if (input.start_date && input.end_date) {
+    await assertNoTournamentDateOverlap({
+      circuitId: input.circuit_id,
+      startDate: input.start_date,
+      endDate: input.end_date,
+    })
   }
   if (input.sum_limit !== null && input.sum_limit !== undefined) {
     assertNonNegativeNumber(input.sum_limit, "sum_limit no puede ser negativo.")
@@ -93,6 +140,13 @@ export const updateTournament = async (
   tournamentId: string,
   input: TournamentUpdate
 ): Promise<Tournament> => {
+  const { data: currentTournament, error: currentTournamentError } = await supabase
+    .from("tournaments")
+    .select("circuit_id, start_date, end_date")
+    .eq("id", tournamentId)
+    .single()
+
+  throwIfError(currentTournamentError)
   if (input.name !== undefined) {
     assertNonEmptyString(input.name, "El nombre del torneo no puede estar vacío.")
   }
@@ -104,6 +158,23 @@ export const updateTournament = async (
   }
   if (input.sum_limit !== null && input.sum_limit !== undefined) {
     assertNonNegativeNumber(input.sum_limit, "sum_limit no puede ser negativo.")
+  }
+
+  const nextStartDate = input.start_date ?? currentTournament.start_date
+  const nextEndDate = input.end_date ?? currentTournament.end_date
+  const nextCircuitId = input.circuit_id ?? currentTournament.circuit_id
+
+  if (!nextCircuitId) {
+    throw new Error("Falta circuit_id para actualizar el torneo.")
+  }
+
+  if (nextStartDate && nextEndDate) {
+    await assertNoTournamentDateOverlap({
+      circuitId: nextCircuitId,
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+      ignoreTournamentId: tournamentId,
+    })
   }
 
   const { data, error } = await supabase

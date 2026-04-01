@@ -11,6 +11,7 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
+import { getCurrentCircuitId } from "../../../shared/lib/current-circuit";
 import {
   validateCategorySelection,
   validateTournamentForm,
@@ -244,7 +245,7 @@ export const EventCreatePage = ({
       }
 
       const createdTournament = await createTournament({
-        circuit_id: "54b31da0-56ac-4ac0-914e-84a9856ba3c8",
+        circuit_id: getCurrentCircuitId(),
         name: name.trim(),
         slug: slugify(name),
         start_date: startDate || null,
