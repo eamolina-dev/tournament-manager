@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   DndContext,
   PointerSensor,
@@ -228,7 +234,9 @@ const areZoneColumnsEqual = (
       zone.id === comparedZone.id &&
       zone.name === comparedZone.name &&
       zone.teamIds.length === comparedZone.teamIds.length &&
-      zone.teamIds.every((teamId, teamIndex) => teamId === comparedZone.teamIds[teamIndex])
+      zone.teamIds.every(
+        (teamId, teamIndex) => teamId === comparedZone.teamIds[teamIndex]
+      )
     );
   });
 
@@ -656,6 +664,11 @@ export const TournamentCategoryPage = ({
     ],
     [zoneBoardColumns, unassignedTeams]
   );
+  const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
+    [player1Id, player2Id ?? ""]
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+      .join("__");
   useEffect(() => {
     if (!zoneBoardColumns.length || !scheduleDays.length) return;
 
@@ -1089,12 +1102,6 @@ export const TournamentCategoryPage = ({
     }));
   }, [blockedPlayerIds]);
 
-  const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
-    [player1Id, player2Id ?? ""]
-      .filter(Boolean)
-      .sort((left, right) => left.localeCompare(right))
-      .join("__");
-
   const resolvePlayerId = async ({
     selectedId,
     required,
@@ -1168,7 +1175,9 @@ export const TournamentCategoryPage = ({
     shouldReload?: boolean;
   }): Promise<void> => {
     if (!matchId) {
-      throw new Error("No se pudo guardar el resultado: falta el ID del partido.");
+      throw new Error(
+        "No se pudo guardar el resultado: falta el ID del partido."
+      );
     }
     const hasInvalidSet = sets.some(
       (set) =>
@@ -1189,13 +1198,17 @@ export const TournamentCategoryPage = ({
         team2Games: set.team2,
       }))
     );
-    const updatedMatch = await updateMatch(matchId, {
-      winner_team_id: winnerTeamId,
-      ...(team1Id ? { team1_id: team1Id } : {}),
-      ...(team2Id ? { team2_id: team2Id } : {}),
-    }, {
-      skipRankingRecalculation,
-    });
+    const updatedMatch = await updateMatch(
+      matchId,
+      {
+        winner_team_id: winnerTeamId,
+        ...(team1Id ? { team1_id: team1Id } : {}),
+        ...(team2Id ? { team2_id: team2Id } : {}),
+      },
+      {
+        skipRankingRecalculation,
+      }
+    );
     try {
       if (updatedMatch?.winner_team_id) {
         await propagateMatchWinner(updatedMatch);
@@ -1208,77 +1221,75 @@ export const TournamentCategoryPage = ({
     }
   };
 
-  const handleZoneEditStateChange = useCallback(({
-    matchId: zoneMatchId,
-    sets,
-    error,
-  }: {
-    matchId: string;
-    sets: MatchSetScore[] | null;
-    error: string | null;
-  }) => {
-    if (!activeZone) return;
-    const match = activeZone.matches.find((item) => item.id === zoneMatchId);
-    if (!match) return;
+  const handleZoneEditStateChange = useCallback(
+    ({
+      matchId: zoneMatchId,
+      sets,
+      error,
+    }: {
+      matchId: string;
+      sets: MatchSetScore[] | null;
+      error: string | null;
+    }) => {
+      if (!activeZone) return;
+      const match = activeZone.matches.find((item) => item.id === zoneMatchId);
+      if (!match) return;
 
-    const baselineSets = parseStoredSets(match.score, match.sets);
+      const baselineSets = parseStoredSets(match.score, match.sets);
 
-    setZoneMatchErrors((prev) => {
-      const zoneErrors = { ...(prev[activeZone.id] ?? {}) };
-      if (error) zoneErrors[zoneMatchId] = error;
-      else delete zoneErrors[zoneMatchId];
-      return { ...prev, [activeZone.id]: zoneErrors };
-    });
+      setZoneMatchErrors((prev) => {
+        const zoneErrors = { ...(prev[activeZone.id] ?? {}) };
+        if (error) zoneErrors[zoneMatchId] = error;
+        else delete zoneErrors[zoneMatchId];
+        return { ...prev, [activeZone.id]: zoneErrors };
+      });
 
-    setZoneEditedResults((prev) => {
-      const zoneEdits = { ...(prev[activeZone.id] ?? {}) };
-      if (
-        !sets ||
-        error ||
-        areSetsEqual(sets, baselineSets)
-      ) {
-        delete zoneEdits[zoneMatchId];
-      } else {
-        zoneEdits[zoneMatchId] = { sets };
-      }
-      return { ...prev, [activeZone.id]: zoneEdits };
-    });
-  }, [activeZone]);
+      setZoneEditedResults((prev) => {
+        const zoneEdits = { ...(prev[activeZone.id] ?? {}) };
+        if (!sets || error || areSetsEqual(sets, baselineSets)) {
+          delete zoneEdits[zoneMatchId];
+        } else {
+          zoneEdits[zoneMatchId] = { sets };
+        }
+        return { ...prev, [activeZone.id]: zoneEdits };
+      });
+    },
+    [activeZone]
+  );
 
-  const handleBracketEditStateChange = useCallback(({
-    matchId,
-    sets,
-    error,
-  }: {
-    matchId: string;
-    sets: MatchSetScore[] | null;
-    error: string | null;
-  }) => {
-    const match = orderedBracketMatches.find((item) => item.id === matchId);
-    if (!match) return;
-    const baselineSets = parseStoredSets(match.score, match.sets);
+  const handleBracketEditStateChange = useCallback(
+    ({
+      matchId,
+      sets,
+      error,
+    }: {
+      matchId: string;
+      sets: MatchSetScore[] | null;
+      error: string | null;
+    }) => {
+      const match = orderedBracketMatches.find((item) => item.id === matchId);
+      if (!match) return;
+      const baselineSets = parseStoredSets(match.score, match.sets);
 
-    setBracketMatchErrors((prev) => {
-      const next = { ...prev };
-      if (error) next[matchId] = error;
-      else delete next[matchId];
-      return next;
-    });
+      setBracketMatchErrors((prev) => {
+        const next = { ...prev };
+        if (error) next[matchId] = error;
+        else delete next[matchId];
+        return next;
+      });
 
-    setBracketEditedResults((prev) => {
-      const next = { ...prev };
-      if (
-        !sets ||
-        error ||
-        areSetsEqual(sets, baselineSets)
-      ) {
-        delete next[matchId];
-      } else {
-        next[matchId] = { sets };
-      }
-      return next;
-    });
-  }, [orderedBracketMatches]);
+      setBracketEditedResults((prev) => {
+        const next = { ...prev };
+        if (!sets || error || areSetsEqual(sets, baselineSets)) {
+          delete next[matchId];
+        } else {
+          next[matchId] = { sets };
+        }
+        return next;
+      });
+    },
+    [orderedBracketMatches]
+  );
 
   const saveZoneResultsBatch = async () => {
     if (!activeZone) return;
@@ -1295,8 +1306,13 @@ export const TournamentCategoryPage = ({
     }
 
     if (Object.keys(preValidationErrors).length > 0) {
-      setZoneMatchErrors((prev) => ({ ...prev, [activeZone.id]: preValidationErrors }));
-      window.alert("Hay resultados inválidos. Corregí los errores antes de guardar.");
+      setZoneMatchErrors((prev) => ({
+        ...prev,
+        [activeZone.id]: preValidationErrors,
+      }));
+      window.alert(
+        "Hay resultados inválidos. Corregí los errores antes de guardar."
+      );
       return;
     }
 
@@ -1366,7 +1382,9 @@ export const TournamentCategoryPage = ({
 
     if (Object.keys(preValidationErrors).length > 0) {
       setBracketMatchErrors(preValidationErrors);
-      window.alert("Hay resultados inválidos. Corregí los errores antes de guardar.");
+      window.alert(
+        "Hay resultados inválidos. Corregí los errores antes de guardar."
+      );
       return;
     }
 
