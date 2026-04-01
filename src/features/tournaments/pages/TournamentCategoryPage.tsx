@@ -93,6 +93,10 @@ const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 const defaultScheduleStartTime = "09:00";
 const defaultMatchIntervalMinutes = 60;
 const defaultCourtsCount = 1;
+const hourOptions = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, "0")
+);
+const minuteOptions = ["00", "15", "30", "45"];
 const weekdayLabelByKey: Record<string, string> = {
   sunday: "Domingo",
   monday: "Lunes",
@@ -2022,25 +2026,62 @@ export const TournamentCategoryPage = ({
                   </span>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     {scheduleDays.map((day) => (
-                      <label key={day.date || day.key} className="space-y-1">
+                      <div key={day.date || day.key} className="space-y-1">
                         <span className="text-xs text-slate-600">
                           {day.label}
                         </span>
-                        <input
-                          type="time"
-                          value={
-                            scheduleStartTimesInput[day.key] ??
-                            defaultScheduleStartTime
-                          }
-                          onChange={(event) =>
-                            setScheduleStartTimesInput((prev) => ({
-                              ...prev,
-                              [day.key]: event.target.value,
-                            }))
-                          }
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        />
-                      </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={(
+                              scheduleStartTimesInput[day.key] ??
+                              defaultScheduleStartTime
+                            ).split(":")[0] ?? "09"}
+                            onChange={(event) =>
+                              setScheduleStartTimesInput((prev) => {
+                                const current =
+                                  prev[day.key] ?? defaultScheduleStartTime;
+                                const currentMinutes =
+                                  current.split(":")[1] ?? "00";
+                                return {
+                                  ...prev,
+                                  [day.key]: `${event.target.value}:${currentMinutes}`,
+                                };
+                              })
+                            }
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          >
+                            {hourOptions.map((hour) => (
+                              <option key={hour} value={hour}>
+                                {hour}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={(
+                              scheduleStartTimesInput[day.key] ??
+                              defaultScheduleStartTime
+                            ).split(":")[1] ?? "00"}
+                            onChange={(event) =>
+                              setScheduleStartTimesInput((prev) => {
+                                const current =
+                                  prev[day.key] ?? defaultScheduleStartTime;
+                                const currentHour = current.split(":")[0] ?? "09";
+                                return {
+                                  ...prev,
+                                  [day.key]: `${currentHour}:${event.target.value}`,
+                                };
+                              })
+                            }
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          >
+                            {minuteOptions.map((minute) => (
+                              <option key={minute} value={minute}>
+                                {minute}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </label>
