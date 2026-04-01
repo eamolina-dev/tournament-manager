@@ -2,8 +2,9 @@ import {
   SingleEliminationBracket,
   SVGViewer,
 } from "@g-loot/react-tournament-brackets"
+import { useMemo } from "react"
 import type { Match } from "../types"
-import { MatchCardFull } from "../../matches/components/MatchCard"
+import { MatchCardCompact } from "../../matches/components/MatchCard"
 
 const stageOrder = {
   round_of_32: 1,
@@ -78,22 +79,16 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
 }
 
 const BracketCard = ({
-  match,
   topParty,
   bottomParty,
-  matchById,
 }: {
-  match: { id: string }
   topParty: { id: string; name: string; resultText?: string }
   bottomParty: { id: string; name: string; resultText?: string }
-  matchById: Map<string, Match>
 }) => {
-  const sourceMatch = matchById.get(match.id)
-
   return (
-    <MatchCardFull
+    <MatchCardCompact
       match={
-        sourceMatch ?? {
+        {
           id: `${topParty.id}-${bottomParty.id}`,
           team1: topParty.name,
           team2: bottomParty.name,
@@ -111,16 +106,16 @@ export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
     return <p className="text-sm text-[var(--tm-muted)]">Sin cruces cargados.</p>
   }
 
-  const matchById = new Map(matches.map((match) => [match.id, match]))
+  const mappedMatches = useMemo(() => mapMatches(matches), [matches])
 
   return (
-    <div className="tm-card min-h-[82vh] w-full overflow-auto">
-      <div className="flex min-h-[78vh] min-w-fit items-center justify-center">
+    <div className="tm-card w-full overflow-x-auto">
+      <div className="flex min-h-[70vh] min-w-[960px] items-center justify-center px-4 py-6">
         <SingleEliminationBracket
-          matches={mapMatches(matches)}
-          matchComponent={(props: any) => <BracketCard {...props} matchById={matchById} />}
+          matches={mappedMatches}
+          matchComponent={(props: any) => <BracketCard {...props} />}
           svgWrapper={({ children, ...props }: any) => (
-            <SVGViewer width={1900} height={960} {...props}>
+            <SVGViewer width={1800} height={880} {...props}>
               {children}
             </SVGViewer>
           )}

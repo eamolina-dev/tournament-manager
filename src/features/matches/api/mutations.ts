@@ -179,7 +179,10 @@ export const createMatchSet = async (
 
 export const updateMatch = async (
   matchId: string,
-  input: MatchUpdate
+  input: MatchUpdate,
+  options?: {
+    skipRankingRecalculation?: boolean
+  }
 ): Promise<Match> => {
   if (
     input.team1_id !== undefined &&
@@ -219,7 +222,11 @@ export const updateMatch = async (
     .single()
 
   throwIfError(error)
-  if ("winner_team_id" in input && data.tournament_category_id) {
+  if (
+    !options?.skipRankingRecalculation &&
+    "winner_team_id" in input &&
+    data.tournament_category_id
+  ) {
     await recalculateProgressiveTeamResults(data.tournament_category_id)
   }
   return data

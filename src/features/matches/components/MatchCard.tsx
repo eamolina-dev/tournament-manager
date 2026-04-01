@@ -112,15 +112,6 @@ export const MatchCard = ({
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
   const onEditStateChangeRef = useRef(onEditStateChange);
 
-  const visibleScore = useMemo(() => {
-    const cleanSets = sets
-      .filter((set) => set.team1 !== "" && set.team2 !== "")
-      .map((set) => `${set.team1}-${set.team2}`);
-
-    if (cleanSets.length) return cleanSets.join(" ");
-    return match.score;
-  }, [match.score, sets]);
-
   const setGridData = useMemo(
     () =>
       SET_COLUMNS.map((_, index) => ({
@@ -285,10 +276,6 @@ export const MatchCard = ({
           </div>
         </div>
       </div>
-
-      {visibleScore && (
-        <p className="mt-1 text-[11px] text-[var(--tm-muted)]">Score: {visibleScore}</p>
-      )}
 
       <p className="mt-1 text-[11px] text-[var(--tm-muted)]">
         {match.day} · {match.time}
