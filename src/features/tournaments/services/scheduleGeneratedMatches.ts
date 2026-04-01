@@ -23,14 +23,24 @@ const WEEKDAY_OFFSET: Record<string, number> = {
   sunday: 6,
 }
 
+const pad2 = (value: number): string => String(value).padStart(2, "0")
+
 const toIsoLike = (day: string, time: string): string => {
   const [hours, minutes] = time.split(":").map(Number)
-  const baseDate = new Date("2026-01-05T00:00:00Z")
+  const baseDate = new Date(2026, 0, 5)
   const dayOffset = WEEKDAY_OFFSET[day] ?? 0
 
-  baseDate.setUTCDate(baseDate.getUTCDate() + dayOffset)
-  baseDate.setUTCHours(hours ?? 0, minutes ?? 0, 0, 0)
-  return baseDate.toISOString().slice(0, 19)
+  baseDate.setDate(baseDate.getDate() + dayOffset)
+  baseDate.setHours(hours ?? 0, minutes ?? 0, 0, 0)
+
+  const year = baseDate.getFullYear()
+  const month = pad2(baseDate.getMonth() + 1)
+  const date = pad2(baseDate.getDate())
+  const safeHours = pad2(baseDate.getHours())
+  const safeMinutes = pad2(baseDate.getMinutes())
+  const seconds = pad2(baseDate.getSeconds())
+
+  return `${year}-${month}-${date}T${safeHours}:${safeMinutes}:${seconds}`
 }
 
 const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
