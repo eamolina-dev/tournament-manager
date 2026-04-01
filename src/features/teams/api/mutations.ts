@@ -20,6 +20,29 @@ export const createTeam = async (input: TeamInsert): Promise<Team> => {
     assertNonEmptyString(input.display_name, "display_name no puede estar vacío.")
   }
 
+  const incomingPlayerIds = [input.player1_id, input.player2_id].sort((a, b) =>
+    a.localeCompare(b)
+  )
+  const { data: existingTeams, error: existingTeamsError } = await supabase
+    .from("teams")
+    .select("player1_id, player2_id")
+    .eq("tournament_category_id", input.tournament_category_id)
+
+  throwIfError(existingTeamsError)
+
+  const duplicatedTeam = (existingTeams ?? []).some((team) => {
+    const existingPlayerIds = [team.player1_id, team.player2_id].sort((a, b) =>
+      a.localeCompare(b)
+    )
+    return (
+      existingPlayerIds[0] === incomingPlayerIds[0] &&
+      existingPlayerIds[1] === incomingPlayerIds[1]
+    )
+  })
+  if (duplicatedTeam) {
+    throw new Error("Ese equipo ya está guardado en el torneo.")
+  }
+
   const { data, error } = await supabase
     .from("teams")
     .insert({

@@ -714,6 +714,14 @@ export const TournamentCategoryPage = ({
     () => new Set([...savedPlayerIds, ...draftPlayerIds]),
     [savedPlayerIds, draftPlayerIds]
   );
+  const savedTeamKeys = useMemo(() => {
+    const keys = new Set<string>();
+    data?.teams.forEach((team) => {
+      if (!team.player1Id || !team.player2Id) return;
+      keys.add(buildTeamKey(team.player1Id, team.player2Id));
+    });
+    return keys;
+  }, [data?.teams]);
 
   const canPlayerEnterByCategory = (playerId: string): boolean => {
     const player = playersByIdWithCategory.get(playerId);
@@ -937,7 +945,7 @@ export const TournamentCategoryPage = ({
     overTeamId?: string;
   }) => {
     if (activeTeamId === overTeamId) return;
-    const sourceZone = normalizedZoneColumns.find((zone) =>
+    const sourceZone = zoneColumnsWithUnassigned.find((zone) =>
       zone.teamIds.includes(activeTeamId)
     );
     if (!sourceZone) return;
@@ -955,11 +963,11 @@ export const TournamentCategoryPage = ({
     const targetDraft = targetZone
       ? nextZones.find((zone) => zone.id === targetZone.id)
       : null;
-    if (!sourceDraft) return;
-
-    sourceDraft.teamIds = sourceDraft.teamIds.filter(
-      (teamId) => teamId !== activeTeamId
-    );
+    if (sourceDraft) {
+      sourceDraft.teamIds = sourceDraft.teamIds.filter(
+        (teamId) => teamId !== activeTeamId
+      );
+    }
 
     if (targetDraft && !targetDraft.teamIds.includes(activeTeamId)) {
       if (overTeamId && targetDraft.teamIds.includes(overTeamId)) {
@@ -1665,12 +1673,7 @@ export const TournamentCategoryPage = ({
                       return;
                     }
 
-                    const isAlreadySaved = data.teams.some(
-                      (team) =>
-                        team.name.trim().toLocaleLowerCase() ===
-                        teamName.toLocaleLowerCase()
-                    );
-                    if (isAlreadySaved) {
+                    if (savedTeamKeys.has(teamKey)) {
                       setTeamDraftError(
                         "Ese equipo ya está guardado en el torneo."
                       );
@@ -1822,15 +1825,6 @@ export const TournamentCategoryPage = ({
               >
                 Generar zonas automáticamente
               </button>
-              {!!manualZones.length && (
-                <button
-                  type="button"
-                  onClick={() => setManualZones([])}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  Usar zonas actuales del torneo
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleSaveZones}

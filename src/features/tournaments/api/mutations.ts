@@ -66,6 +66,49 @@ const assertNoTournamentDateOverlap = async ({
   }
 }
 
+const resolveUniqueTournamentSlug = async ({
+  slug,
+  ignoreTournamentId,
+}: {
+  slug: string
+  ignoreTournamentId?: string
+}): Promise<string> => {
+  const baseSlug = slug.trim()
+  if (!baseSlug) {
+    throw new Error("Falta el slug del torneo.")
+  }
+
+  let query = supabase
+    .from("tournaments")
+    .select("id, slug")
+    .or(`slug.eq.${baseSlug},slug.like.${baseSlug}-%`)
+
+  if (ignoreTournamentId) {
+    query = query.neq("id", ignoreTournamentId)
+  }
+
+  const { data, error } = await query
+
+  throwIfError(error)
+
+  const existingSlugs = new Set(
+    (data ?? [])
+      .map((row) => row.slug?.trim())
+      .filter((value): value is string => Boolean(value)),
+  )
+
+  if (!existingSlugs.has(baseSlug)) {
+    return baseSlug
+  }
+
+  let suffix = 1
+  while (existingSlugs.has(`${baseSlug}-${suffix}`)) {
+    suffix += 1
+  }
+
+  return `${baseSlug}-${suffix}`
+}
+
 export const createTournament = async (
   input: TournamentInsert
 ): Promise<Tournament> => {
@@ -87,13 +130,16 @@ export const createTournament = async (
   if (input.sum_limit !== null && input.sum_limit !== undefined) {
     assertNonNegativeNumber(input.sum_limit, "sum_limit no puede ser negativo.")
   }
+  const uniqueSlug = await resolveUniqueTournamentSlug({
+    slug: input.slug,
+  })
 
   const { data, error } = await supabase
     .from("tournaments")
     .insert({
       ...input,
       name: input.name.trim(),
-      slug: input.slug.trim(),
+      slug: uniqueSlug,
     })
     .select("*")
     .single()
@@ -176,13 +222,20 @@ export const updateTournament = async (
       ignoreTournamentId: tournamentId,
     })
   }
+  const resolvedSlug =
+    input.slug !== undefined
+      ? await resolveUniqueTournamentSlug({
+          slug: input.slug,
+          ignoreTournamentId: tournamentId,
+        })
+      : undefined
 
   const { data, error } = await supabase
     .from("tournaments")
     .update({
       ...input,
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-      ...(input.slug !== undefined ? { slug: input.slug.trim() } : {}),
+      ...(resolvedSlug !== undefined ? { slug: resolvedSlug } : {}),
     })
     .eq("id", tournamentId)
     .select("*")
