@@ -165,9 +165,18 @@ export const getTournamentCategoryPageData = async (
 
   const matchSets = await getMatchSetsByMatchIds(matches.map((match) => match.id))
 
-  const teamsMap = new Map(
-    teamPlayers.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
+  const teamNamesById = new Map(
+    teamPlayers
+      .filter((team) => Boolean(team.id))
+      .map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
   )
+  const teamsForUi = rawTeams.map((team) => ({
+    id: team.id,
+    name: teamNamesById.get(team.id) ?? "Equipo",
+    player1Id: team.player1_id ?? null,
+    player2Id: team.player2_id ?? null,
+  }))
+  const teamsMap = new Map(teamsForUi.map((team) => [team.id, team.name]))
   const playersById = new Map(
     players
       .filter((player) => Boolean(player.id))
@@ -336,14 +345,7 @@ export const getTournamentCategoryPageData = async (
         schedule,
     )),
     results: resultRows,
-    teams: teamPlayers
-      .filter((team) => team.id)
-      .map((team) => ({
-        id: team.id ?? "",
-        name: team.team_name ?? "Equipo",
-        player1Id: team.player1_id ?? null,
-        player2Id: team.player2_id ?? null,
-      })),
+    teams: teamsForUi,
     editableMatches: sortByMatchNumber(matches.map((match) => ({
       id: match.id,
       team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
