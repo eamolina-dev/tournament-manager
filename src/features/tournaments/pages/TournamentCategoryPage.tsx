@@ -215,6 +215,22 @@ const schedulingPhaseLabels: Record<SchedulingPhaseKey, string> = {
   finals: "Finales",
 };
 
+const areZoneColumnsEqual = (
+  left: ZoneBoardColumn[],
+  right: ZoneBoardColumn[]
+): boolean =>
+  left.length === right.length &&
+  left.every((zone, index) => {
+    const comparedZone = right[index];
+    if (!comparedZone) return false;
+    return (
+      zone.id === comparedZone.id &&
+      zone.name === comparedZone.name &&
+      zone.teamIds.length === comparedZone.teamIds.length &&
+      zone.teamIds.every((teamId, teamIndex) => teamId === comparedZone.teamIds[teamIndex])
+    );
+  });
+
 const getScheduleDays = (
   startDate: string | null | undefined,
   endDate: string | null | undefined
@@ -893,6 +909,7 @@ export const TournamentCategoryPage = ({
     overTeamId?: string;
   }) => {
     if (targetZoneId === "unassigned") return;
+    if (activeTeamId === overTeamId) return;
     const sourceZone = normalizedZoneColumns.find((zone) =>
       zone.teamIds.includes(activeTeamId)
     );
@@ -920,6 +937,9 @@ export const TournamentCategoryPage = ({
       } else {
         targetDraft.teamIds.push(activeTeamId);
       }
+    }
+    if (areZoneColumnsEqual(nextZones, normalizedZoneColumns)) {
+      return;
     }
     setManualZones(nextZones);
   };
