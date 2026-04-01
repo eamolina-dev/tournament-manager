@@ -693,18 +693,26 @@ export const TournamentCategoryPage = ({
     () => new Map(players.map((player) => [player.id, player])),
     [players]
   );
-  const blockedPlayerIds = useMemo(() => {
+  const savedPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     data?.teams.forEach((team) => {
       if (team.player1Id) ids.add(team.player1Id);
       if (team.player2Id) ids.add(team.player2Id);
     });
+    return ids;
+  }, [data?.teams]);
+  const draftPlayerIds = useMemo(() => {
+    const ids = new Set<string>();
     draftTeams.forEach((team) => {
       ids.add(team.player1Id);
       if (team.player2Id) ids.add(team.player2Id);
     });
     return ids;
-  }, [data?.teams, draftTeams]);
+  }, [draftTeams]);
+  const blockedPlayerIds = useMemo(
+    () => new Set([...savedPlayerIds, ...draftPlayerIds]),
+    [savedPlayerIds, draftPlayerIds]
+  );
 
   const canPlayerEnterByCategory = (playerId: string): boolean => {
     const player = playersByIdWithCategory.get(playerId);
@@ -1044,21 +1052,20 @@ export const TournamentCategoryPage = ({
   };
 
   const selectablePlayers = useMemo(
-    () =>
-      players.filter(
-        (player) =>
-          !blockedPlayerIds.has(player.id) &&
-          canPlayerEnterByCategory(player.id)
-      ),
-    [players, blockedPlayerIds, data, playersByIdWithCategory]
+    () => players.filter((player) => canPlayerEnterByCategory(player.id)),
+    [players, data, playersByIdWithCategory]
   );
   const player1Options = selectablePlayers.filter(
     (player) =>
-      player.id === teamForm.player1Id || player.id !== teamForm.player2Id
+      !savedPlayerIds.has(player.id) &&
+      !draftPlayerIds.has(player.id) &&
+      player.id !== teamForm.player2Id
   );
   const player2Options = selectablePlayers.filter(
     (player) =>
-      player.id === teamForm.player2Id || player.id !== teamForm.player1Id
+      !savedPlayerIds.has(player.id) &&
+      !draftPlayerIds.has(player.id) &&
+      player.id !== teamForm.player1Id
   );
   useEffect(() => {
     setTeamForm((prev) => ({
