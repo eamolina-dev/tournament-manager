@@ -830,9 +830,28 @@ export const TournamentCategoryPage = ({
       setManualZoneError("No hay zonas para guardar.");
       return;
     }
+    const orderedZones = [...zoneBoardColumns].sort((left, right) => {
+      const leftIsFour = left.teamIds.length === 4;
+      const rightIsFour = right.teamIds.length === 4;
+      if (leftIsFour !== rightIsFour) return leftIsFour ? 1 : -1;
+      const leftPoints = left.teamIds.reduce(
+        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+        0
+      );
+      const rightPoints = right.teamIds.reduce(
+        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+        0
+      );
+      return rightPoints - leftPoints;
+    });
+    const relabeledZones = orderedZones.map((zone, index) => ({
+      ...zone,
+      name: `Zona ${String.fromCharCode(65 + index)}`,
+    }));
+    setManualZones(relabeledZones);
     localStorage.setItem(
       `tm:zones:${data.tournamentCategoryId}`,
-      JSON.stringify(zoneBoardColumns)
+      JSON.stringify(relabeledZones)
     );
     setManualZoneError(null);
     setZoneConfigSuccess("Zonas guardadas correctamente.");
@@ -908,29 +927,32 @@ export const TournamentCategoryPage = ({
     targetZoneId: string;
     overTeamId?: string;
   }) => {
-    if (targetZoneId === "unassigned") return;
     if (activeTeamId === overTeamId) return;
     const sourceZone = normalizedZoneColumns.find((zone) =>
       zone.teamIds.includes(activeTeamId)
     );
-    const targetZone = normalizedZoneColumns.find(
-      (zone) => zone.id === targetZoneId
-    );
-    if (!sourceZone || !targetZone) return;
+    if (!sourceZone) return;
+    const targetZone =
+      targetZoneId === "unassigned"
+        ? null
+        : normalizedZoneColumns.find((zone) => zone.id === targetZoneId);
+    if (targetZoneId !== "unassigned" && !targetZone) return;
 
     const nextZones = normalizedZoneColumns.map((zone) => ({
       ...zone,
       teamIds: [...zone.teamIds],
     }));
     const sourceDraft = nextZones.find((zone) => zone.id === sourceZone.id);
-    const targetDraft = nextZones.find((zone) => zone.id === targetZone.id);
-    if (!sourceDraft || !targetDraft) return;
+    const targetDraft = targetZone
+      ? nextZones.find((zone) => zone.id === targetZone.id)
+      : null;
+    if (!sourceDraft) return;
 
     sourceDraft.teamIds = sourceDraft.teamIds.filter(
       (teamId) => teamId !== activeTeamId
     );
 
-    if (!targetDraft.teamIds.includes(activeTeamId)) {
+    if (targetDraft && !targetDraft.teamIds.includes(activeTeamId)) {
       if (overTeamId && targetDraft.teamIds.includes(overTeamId)) {
         const overIndex = targetDraft.teamIds.indexOf(overTeamId);
         targetDraft.teamIds.splice(overIndex, 0, activeTeamId);
@@ -950,6 +972,7 @@ export const TournamentCategoryPage = ({
     const containingZone = normalizedZoneColumns.find((zone) =>
       zone.teamIds.includes(overId)
     );
+    if (!containingZone && teamsByIdForZones.has(overId)) return "unassigned";
     return containingZone?.id ?? null;
   };
 
@@ -969,31 +992,6 @@ export const TournamentCategoryPage = ({
     const targetZoneId = resolveDropZoneId(overId);
     if (!targetZoneId) return;
     moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
-  };
-
-  const handleOrderZonesByLevel = () => {
-    const sorted = [...normalizedZoneColumns].sort((left, right) => {
-      const leftIsFour = left.teamIds.length === 4;
-      const rightIsFour = right.teamIds.length === 4;
-      if (leftIsFour !== rightIsFour) {
-        return leftIsFour ? 1 : -1;
-      }
-      const leftPoints = left.teamIds.reduce(
-        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0
-      );
-      const rightPoints = right.teamIds.reduce(
-        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0
-      );
-      return rightPoints - leftPoints;
-    });
-
-    const relabeled = sorted.map((zone, index) => ({
-      ...zone,
-      name: `Zona ${String.fromCharCode(65 + index)}`,
-    }));
-    setManualZones(relabeled);
   };
 
   const handleGenerateMatches = async () => {
@@ -1062,6 +1060,19 @@ export const TournamentCategoryPage = ({
     (player) =>
       player.id === teamForm.player2Id || player.id !== teamForm.player1Id
   );
+  useEffect(() => {
+    setTeamForm((prev) => ({
+      player1Id:
+        prev.player1Id && blockedPlayerIds.has(prev.player1Id)
+          ? ""
+          : prev.player1Id,
+      player2Id:
+        prev.player2Id && blockedPlayerIds.has(prev.player2Id)
+          ? ""
+          : prev.player2Id,
+    }));
+  }, [blockedPlayerIds]);
+
   const buildTeamKey = (player1Id: string, player2Id?: string | null) =>
     [player1Id, player2Id ?? ""]
       .filter(Boolean)
@@ -1790,14 +1801,6 @@ export const TournamentCategoryPage = ({
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 Guardar Zonas
-              </button>
-              <button
-                type="button"
-                onClick={handleOrderZonesByLevel}
-                disabled={!normalizedZoneColumns.length}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-              >
-                Order zones by level
               </button>
             </div>
             {manualZoneError && (
