@@ -198,16 +198,6 @@ export const MatchCard = ({
       <div className="overflow-x-auto">
         <div className="min-w-[230px] rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface-soft)] p-1.5">
           <div className="grid grid-cols-[minmax(108px,1fr)_repeat(3,minmax(2rem,1.8rem))] items-center gap-x-1 gap-y-1 text-center">
-            <div />
-            {SET_COLUMNS.map((setNumber) => (
-              <div
-                key={`header-${setNumber}`}
-                className="text-[10px] font-semibold uppercase tracking-wide text-[var(--tm-muted)]"
-              >
-                {setNumber}
-              </div>
-            ))}
-
             <div className="truncate pr-1 text-left text-xs font-semibold text-[var(--tm-text)]">
               {match.team1}
             </div>
