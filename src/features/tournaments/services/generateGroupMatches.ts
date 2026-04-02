@@ -1,6 +1,49 @@
 import type { MatchInsert } from "../../../shared/types/entities"
 import type { PlannedGroup } from "./generateGroups"
 
+export const generateGroupOf4Matches = (
+  tournamentCategoryId: string,
+  groupId: string,
+  teamIds: string[],
+): MatchInsert[] => [
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    round: 2,
+    round_order: 1,
+    team1_id: teamIds[0],
+    team2_id: teamIds[1],
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    round: 2,
+    round_order: 2,
+    team1_id: teamIds[2],
+    team2_id: teamIds[3],
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    round: 1,
+    round_order: 1,
+    team1_source: "W-1-2",
+    team2_source: "W-2-2",
+  },
+  {
+    tournament_category_id: tournamentCategoryId,
+    group_id: groupId,
+    stage: "group",
+    round: 1,
+    round_order: 2,
+    team1_source: "L-1-2",
+    team2_source: "L-2-2",
+  },
+]
+
 export const generateGroupMatches = (
   tournamentCategoryId: string,
   groups: PlannedGroup[],
@@ -27,9 +70,7 @@ export const generateGroupMatches = (
       )
     }
     if (group.teamIds.length === 4) {
-      return assignMatchNumbers(
-        buildFourTeamGroupMatches(tournamentCategoryId, groupId, group.teamIds),
-      )
+      return assignMatchNumbers(generateGroupOf4Matches(tournamentCategoryId, groupId, group.teamIds))
     }
     return assignMatchNumbers(
       buildFallbackGroupMatches(tournamentCategoryId, groupId, group.teamIds),
@@ -51,29 +92,12 @@ const buildThreeTeamGroupMatches = (
   groupId: string,
   teamIds: string[],
 ): MatchInsert[] => [
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[2] },
-  { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[1], team2_id: teamIds[2] },
-]
-
-const buildFourTeamGroupMatches = (
-  tournamentCategoryId: string,
-  groupId: string,
-  teamIds: string[],
-): MatchInsert[] => [
   {
     tournament_category_id: tournamentCategoryId,
     group_id: groupId,
     stage: "group",
     team1_id: teamIds[0],
     team2_id: teamIds[1],
-  },
-  {
-    tournament_category_id: tournamentCategoryId,
-    group_id: groupId,
-    stage: "group",
-    team1_id: teamIds[2],
-    team2_id: teamIds[3],
   },
   {
     tournament_category_id: tournamentCategoryId,
@@ -87,7 +111,7 @@ const buildFourTeamGroupMatches = (
     group_id: groupId,
     stage: "group",
     team1_id: teamIds[1],
-    team2_id: teamIds[3],
+    team2_id: teamIds[2],
   },
 ]
 
@@ -98,7 +122,13 @@ const buildFallbackGroupMatches = (
 ): MatchInsert[] => {
   if (teamIds.length === 2) {
     return [
-      { tournament_category_id: tournamentCategoryId, group_id: groupId, stage: "group", team1_id: teamIds[0], team2_id: teamIds[1] },
+      {
+        tournament_category_id: tournamentCategoryId,
+        group_id: groupId,
+        stage: "group",
+        team1_id: teamIds[0],
+        team2_id: teamIds[1],
+      },
     ]
   }
   return []

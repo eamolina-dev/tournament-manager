@@ -390,25 +390,27 @@ export const resolveEliminationTeamSources = async (
     }))
   }
 
-  const eliminationMatches = matches.filter(
-    (match) =>
-      match.stage !== "group" &&
-      (Boolean(match.team1_source?.trim()) || Boolean(match.team2_source?.trim())),
+  const sourcedMatches = matches.filter(
+    (match) => Boolean(match.team1_source?.trim()) || Boolean(match.team2_source?.trim()),
   )
 
   const resolvedUpdates = resolveTeamSourcesForMatches(
-    eliminationMatches.map((match) => ({
+    sourcedMatches.map((match) => ({
       id: match.id,
+      group_id: match.group_id,
       team1_id: match.team1_id,
       team2_id: match.team2_id,
       team1_source: match.team1_source,
       team2_source: match.team2_source,
     })),
     standingsByGroup,
-    eliminationMatches.map((match) => ({
+    matches.map((match) => ({
       id: match.id,
+      group_id: match.group_id,
       round: match.round,
       round_order: match.round_order,
+      team1_id: match.team1_id,
+      team2_id: match.team2_id,
       winner_team_id: match.winner_team_id,
     })),
   )

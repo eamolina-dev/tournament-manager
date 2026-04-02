@@ -1,5 +1,6 @@
 type TeamSourceMatch = {
   id: string
+  group_id: string | null
   team1_id: string | null
   team2_id: string | null
   team1_source: string | null
@@ -8,8 +9,11 @@ type TeamSourceMatch = {
 
 type PlayoffMatchSource = {
   id: string
+  group_id: string | null
   round: number | null
   round_order: number | null
+  team1_id: string | null
+  team2_id: string | null
   winner_team_id: string | null
 }
 
@@ -26,7 +30,7 @@ type ResolvedMatchUpdate = {
 }
 
 type GroupSource = { type: "group"; position: number; group: string }
-type PlayoffSource = { type: "playoff"; order: number; round: number }
+type PlayoffSource = { type: "playoff"; outcome: "W" | "L"; order: number; round: number }
 
 export type ParsedSource = GroupSource | PlayoffSource
 
@@ -43,26 +47,39 @@ export const parseSource = (source: string): ParsedSource | null => {
     return { type: "group", position, group }
   }
 
-  const playoffMatch = normalized.match(/^W-(\d+)-(\d+)$/)
+  const playoffMatch = normalized.match(/^([WL])-(\d+)-(\d+)$/)
   if (playoffMatch) {
-    const order = Number.parseInt(playoffMatch[1], 10)
-    const round = Number.parseInt(playoffMatch[2], 10)
+    const outcome = playoffMatch[1] as "W" | "L"
+    const order = Number.parseInt(playoffMatch[2], 10)
+    const round = Number.parseInt(playoffMatch[3], 10)
 
     if (!Number.isInteger(round) || round <= 0) return null
     if (!Number.isInteger(order) || order <= 0) return null
 
-    return { type: "playoff", round, order }
+    return { type: "playoff", outcome, round, order }
   }
 
   return null
 }
 
-const getPlayoffMatchKey = (order: number, round: number): string => `${order}-${round}`
+const getPlayoffMatchKey = (groupId: string | null, order: number, round: number): string =>
+  `${groupId ?? "elimination"}-${order}-${round}`
+
+const getLoserTeamId = (playoffMatch: PlayoffMatchSource): string | null => {
+  if (!playoffMatch.winner_team_id) return null
+  if (!playoffMatch.team1_id || !playoffMatch.team2_id) return null
+
+  if (playoffMatch.winner_team_id === playoffMatch.team1_id) return playoffMatch.team2_id
+  if (playoffMatch.winner_team_id === playoffMatch.team2_id) return playoffMatch.team1_id
+  return null
+}
 
 const resolveTeamIdFromSource = (
   source: string | null | undefined,
+  matchGroupId: string | null,
   standingsByGroup: StandingsByGroup,
   playoffWinnersByKey: ReadonlyMap<string, string>,
+  playoffLosersByKey: ReadonlyMap<string, string>,
 ): string | null => {
   if (!source) return null
   const parsed = parseSource(source)
@@ -75,7 +92,12 @@ const resolveTeamIdFromSource = (
     return standing[parsed.position - 1]?.teamId ?? null
   }
 
-  return playoffWinnersByKey.get(getPlayoffMatchKey(parsed.order, parsed.round)) ?? null
+  const key = getPlayoffMatchKey(matchGroupId, parsed.order, parsed.round)
+  if (parsed.outcome === "W") {
+    return playoffWinnersByKey.get(key) ?? null
+  }
+
+  return playoffLosersByKey.get(key) ?? null
 }
 
 export const resolveTeamSourcesForMatches = (
@@ -85,27 +107,37 @@ export const resolveTeamSourcesForMatches = (
 ): ResolvedMatchUpdate[] => {
   const updates: ResolvedMatchUpdate[] = []
   const playoffWinnersByKey = new Map<string, string>()
+  const playoffLosersByKey = new Map<string, string>()
 
   for (const playoffMatch of playoffMatches) {
-    if (!playoffMatch.winner_team_id) continue
     if (!playoffMatch.round || !playoffMatch.round_order) continue
 
-    playoffWinnersByKey.set(
-      getPlayoffMatchKey(playoffMatch.round_order, playoffMatch.round),
-      playoffMatch.winner_team_id,
-    )
+    const key = getPlayoffMatchKey(playoffMatch.group_id, playoffMatch.round_order, playoffMatch.round)
+
+    if (playoffMatch.winner_team_id) {
+      playoffWinnersByKey.set(key, playoffMatch.winner_team_id)
+    }
+
+    const loserTeamId = getLoserTeamId(playoffMatch)
+    if (loserTeamId) {
+      playoffLosersByKey.set(key, loserTeamId)
+    }
   }
 
   for (const match of matches) {
     const resolvedTeam1Id = resolveTeamIdFromSource(
       match.team1_source,
+      match.group_id,
       standingsByGroup,
       playoffWinnersByKey,
+      playoffLosersByKey,
     )
     const resolvedTeam2Id = resolveTeamIdFromSource(
       match.team2_source,
+      match.group_id,
       standingsByGroup,
       playoffWinnersByKey,
+      playoffLosersByKey,
     )
 
     let nextTeam1Id = match.team1_id
