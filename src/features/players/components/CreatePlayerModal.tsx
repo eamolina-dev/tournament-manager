@@ -85,7 +85,12 @@ export const CreatePlayerModal = ({
         <p className="mt-1 text-xs text-slate-500">
           Se agregará a la lista disponible para armar equipos.
         </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Campos obligatorios: <span className="font-semibold">*</span>
+        </p>
         <div className="mt-3 space-y-3">
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Nombre del jugador/a *</span>
           <input
             value={name}
             onChange={(event) => {
@@ -98,7 +103,10 @@ export const CreatePlayerModal = ({
               nameTouched && nameError ? "border border-red-400" : "border border-slate-300"
             }`}
           />
+          </label>
           {nameTouched && nameError && <p className="text-xs text-red-600">{nameError}</p>}
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Categoría actual *</span>
           <select
             value={categoryId}
             onChange={(event) => {
@@ -117,9 +125,12 @@ export const CreatePlayerModal = ({
               </option>
             ))}
           </select>
+          </label>
           {categoryTouched && categoryError && (
             <p className="text-xs text-red-600">{categoryError}</p>
           )}
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">Género</span>
           <select
             value={gender}
             onChange={(event) => {
@@ -132,6 +143,7 @@ export const CreatePlayerModal = ({
             {allowedGenders.includes("M") && <option value="M">Masculino</option>}
             {allowedGenders.includes("F") && <option value="F">Femenino</option>}
           </select>
+          </label>
 
           {showCompatibilityWarning && (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">

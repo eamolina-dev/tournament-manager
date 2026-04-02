@@ -184,7 +184,7 @@ export const AdminTournamentsPage = ({
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            Gestión de torneos
+            Gestión de eventos
           </h1>
           <button
             onClick={() => navigate("/")}
@@ -200,7 +200,7 @@ export const AdminTournamentsPage = ({
               setForm((prev) => ({ ...prev, name: event.target.value }));
               setFormError(null);
             }}
-            placeholder="Nombre"
+            placeholder="Nombre del evento"
             className={`tm-input px-3 py-2 text-sm ${formError ? "border-red-400" : ""}`}
           />
           <input
@@ -235,7 +235,7 @@ export const AdminTournamentsPage = ({
             }
             className="tm-btn-primary px-3 py-2 text-sm"
           >
-            {editingId ? "Guardar cambios" : "Crear torneo"}
+            {editingId ? "Guardar cambios" : "Crear evento"}
           </button>
         </div>
         {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
@@ -274,7 +274,16 @@ export const AdminTournamentsPage = ({
                 Editar
               </button>
               <button
-                onClick={() => void deleteTournament(tournament.id).then(load)}
+                onClick={() =>
+                  void (async () => {
+                    const confirmed = window.confirm(
+                      `¿Eliminar el evento "${tournament.name}"? Esta acción no se puede deshacer.`
+                    );
+                    if (!confirmed) return;
+                    await deleteTournament(tournament.id);
+                    await load();
+                  })()
+                }
                 className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
               >
                 Eliminar
@@ -303,13 +312,18 @@ export const AdminTournamentsPage = ({
                 </button>
                 <button
                   onClick={() =>
-                    void deleteTournamentCategory(
-                      cat.tournamentCategoryId
-                    ).then(load)
+                    void (async () => {
+                      const confirmed = window.confirm(
+                        `¿Eliminar la categoría "${cat.name}" del evento "${tournament.name}"?`
+                      );
+                      if (!confirmed) return;
+                      await deleteTournamentCategory(cat.tournamentCategoryId);
+                      await load();
+                    })()
                   }
-                  className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                  className="rounded-full border border-red-400/60 px-3 py-1 text-xs text-red-300"
                 >
-                  x
+                  Eliminar
                 </button>
               </div>
             ))}
@@ -404,7 +418,7 @@ export const AdminTournamentsPage = ({
               }}
               className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"
             >
-              Asociar
+              Agregar categoría
             </button>
           </div>
         </article>

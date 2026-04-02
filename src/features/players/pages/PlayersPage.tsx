@@ -12,6 +12,8 @@ type CategoryOption = {
   name: string;
   level: number | null;
 };
+type SortField = "name" | "category" | "gender";
+type SortDirection = "asc" | "desc";
 
 export const PlayersPage = () => {
   const [loading, setLoading] = useState(true);
@@ -23,18 +25,27 @@ export const PlayersPage = () => {
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [selectedGender, setSelectedGender] = useState("all");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    return rows.filter((row) => {
+    const filtered = rows.filter((row) => {
       const matchesName = !normalizedQuery || row.name.toLocaleLowerCase().includes(normalizedQuery);
-      const matchesCategory =
-        selectedCategoryId === "all" || row.categoryId === selectedCategoryId;
-      const matchesGender =
-        selectedGender === "all" || row.gender === selectedGender;
+      const matchesCategory = selectedCategoryId === "all" || row.categoryId === selectedCategoryId;
+      const matchesGender = selectedGender === "all" || row.gender === selectedGender;
       return matchesName && matchesCategory && matchesGender;
     });
-  }, [rows, query, selectedCategoryId, selectedGender]);
+    const sorted = [...filtered].sort((left, right) => {
+      const leftValue =
+        sortField === "name" ? left.name : sortField === "category" ? left.category : left.gender ?? "";
+      const rightValue =
+        sortField === "name" ? right.name : sortField === "category" ? right.category : right.gender ?? "";
+      const result = leftValue.localeCompare(rightValue);
+      return sortDirection === "asc" ? result : result * -1;
+    });
+    return sorted;
+  }, [rows, query, selectedCategoryId, selectedGender, sortDirection, sortField]);
   const categoryOptions = useMemo(() => {
     const usedCategoryIds = new Set(rows.map((row) => row.categoryId).filter(Boolean));
     return categories.filter((category) => usedCategoryIds.has(category.id));
@@ -101,6 +112,18 @@ export const PlayersPage = () => {
     setModalOpen(false);
     setEditingPlayer(null);
   };
+  const setSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortField(field);
+    setSortDirection("asc");
+  };
+  const sortIndicator = (field: SortField) =>
+    sortField === field ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
+  const hasActiveFilters =
+    query.trim().length > 0 || selectedCategoryId !== "all" || selectedGender !== "all";
 
   return (
     <section className="grid gap-4">
@@ -148,6 +171,24 @@ export const PlayersPage = () => {
             <option value="F">Femenino (F)</option>
           </select>
         </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <p>
+            Mostrando {filteredRows.length} de {rows.length} jugadores.
+          </p>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setSelectedCategoryId("all");
+                setSelectedGender("all");
+              }}
+              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+            >
+              Limpiar filtros
+            </button>
+          ) : null}
+        </div>
 
         {loading ? (
           <p className="mt-4 text-sm text-slate-500">Cargando jugadores...</p>
@@ -156,9 +197,21 @@ export const PlayersPage = () => {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="py-2">Nombre</th>
-                  <th className="py-2">Categoría</th>
-                  <th className="py-2">Género</th>
+                  <th className="py-2">
+                    <button type="button" className="font-medium" onClick={() => setSort("name")}>
+                      Nombre {sortIndicator("name")}
+                    </button>
+                  </th>
+                  <th className="py-2">
+                    <button type="button" className="font-medium" onClick={() => setSort("category")}>
+                      Categoría {sortIndicator("category")}
+                    </button>
+                  </th>
+                  <th className="py-2">
+                    <button type="button" className="font-medium" onClick={() => setSort("gender")}>
+                      Género {sortIndicator("gender")}
+                    </button>
+                  </th>
                   <th className="py-2 text-right">Acciones</th>
                 </tr>
               </thead>

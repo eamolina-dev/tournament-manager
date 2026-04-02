@@ -101,6 +101,7 @@ const defaultCourtsCount = 1;
 type SectionTab = (typeof sectionTabs)[number];
 
 type FlowStatus = "draft" | "teams_ready" | "groups_ready" | "matches_ready";
+type ActionNotice = { type: "success" | "error"; message: string } | null;
 
 type TeamFormState = {
   player1Id: string;
@@ -334,6 +335,7 @@ export const TournamentCategoryPage = ({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastGenerationDraft, setLastGenerationDraft] =
     useState<MatchGenerationDraft | null>(null);
+  const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
 
   const loadPlayers = async ({
     categoryGender,
@@ -483,6 +485,34 @@ export const TournamentCategoryPage = ({
     if (!orderedEditableMatches.length) return "groups_ready";
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
+  const flowStatusCopy = useMemo(() => {
+    const copyByStatus: Record<
+      FlowStatus,
+      { step: string; label: string; nextAction: string }
+    > = {
+      draft: {
+        step: "Paso 1 de 4",
+        label: "Faltan equipos",
+        nextAction: "Creá equipos para avanzar a la configuración de zonas.",
+      },
+      teams_ready: {
+        step: "Paso 2 de 4",
+        label: "Equipos listos",
+        nextAction: "Armá y guardá zonas para preparar el fixture.",
+      },
+      groups_ready: {
+        step: "Paso 3 de 4",
+        label: "Zonas listas",
+        nextAction: "Definí horarios y generá partidos.",
+      },
+      matches_ready: {
+        step: "Paso 4 de 4",
+        label: "Fixture generado",
+        nextAction: "Cargá resultados para actualizar posiciones y cruces.",
+      },
+    };
+    return copyByStatus[flowStatus];
+  }, [flowStatus]);
   const scheduleDays = useMemo(
     () => getScheduleDays(data?.tournamentStartDate, data?.tournamentEndDate),
     [data?.tournamentStartDate, data?.tournamentEndDate]
@@ -696,6 +726,7 @@ export const TournamentCategoryPage = ({
     if (!data) return;
     setScheduleConfigError(null);
     setScheduleConfigSuccess(null);
+    setActionNotice(null);
 
     const hasInvalidTime = scheduleDays.some(
       (day) =>
@@ -704,17 +735,21 @@ export const TournamentCategoryPage = ({
         )
     );
     if (hasInvalidTime) {
-      setScheduleConfigError(
-        "Revisá los horarios de inicio: el formato debe ser HH:MM."
-      );
+      const message = "Revisá los horarios de inicio: el formato debe ser HH:MM.";
+      setScheduleConfigError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
     if (matchIntervalMinutesInput <= 0) {
-      setScheduleConfigError("El intervalo entre partidos debe ser mayor a 0.");
+      const message = "El intervalo entre partidos debe ser mayor a 0.";
+      setScheduleConfigError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
     if (courtsCountInput <= 0) {
-      setScheduleConfigError("La cantidad de canchas debe ser mayor a 0.");
+      const message = "La cantidad de canchas debe ser mayor a 0.";
+      setScheduleConfigError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
 
@@ -744,13 +779,15 @@ export const TournamentCategoryPage = ({
         courts_count: courtsCountInput,
       });
       setScheduleConfigSuccess("Horarios guardados.");
+      setActionNotice({ type: "success", message: "Horarios guardados correctamente." });
       await load();
     } catch (error) {
-      setScheduleConfigError(
+      const message =
         error instanceof Error
           ? error.message
-          : "No se pudo guardar la configuración de horarios."
-      );
+          : "No se pudo guardar la configuración de horarios.";
+      setScheduleConfigError(message);
+      setActionNotice({ type: "error", message });
     } finally {
       setSaving(false);
     }
@@ -781,7 +818,9 @@ export const TournamentCategoryPage = ({
   const handleGenerateZonesAutomatically = () => {
     const nextZones = buildAutomaticZones();
     if (!nextZones.length) {
-      setManualZoneError("Primero necesitás equipos para generar zonas.");
+      const message = "Primero necesitás equipos para generar zonas.";
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
     setManualZones(nextZones);
@@ -791,7 +830,9 @@ export const TournamentCategoryPage = ({
   const handleSaveZones = () => {
     if (!data) return;
     if (!zoneBoardColumns.length) {
-      setManualZoneError("No hay zonas para guardar.");
+      const message = "No hay zonas para guardar.";
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
     const orderedZones = [...zoneBoardColumns].sort((left, right) => {
@@ -819,6 +860,7 @@ export const TournamentCategoryPage = ({
     );
     setManualZoneError(null);
     setZoneConfigSuccess("Zonas guardadas correctamente.");
+    setActionNotice({ type: "success", message: "Zonas guardadas correctamente." });
   };
 
   const sensors = useSensors(
@@ -967,7 +1009,9 @@ export const TournamentCategoryPage = ({
       ? zoneBoardColumns
       : buildAutomaticZones();
     if (!readyZones.length) {
-      setGenerationError("Primero configurá equipos y zonas.");
+      const message = "Primero configurá equipos y zonas.";
+      setGenerationError(message);
+      setActionNotice({ type: "error", message });
       return;
     }
     if (!manualZones.length) {
@@ -996,12 +1040,14 @@ export const TournamentCategoryPage = ({
       });
       await load();
       setGenerationSuccess("Partidos generados correctamente.");
+      setActionNotice({ type: "success", message: "Partidos generados correctamente." });
     } catch (error) {
-      setGenerationError(
+      const message =
         error instanceof Error
           ? error.message
-          : "No se pudieron generar los partidos."
-      );
+          : "No se pudieron generar los partidos.";
+      setGenerationError(message);
+      setActionNotice({ type: "error", message });
     } finally {
       setSaving(false);
     }
@@ -1247,6 +1293,10 @@ export const TournamentCategoryPage = ({
       window.alert(
         "Hay resultados inválidos. Corregí los errores antes de guardar."
       );
+      setActionNotice({
+        type: "error",
+        message: "Hay resultados inválidos. Corregí los errores antes de guardar.",
+      });
       return;
     }
 
@@ -1298,6 +1348,14 @@ export const TournamentCategoryPage = ({
 
       await recalculateProgressiveTeamResults(data.tournamentCategoryId);
       await load();
+      if (Object.keys(nextErrors).length === 0) {
+        setActionNotice({ type: "success", message: "Resultados de zona guardados." });
+      } else {
+        setActionNotice({
+          type: "error",
+          message: "Se guardaron resultados con algunos errores pendientes.",
+        });
+      }
     } finally {
       setSavingZoneId(null);
     }
@@ -1319,6 +1377,10 @@ export const TournamentCategoryPage = ({
       window.alert(
         "Hay resultados inválidos. Corregí los errores antes de guardar."
       );
+      setActionNotice({
+        type: "error",
+        message: "Hay resultados inválidos. Corregí los errores antes de guardar.",
+      });
       return;
     }
 
@@ -1369,6 +1431,14 @@ export const TournamentCategoryPage = ({
 
       await recalculateProgressiveTeamResults(data.tournamentCategoryId);
       await load();
+      if (Object.keys(nextErrors).length === 0) {
+        setActionNotice({ type: "success", message: "Resultados de cruces guardados." });
+      } else {
+        setActionNotice({
+          type: "error",
+          message: "Se guardaron cruces con algunos errores pendientes.",
+        });
+      }
     } finally {
       setSavingBracket(false);
     }
@@ -1456,6 +1526,17 @@ export const TournamentCategoryPage = ({
             <p>🥉 Semifinalists: {data.semifinalists?.join(" · ")}</p>
           </div>
         )}
+        {actionNotice && (
+          <p
+            className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+              actionNotice.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {actionNotice.message}
+          </p>
+        )}
       </header>
 
       {isAdmin && !isAdminResultsMode && (
@@ -1465,11 +1546,10 @@ export const TournamentCategoryPage = ({
               Flujo de carga
             </h2>
             <p className="mt-1 text-sm text-slate-700">
-              Estado actual: <strong>{flowStatus}</strong>
+              {flowStatusCopy.step}: <strong>{flowStatusCopy.label}</strong>
             </p>
             <p className="text-xs text-slate-500">
-              Avance recomendado: draft → teams_ready → groups_ready →
-              matches_ready
+              {flowStatusCopy.nextAction}
             </p>
           </header>
 
@@ -1782,7 +1862,7 @@ export const TournamentCategoryPage = ({
                 onClick={handleSaveZones}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
-                Guardar Zonas
+                Guardar zonas
               </button>
             </div>
             {manualZoneError && (
@@ -2027,7 +2107,7 @@ export const TournamentCategoryPage = ({
               onClick={() => void saveScheduleConfig()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Guardar Horarios
+              Guardar horarios
             </button>
 
             {scheduleConfigError && (
@@ -2141,6 +2221,7 @@ export const TournamentCategoryPage = ({
               </button>
             ))}
           </div>
+          <p className="text-xs text-slate-500">Se recuerda tu pestaña anterior automáticamente.</p>
 
           {activeTab === "Zonas" && activeZone && (
             <section>
@@ -2270,6 +2351,7 @@ export const TournamentCategoryPage = ({
               </button>
             ))}
           </div>
+          <p className="text-xs text-slate-500">Se recuerda tu pestaña anterior automáticamente.</p>
 
           {activeTab === "Zonas" && activeZone && (
             <section>
@@ -2425,6 +2507,9 @@ export const TournamentCategoryPage = ({
                   placeholder="Buscar jugador en resultados..."
                 />
               </div>
+              <p className="mb-2 text-xs text-slate-500">
+                Mostrando {filteredResults.length} de {(data?.results ?? []).length} jugadores.
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>

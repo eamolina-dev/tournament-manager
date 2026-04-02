@@ -305,72 +305,81 @@ export const EventCreatePage = ({
         </div>
 
         <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <input
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setFormErrors((prev) => ({ ...prev, name: undefined, slug: undefined }));
-            }}
-            onBlur={() =>
-              setFormErrors((prev) => ({
-                ...prev,
-                ...validateTournamentForm({
-                  name,
-                  startDate,
-                  endDate,
-                  slug: slugify(name),
-                }),
-              }))
-            }
-            placeholder="Nombre"
-            className={`rounded-lg px-3 py-2 text-sm ${
-              formErrors.name || formErrors.slug ? "border border-red-400" : "border border-slate-300"
-            }`}
-          />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => {
-              setStartDate(event.target.value);
-              setFormErrors((prev) => ({ ...prev, dates: undefined }));
-            }}
-            onBlur={() =>
-              setFormErrors((prev) => ({
-                ...prev,
-                ...validateTournamentForm({
-                  name,
-                  startDate,
-                  endDate,
-                  slug: slugify(name),
-                }),
-              }))
-            }
-            className={`rounded-lg px-3 py-2 text-sm ${
-              formErrors.dates ? "border border-red-400" : "border border-slate-300"
-            }`}
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(event) => {
-              setEndDate(event.target.value);
-              setFormErrors((prev) => ({ ...prev, dates: undefined }));
-            }}
-            onBlur={() =>
-              setFormErrors((prev) => ({
-                ...prev,
-                ...validateTournamentForm({
-                  name,
-                  startDate,
-                  endDate,
-                  slug: slugify(name),
-                }),
-              }))
-            }
-            className={`rounded-lg px-3 py-2 text-sm ${
-              formErrors.dates ? "border border-red-400" : "border border-slate-300"
-            }`}
-          />
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-slate-600">Nombre del evento *</span>
+            <input
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setFormErrors((prev) => ({ ...prev, name: undefined, slug: undefined }));
+              }}
+              onBlur={() =>
+                setFormErrors((prev) => ({
+                  ...prev,
+                  ...validateTournamentForm({
+                    name,
+                    startDate,
+                    endDate,
+                    slug: slugify(name),
+                  }),
+                }))
+              }
+              placeholder="Ej: Fecha 3 - Primavera"
+              className={`w-full rounded-lg px-3 py-2 text-sm ${
+                formErrors.name || formErrors.slug ? "border border-red-400" : "border border-slate-300"
+              }`}
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-slate-600">Fecha de inicio (opcional)</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                setFormErrors((prev) => ({ ...prev, dates: undefined }));
+              }}
+              onBlur={() =>
+                setFormErrors((prev) => ({
+                  ...prev,
+                  ...validateTournamentForm({
+                    name,
+                    startDate,
+                    endDate,
+                    slug: slugify(name),
+                  }),
+                }))
+              }
+              className={`w-full rounded-lg px-3 py-2 text-sm ${
+                formErrors.dates ? "border border-red-400" : "border border-slate-300"
+              }`}
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-slate-600">Fecha de fin (opcional)</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) => {
+                setEndDate(event.target.value);
+                setFormErrors((prev) => ({ ...prev, dates: undefined }));
+              }}
+              onBlur={() =>
+                setFormErrors((prev) => ({
+                  ...prev,
+                  ...validateTournamentForm({
+                    name,
+                    startDate,
+                    endDate,
+                    slug: slugify(name),
+                  }),
+                }))
+              }
+              className={`w-full rounded-lg px-3 py-2 text-sm ${
+                formErrors.dates ? "border border-red-400" : "border border-slate-300"
+              }`}
+            />
+          </label>
           <button
             onClick={() => void handleSubmit()}
             disabled={
@@ -396,6 +405,9 @@ export const EventCreatePage = ({
             {formErrors.name ?? formErrors.slug ?? formErrors.dates}
           </p>
         )}
+        <p className="mt-1 text-xs text-slate-500">
+          Campos obligatorios: <span className="font-semibold">*</span>
+        </p>
 
         <div className="mt-4 rounded-xl border border-slate-200 p-3">
           <p className="text-sm font-semibold text-slate-900">Categoría / tipo</p>
@@ -495,6 +507,10 @@ export const EventCreatePage = ({
                       <button
                         onClick={() =>
                           void (async () => {
+                            const confirmed = window.confirm(
+                              `¿Eliminar la categoría "${existingCategory.label}" del evento?`
+                            );
+                            if (!confirmed) return;
                             await deleteTournamentCategory(existingCategory.id);
                             setExistingCategories((prev) =>
                               prev.filter((item) => item.id !== existingCategory.id)
@@ -503,7 +519,7 @@ export const EventCreatePage = ({
                         }
                         className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
                       >
-                        x
+                        Eliminar
                       </button>
                     ) : (
                       null
@@ -530,7 +546,7 @@ export const EventCreatePage = ({
                       }
                       className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
                     >
-                      x
+                      Quitar
                     </button>
                   </div>
                 ))}

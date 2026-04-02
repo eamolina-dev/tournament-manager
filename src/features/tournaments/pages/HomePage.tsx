@@ -122,14 +122,14 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            Torneos
+            Eventos
           </h1>
           {isAdminMode ? (
             <button
               onClick={() => navigate("/admin/tournaments/new")}
               className="tm-btn-primary px-3 py-2 text-sm"
             >
-              Crear torneo
+              Crear evento
             </button>
           ) : null}
         </div>
@@ -158,7 +158,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                     onClick={() => navigate(`/admin/tournaments/${tournament.id}/edit`)}
                     className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
                   >
-                    ✏️
+                    Editar
                   </button>
                   <button
                     onClick={() =>
@@ -181,7 +181,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                     }
                     className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
                   >
-                    🗑️
+                    Eliminar
                   </button>
                 </div>
               ) : null}
@@ -192,21 +192,18 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                 <button
                   key={cat.tournamentCategoryId}
                   onClick={() => {
-                    if (isAdminMode && !cat.hasMatches) {
-                      window.alert(
-                        "Esta categoría todavía no tiene fixture generado. Configurala primero."
-                      );
-                      return;
-                    }
                     navigate(
                       isAdminMode
-                        ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
+                        ? !cat.hasMatches
+                          ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
+                          : `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
                         : `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
                     );
                   }}
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
                 >
                   {cat.name}
+                  {isAdminMode && !cat.hasMatches ? " · Sin fixture" : ""}
                 </button>
               ))}
             </div>

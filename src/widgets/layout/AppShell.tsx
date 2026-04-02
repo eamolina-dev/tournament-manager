@@ -11,7 +11,7 @@ const publicNavItems = [
 ];
 
 const adminNavItems = [
-  { label: "Inicio", href: "/admin" },
+  { label: "Eventos", href: "/admin" },
   { label: "Jugadores", href: "/admin/players" },
 ];
 
