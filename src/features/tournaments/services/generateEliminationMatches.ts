@@ -5,26 +5,30 @@ import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type { MatchInsert, Team } from "../../../shared/types/entities"
 
 export const getEliminationTemplate = (
-  qualifiedTeamsCount: number,
+  qualifiedTeamSources: string[],
   groupRanking: string[],
 ): MatchTemplate[] => {
-  const virtualTeams = Array.from({ length: qualifiedTeamsCount }, (_, index) => ({
+  const virtualTeams = Array.from({ length: qualifiedTeamSources.length }, (_, index) => ({
     id: `virtual-team-${index + 1}`,
   }))
 
-  return generateBracket(virtualTeams as unknown as Team[], groupRanking)
+  return generateBracket(
+    virtualTeams as unknown as Team[],
+    groupRanking,
+    qualifiedTeamSources,
+  )
 }
 
 export const generateEliminationMatches = async ({
   tournamentCategoryId,
-  qualifiedTeamsCount,
+  qualifiedTeamSources,
   groupRanking,
 }: {
   tournamentCategoryId: string
-  qualifiedTeamsCount: number
+  qualifiedTeamSources: string[]
   groupRanking: string[]
 }): Promise<number> => {
-  const template = getEliminationTemplate(qualifiedTeamsCount, groupRanking)
+  const template = getEliminationTemplate(qualifiedTeamSources, groupRanking)
   if (!template.length) return 0
 
   const { data: existingGroupMatches, error: groupMatchesError } = await supabase

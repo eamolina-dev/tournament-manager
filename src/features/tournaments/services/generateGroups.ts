@@ -3,6 +3,11 @@ import type { Team } from "../../../shared/types/entities"
 export type PlannedGroup = { name: string; groupKey: string; teamIds: string[] }
 export type TeamRef = Pick<Team, "id">
 
+const getQualifiedPlacesByGroupSize = (groupSize: number): number => {
+  if (groupSize >= 4) return 3
+  return Math.min(groupSize, 2)
+}
+
 export const validateTeamRefs = (teams: TeamRef[] | null): TeamRef[] => {
   if (!teams?.length) {
     throw new Error("No hay equipos cargados. Creá equipos antes de generar zonas y partidos.")
@@ -53,7 +58,37 @@ export const countGroupMatches = (groups: PlannedGroup[]): number =>
     return total
   }, 0)
 
-export const getQualifiedTeamsCount = (groups: PlannedGroup[]): number => groups.length * 2
+export const getQualifiedTeamSources = (groups: PlannedGroup[]): string[] => {
+  const byGroup = groups.map((group) => ({
+    groupKey: group.groupKey,
+    qualifiedPlaces: getQualifiedPlacesByGroupSize(group.teamIds.length),
+  }))
+
+  const interleavedTopTwo = byGroup.flatMap((group) => {
+    const seeds: string[] = []
+    if (group.qualifiedPlaces >= 1) seeds.push(`1${group.groupKey}`)
+    if (group.qualifiedPlaces >= 2) seeds.push(`2${group.groupKey}`)
+    return seeds
+  })
+
+  const thirdPlaces = byGroup
+    .filter((group) => group.qualifiedPlaces >= 3)
+    .map((group) => `3${group.groupKey}`)
+
+  const qualifiedSources = [...interleavedTopTwo, ...thirdPlaces]
+  const hasAnyFourTeamGroup = groups.some((group) => group.teamIds.length >= 4)
+
+  if (qualifiedSources.length % 2 !== 0 && !hasAnyFourTeamGroup) {
+    throw new Error(
+      "La cantidad impar de clasificados solo es válida cuando existe al menos una zona de 4 equipos.",
+    )
+  }
+
+  return qualifiedSources
+}
+
+export const getQualifiedTeamsCount = (groups: PlannedGroup[]): number =>
+  getQualifiedTeamSources(groups).length
 
 export const generateGroups = (teams: TeamRef[]): PlannedGroup[] => {
   const totalTeams = teams.length

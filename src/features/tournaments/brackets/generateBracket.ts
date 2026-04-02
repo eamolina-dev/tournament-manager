@@ -46,18 +46,26 @@ const buildSeedTokens = (teamCount: number, groupRanking: string[]): string[] =>
   return seeds
 }
 
-export const generateBracket = (teams: Team[], groupRanking: string[]): MatchTemplate[] => {
+export const generateBracket = (
+  teams: Team[],
+  groupRanking: string[],
+  qualifiedSources?: string[],
+): MatchTemplate[] => {
   if (!teams.length) return []
   if (teams.length > MAX_TEAMS) {
     throw new Error(`El cuadro dinámico soporta hasta ${MAX_TEAMS} equipos.`)
   }
 
-  const qualifiedTeamsCount = teams.length
+  const qualifiedTeamsCount = qualifiedSources?.length ?? teams.length
   const bracketSize = nextPowerOfTwo(qualifiedTeamsCount)
   const byes = bracketSize - qualifiedTeamsCount
 
   const seedOrder = buildStandardSeedOrder(bracketSize)
-  const seedTokens = buildSeedTokens(qualifiedTeamsCount, groupRanking)
+  const seedTokens = qualifiedSources ?? buildSeedTokens(qualifiedTeamsCount, groupRanking)
+
+  if (seedTokens.length !== qualifiedTeamsCount) {
+    throw new Error("La cantidad de seeds clasificadas no coincide con la cantidad de equipos.")
+  }
 
   let currentRoundSlots: Array<string | null> = seedOrder.map((seed) => seedTokens[seed - 1] ?? null)
 
