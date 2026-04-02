@@ -1578,9 +1578,16 @@ export const TournamentCategoryPage = ({
               </button>
             </div>
             {!selectablePlayers.length && (
-              <p className="mt-2 text-xs text-slate-500">
-                No hay jugadores disponibles.
-              </p>
+              <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                <p className="text-xs text-slate-500">No hay jugadores disponibles.</p>
+                <button
+                  type="button"
+                  onClick={openCreatePlayerModal}
+                  className="mt-2 rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                >
+                  Crear primer jugador
+                </button>
+              </div>
             )}
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1803,9 +1810,12 @@ export const TournamentCategoryPage = ({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
-                  Aún no hay equipos creados.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-500">Aún no hay equipos creados.</p>
+                  <p className="text-xs text-slate-500">
+                    Seleccioná dos jugadores y usá “Agregar al borrador”.
+                  </p>
+                </div>
               )}
             </div>
 
@@ -2531,12 +2541,18 @@ export const TournamentCategoryPage = ({
                           </td>
                           <td className="py-2 text-center">
                             {row.isInCompetition ? (
-                              <span
-                                className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
-                                title="En competencia"
-                              />
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                                <span
+                                  className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
+                                  title="En competencia"
+                                />
+                                En competencia
+                              </span>
                             ) : (
-                              <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
+                              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
+                                Eliminado
+                              </span>
                             )}
                           </td>
                           <td className="py-2 text-right font-semibold text-slate-900">
@@ -2632,6 +2648,7 @@ const ScheduleSection = ({
   }[];
   storageKey: string;
 }) => {
+  const [compactMode, setCompactMode] = useState(false);
   const dayTabs = useMemo(
     () => Array.from(new Set(matches.map((match) => match.day))),
     [matches]
@@ -2656,7 +2673,8 @@ const ScheduleSection = ({
 
   return (
     <section>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
         {dayTabs.map((item) => (
           <button
             key={item}
@@ -2670,13 +2688,21 @@ const ScheduleSection = ({
             {item}
           </button>
         ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCompactMode((prev) => !prev)}
+          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+        >
+          {compactMode ? "Vista cómoda" : "Vista compacta"}
+        </button>
       </div>
       <div className="overflow-x-auto">
         {dayMatches.length ? (
-          <table className="min-w-[500px] w-full text-left text-sm">
+          <table className={`min-w-[500px] w-full text-left ${compactMode ? "text-xs" : "text-sm"}`}>
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="sticky left-0 z-10 w-20 bg-white py-2 pr-2">
+              <tr className="sticky top-0 z-10 border-b border-slate-200 bg-white text-slate-500">
+                <th className="sticky left-0 z-20 w-20 bg-white py-2 pr-2">
                   Hora
                 </th>
                 {courts.map((court) => (
@@ -2686,13 +2712,15 @@ const ScheduleSection = ({
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {timeSlots.map((time) => (
+              <tbody>
+              {timeSlots.map((time, rowIndex) => (
                 <tr
                   key={time}
-                  className="border-b border-slate-100 last:border-none align-top"
+                  className={`border-b border-slate-100 last:border-none align-top ${
+                    rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                  }`}
                 >
-                  <td className="sticky left-0 z-10 bg-white py-2 pr-2 font-semibold text-slate-700">
+                  <td className="sticky left-0 z-10 bg-inherit py-2 pr-2 font-semibold text-slate-700">
                     {time}
                   </td>
                   {courts.map((court) => {
@@ -2700,7 +2728,11 @@ const ScheduleSection = ({
                     return (
                       <td key={`${time}-${court}`} className="py-2 px-1">
                         {match ? (
-                          <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left">
+                          <div
+                            className={`w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-left ${
+                              compactMode ? "py-1.5" : "py-2"
+                            }`}
+                          >
                             <p className="text-xs font-medium text-slate-800 leading-tight">
                               {match.team1}
                             </p>
@@ -2712,7 +2744,11 @@ const ScheduleSection = ({
                             </p>
                           </div>
                         ) : (
-                          <div className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
+                          <div
+                            className={`flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400 ${
+                              compactMode ? "h-[58px]" : "h-[74px]"
+                            }`}
+                          >
                             -
                           </div>
                         )}

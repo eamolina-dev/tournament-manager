@@ -203,12 +203,34 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
                 >
                   {cat.name}
-                  {isAdminMode && !cat.hasMatches ? " · Sin fixture" : ""}
+                  <span
+                    className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      cat.hasMatches
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {cat.hasMatches ? "Fixture listo" : "Sin fixture"}
+                  </span>
                 </button>
               ))}
             </div>
           </article>
         ))}
+        {!tournaments.length && !loading ? (
+          <article className="tm-card">
+            <p className="text-sm text-[var(--tm-muted)]">Todavía no hay eventos cargados.</p>
+            {isAdminMode ? (
+              <button
+                type="button"
+                onClick={() => navigate("/admin/tournaments/new")}
+                className="mt-3 tm-btn-primary px-3 py-2 text-sm"
+              >
+                Crear primer evento
+              </button>
+            ) : null}
+          </article>
+        ) : null}
       </div>
     </section>
   );
