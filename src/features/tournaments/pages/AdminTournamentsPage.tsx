@@ -190,7 +190,7 @@ export const AdminTournamentsPage = ({
             onClick={() => navigate("/")}
             className="rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
           >
-            Ver home pública
+            Ver inicio público
           </button>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-4">

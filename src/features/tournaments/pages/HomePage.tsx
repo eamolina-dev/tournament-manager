@@ -110,12 +110,19 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
     void load();
   }, [load]);
 
+  const formatDateAr = (value: string | null) => {
+    if (!value) return "-";
+    const [year, month, day] = value.split("-");
+    if (!year || !month || !day) return value;
+    return `${day}-${month}-${year}`;
+  };
+
   return (
     <section className="grid gap-4">
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            {isAdminMode ? "Torneos (admin)" : "Torneos"}
+            Torneos
           </h1>
           {isAdminMode ? (
             <button
@@ -142,7 +149,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                   {tournament.name}
                 </h2>
                 <p className="text-sm text-[var(--tm-muted)]">
-                  {tournament.start_date ?? "-"} / {tournament.end_date ?? "-"}
+                  {formatDateAr(tournament.start_date)} / {formatDateAr(tournament.end_date)}
                 </p>
               </div>
               {isAdminMode ? (

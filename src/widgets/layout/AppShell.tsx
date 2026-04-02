@@ -7,11 +7,11 @@ type AppShellProps = PropsWithChildren<{
 
 const publicNavItems = [
   { label: "Inicio", href: "/" },
-  { label: "Rankings", href: "/rankings" },
+  { label: "Ranking", href: "/rankings" },
 ];
 
 const adminNavItems = [
-  { label: "Admin Inicio", href: "/admin" },
+  { label: "Inicio", href: "/admin" },
   { label: "Jugadores", href: "/admin/players" },
 ];
 

@@ -33,6 +33,13 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
   const [sumSelection, setSumSelection] = useState(13);
   const [loading, setLoading] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
+
+  const formatDateAr = (value: string | null) => {
+    if (!value) return "-";
+    const [year, month, day] = value.split("-");
+    if (!year || !month || !day) return value;
+    return `${day}-${month}-${year}`;
+  };
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -147,10 +154,10 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
           onClick={() => navigate("/")}
           className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
         >
-          ← Volver al home
+          ← Volver al Inicio
         </button>
         <h1 className="text-2xl font-bold text-slate-900">{eventName}</h1>
-        <p className="text-sm text-slate-500">Fecha: {eventDate ?? "-"}</p>
+        <p className="text-sm text-slate-500">Fecha: {formatDateAr(eventDate)}</p>
       </article>
 
       <article className="tm-card">

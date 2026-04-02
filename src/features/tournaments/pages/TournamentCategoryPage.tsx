@@ -1413,7 +1413,7 @@ export const TournamentCategoryPage = ({
               onClick={() => navigate("/")}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
-              Volver al home
+              Volver al Inicio
             </button>
           )}
           {isAdmin && isAdminResultsMode && navigate && (
@@ -1421,7 +1421,7 @@ export const TournamentCategoryPage = ({
               onClick={() => navigate("/admin")}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
-              Volver al home
+              Volver al Inicio
             </button>
           )}
 
