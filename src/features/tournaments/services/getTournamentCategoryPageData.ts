@@ -343,6 +343,9 @@ export const getTournamentCategoryPageData = async (
       if (a.isInCompetition !== b.isInCompetition) {
         return a.isInCompetition ? -1 : 1
       }
+      if (a.points !== b.points) {
+        return b.points - a.points
+      }
       return a.playerName.localeCompare(b.playerName)
     })
 
