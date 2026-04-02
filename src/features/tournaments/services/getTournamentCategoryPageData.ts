@@ -323,14 +323,28 @@ export const getTournamentCategoryPageData = async (
     }
   }
 
+  for (const playerId of uniquePlayerIds) {
+    if (!pointsByPlayerId.has(playerId)) {
+      pointsByPlayerId.set(playerId, 0)
+    }
+    if (!competitionByPlayerId.has(playerId)) {
+      competitionByPlayerId.set(playerId, true)
+    }
+  }
+
   const resultRows = Array.from(pointsByPlayerId.entries())
     .map(([playerId, points]) => ({
       playerId,
       playerName: playersById.get(playerId) ?? "Jugador",
       points,
-      isInCompetition: competitionByPlayerId.get(playerId) ?? false,
+      isInCompetition: competitionByPlayerId.get(playerId) ?? true,
     }))
-    .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
+    .sort((a, b) => {
+      if (a.isInCompetition !== b.isInCompetition) {
+        return a.isInCompetition ? -1 : 1
+      }
+      return a.playerName.localeCompare(b.playerName)
+    })
 
   return {
     tournamentCategoryId,
