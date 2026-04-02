@@ -6,7 +6,4 @@ export type MatchTemplate = {
 
   team1: string
   team2: string
-
-  nextMatch?: number
-  nextSlot?: 1 | 2
 }

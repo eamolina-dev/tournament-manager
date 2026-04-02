@@ -1,27 +1,30 @@
-import { templates } from "../brackets/temp-mapping"
+import { generateBracket } from "../brackets/generateBracket"
 import type { MatchTemplate } from "../brackets/match-template"
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
-import type { MatchInsert } from "../../../shared/types/entities"
+import type { MatchInsert, Team } from "../../../shared/types/entities"
 
-export const getEliminationTemplate = (qualifiedTeamsCount: number): MatchTemplate[] => {
-  const template = templates[qualifiedTeamsCount]
-  if (!template) {
-    throw new Error(
-      `No existe un template de cruces para ${qualifiedTeamsCount} clasificados.`,
-    )
-  }
-  return template
+export const getEliminationTemplate = (
+  qualifiedTeamsCount: number,
+  groupRanking: string[],
+): MatchTemplate[] => {
+  const virtualTeams = Array.from({ length: qualifiedTeamsCount }, (_, index) => ({
+    id: `virtual-team-${index + 1}`,
+  }))
+
+  return generateBracket(virtualTeams as unknown as Team[], groupRanking)
 }
 
 export const generateEliminationMatches = async ({
   tournamentCategoryId,
   qualifiedTeamsCount,
+  groupRanking,
 }: {
   tournamentCategoryId: string
   qualifiedTeamsCount: number
+  groupRanking: string[]
 }): Promise<number> => {
-  const template = getEliminationTemplate(qualifiedTeamsCount)
+  const template = getEliminationTemplate(qualifiedTeamsCount, groupRanking)
   if (!template.length) return 0
 
   const { data: existingGroupMatches, error: groupMatchesError } = await supabase
@@ -50,37 +53,10 @@ export const generateEliminationMatches = async ({
     group_id: null,
   }))
 
-  const { data: insertedMatches, error: insertError } = await supabase
+  const { error: insertError } = await supabase
     .from("matches")
     .insert(eliminationMatches.map(({ id: _id, ...match }) => match))
-    .select("id, match_number")
   throwIfError(insertError)
-
-  const matchNumberToId: Record<number, string> = {}
-  for (const match of insertedMatches ?? []) {
-    if (match.match_number != null) {
-      matchNumberToId[match.match_number] = match.id
-    }
-  }
-
-  for (const templateMatch of template) {
-    if (!templateMatch.nextMatch || !templateMatch.nextSlot) continue
-
-    const matchId = matchNumberToId[toAbsoluteMatchNumber(templateMatch.matchNumber)]
-    const nextMatchId = matchNumberToId[toAbsoluteMatchNumber(templateMatch.nextMatch)]
-    if (!matchId || !nextMatchId) {
-      throw new Error("No se pudo vincular el cuadro de eliminación por ids faltantes.")
-    }
-
-    const { error: updateError } = await supabase
-      .from("matches")
-      .update({
-        next_match_id: nextMatchId,
-        next_match_slot: templateMatch.nextSlot,
-      })
-      .eq("id", matchId)
-    throwIfError(updateError)
-  }
 
   return template.length
 }
