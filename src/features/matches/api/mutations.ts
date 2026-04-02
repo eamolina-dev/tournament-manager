@@ -306,112 +306,120 @@ const propagateGroupToPlayoffInternal = async (
 ): Promise<void> => {
   if (!match.group_id || !match.tournament_category_id) return
 
-  const { data: groupMatches, error: groupMatchesError } = await supabase
+  const { data: tournamentMatches, error: tournamentMatchesError } = await supabase
     .from("matches")
     .select("*")
-    .eq("group_id", match.group_id)
-    .eq("stage", "group")
+    .eq("tournament_category_id", match.tournament_category_id)
 
-  throwIfError(groupMatchesError)
+  throwIfError(tournamentMatchesError)
 
+  const safeTournamentMatches = tournamentMatches ?? []
+  const groupMatches = safeTournamentMatches.filter(
+    (tournamentMatch) =>
+      tournamentMatch.group_id === match.group_id && tournamentMatch.stage === "group",
+  )
   if (!groupMatches.length) return
 
   const groupCompleted = groupMatches.every((groupMatch) => Boolean(groupMatch.winner_team_id))
-  if (!groupCompleted) return
 
-  const groupMatchIds = groupMatches.map((groupMatch) => groupMatch.id)
+  let standingsByGroup: StandingsByGroup = {}
 
-  const { data: matchSets, error: matchSetsError } = await supabase
-    .from("match_sets")
-    .select("*")
-    .in("match_id", groupMatchIds)
+  if (groupCompleted) {
+    const groupMatchIds = groupMatches.map((groupMatch) => groupMatch.id)
 
-  throwIfError(matchSetsError)
+    const { data: matchSets, error: matchSetsError } = await supabase
+      .from("match_sets")
+      .select("*")
+      .in("match_id", groupMatchIds)
 
-  const { data: group, error: groupError } = await supabase
-    .from("groups")
-    .select("group_key")
-    .eq("id", match.group_id)
-    .single()
+    throwIfError(matchSetsError)
 
-  throwIfError(groupError)
+    const { data: group, error: groupError } = await supabase
+      .from("groups")
+      .select("group_key")
+      .eq("id", match.group_id)
+      .single()
 
-  const { data: teams, error: teamsError } = await supabase
-    .from("v_teams_with_players")
-    .select("id, team_name")
-    .eq("tournament_category_id", match.tournament_category_id)
+    throwIfError(groupError)
 
-  throwIfError(teamsError)
+    const { data: teams, error: teamsError } = await supabase
+      .from("v_teams_with_players")
+      .select("id, team_name")
+      .eq("tournament_category_id", match.tournament_category_id)
 
-  const teamsMap = new Map(
-    teams.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
-  )
+    throwIfError(teamsError)
 
-  const groupTeams = Array.from(
-    new Map(
-      groupMatches.flatMap((groupMatch) => {
-        const entries: [string, string][] = []
-        if (groupMatch.team1_id) {
-          entries.push([groupMatch.team1_id, teamsMap.get(groupMatch.team1_id) ?? "Equipo 1"])
-        }
-        if (groupMatch.team2_id) {
-          entries.push([groupMatch.team2_id, teamsMap.get(groupMatch.team2_id) ?? "Equipo 2"])
-        }
-        return entries
-      }),
-    ),
-  ).map(([id, name]) => ({ id, name }))
+    const teamsMap = new Map(
+      teams.map((team) => [team.id ?? "", team.team_name ?? "Equipo"]),
+    )
 
-  if (!groupTeams.length) return
+    const groupTeams = Array.from(
+      new Map(
+        groupMatches.flatMap((groupMatch) => {
+          const entries: [string, string][] = []
+          if (groupMatch.team1_id) {
+            entries.push([groupMatch.team1_id, teamsMap.get(groupMatch.team1_id) ?? "Equipo 1"])
+          }
+          if (groupMatch.team2_id) {
+            entries.push([groupMatch.team2_id, teamsMap.get(groupMatch.team2_id) ?? "Equipo 2"])
+          }
+          return entries
+        }),
+      ),
+    ).map(([id, name]) => ({ id, name }))
 
-  const standings = computeGroupStandings(
-    groupMatches.map((groupMatch) => ({
-      id: groupMatch.id,
-      team1Id: groupMatch.team1_id,
-      team2Id: groupMatch.team2_id,
-    })),
-    matchSets.map((set) => ({
-      matchId: set.match_id ?? "",
-      team1_score: set.team1_games ?? 0,
-      team2_score: set.team2_games ?? 0,
-    })),
-    groupTeams,
-  )
+    if (groupTeams.length) {
+      const standings = computeGroupStandings(
+        groupMatches.map((groupMatch) => ({
+          id: groupMatch.id,
+          team1Id: groupMatch.team1_id,
+          team2Id: groupMatch.team2_id,
+        })),
+        (matchSets ?? []).map((set) => ({
+          matchId: set.match_id ?? "",
+          team1_score: set.team1_games ?? 0,
+          team2_score: set.team2_games ?? 0,
+        })),
+        groupTeams,
+      )
 
-  const groupKey = group.group_key.trim().toUpperCase()
-  const standingsByGroup: StandingsByGroup = {
-    [groupKey]: standings.map((standing) => ({ teamId: standing.teamId })),
+      const groupKey = group.group_key.trim().toUpperCase()
+      standingsByGroup = {
+        [groupKey]: standings.map((standing) => ({ teamId: standing.teamId })),
+      }
+    }
   }
 
-  const { data: playoffMatches, error: playoffMatchesError } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("tournament_category_id", match.tournament_category_id)
-    .neq("stage", "group")
-
-  throwIfError(playoffMatchesError)
+  const sourcedMatches = safeTournamentMatches.filter(
+    (tournamentMatch) =>
+      Boolean(tournamentMatch.team1_source?.trim()) || Boolean(tournamentMatch.team2_source?.trim()),
+  )
 
   const updates = resolveTeamSourcesForMatches(
-    playoffMatches.map((playoffMatch) => ({
-      id: playoffMatch.id,
-      team1_id: playoffMatch.team1_id,
-      team2_id: playoffMatch.team2_id,
-      team1_source: playoffMatch.team1_source,
-      team2_source: playoffMatch.team2_source,
+    sourcedMatches.map((sourcedMatch) => ({
+      id: sourcedMatch.id,
+      group_id: sourcedMatch.group_id,
+      team1_id: sourcedMatch.team1_id,
+      team2_id: sourcedMatch.team2_id,
+      team1_source: sourcedMatch.team1_source,
+      team2_source: sourcedMatch.team2_source,
     })),
     standingsByGroup,
-    playoffMatches.map((playoffMatch) => ({
-      id: playoffMatch.id,
-      round: playoffMatch.round,
-      round_order: playoffMatch.round_order,
-      winner_team_id: playoffMatch.winner_team_id,
+    safeTournamentMatches.map((tournamentMatch) => ({
+      id: tournamentMatch.id,
+      group_id: tournamentMatch.group_id,
+      round: tournamentMatch.round,
+      round_order: tournamentMatch.round_order,
+      team1_id: tournamentMatch.team1_id,
+      team2_id: tournamentMatch.team2_id,
+      winner_team_id: tournamentMatch.winner_team_id,
     })),
   )
 
   if (!updates.length) return
 
   for (const update of updates) {
-    const currentMatch = playoffMatches.find((playoffMatch) => playoffMatch.id === update.id)
+    const currentMatch = safeTournamentMatches.find((tournamentMatch) => tournamentMatch.id === update.id)
     if (!currentMatch) continue
 
     const updatePayload: MatchUpdate = {}
@@ -431,7 +439,7 @@ const propagateGroupToPlayoffInternal = async (
 
     if (!Object.keys(updatePayload).length) continue
 
-    const { data: updatedPlayoffMatch, error: updateError } = await supabase
+    const { data: updatedSourcedMatch, error: updateError } = await supabase
       .from("matches")
       .update(updatePayload)
       .eq("id", update.id)
@@ -440,8 +448,8 @@ const propagateGroupToPlayoffInternal = async (
 
     throwIfError(updateError)
 
-    if (updatedPlayoffMatch.winner_team_id) {
-      await propagateMatchWinnerInternal(updatedPlayoffMatch, visitedMatchIds)
+    if (updatedSourcedMatch.winner_team_id) {
+      await propagateMatchWinnerInternal(updatedSourcedMatch, visitedMatchIds)
     }
   }
 }
