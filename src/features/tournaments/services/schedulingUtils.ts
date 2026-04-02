@@ -14,6 +14,8 @@ export type MatchSlotInput = {
   id: string
   stage: string
   group_id?: string | null
+  team1_id?: string | null
+  team2_id?: string | null
 }
 
 export type MatchSlot = {
@@ -104,26 +106,61 @@ export const generateMatchSlots = (
   config: GenerateMatchSlotsConfig,
 ): MatchSlot[] => {
   const courts = clampCourts(config.courtsCount)
-  const countersByDay = new Map<string, number>()
+  const nextSlotByDay = new Map<string, number>()
+  const dayStageState = new Map<string, { stage: string; slots: number[] }>()
+  const teamsByDaySlot = new Map<string, Set<string>>()
+  const usageByDaySlot = new Map<string, number>()
+
+  const teamIdsForMatch = (match: MatchSlotInput): string[] =>
+    [match.team1_id, match.team2_id].filter((teamId): teamId is string => Boolean(teamId))
+
+  const keyForDaySlot = (day: string, slot: number): string => `${day}__${slot}`
 
   return matches.map((match) => {
     const day = resolveDayForMatch(match, config.zoneDayById, config.phaseByDay, config.fallbackDay)
     const startTime = config.startTimeByDay[day]
     const safeStartTime = isValidTime(startTime) ? startTime : "18:00"
-    const matchIndex = countersByDay.get(day) ?? 0
+    const matchTeams = teamIdsForMatch(match)
+    const stageState = dayStageState.get(day)
+    const stageChanged = stageState ? stageState.stage !== match.stage : false
+    const baseSlot = stageChanged
+      ? (nextSlotByDay.get(day) ?? 0)
+      : (stageState?.slots[0] ?? (nextSlotByDay.get(day) ?? 0))
 
-    const slotIndex = Math.floor(matchIndex / courts)
-    const courtNumber = (matchIndex % courts) + 1
-    const minutes = toMinutes(safeStartTime) + slotIndex * Math.max(1, config.intervalMinutes)
+    let slot = baseSlot
 
-    countersByDay.set(day, matchIndex + 1)
+    while (true) {
+      const daySlotKey = keyForDaySlot(day, slot)
+      const teamsOnSlot = teamsByDaySlot.get(daySlotKey) ?? new Set<string>()
+      const usedCourts = usageByDaySlot.get(daySlotKey) ?? 0
+      const hasTeamConflict = matchTeams.some((teamId) => teamsOnSlot.has(teamId))
 
-    return {
-      id: match.id,
-      day,
-      time: toTimeLabel(minutes),
-      court: `C${courtNumber}`,
-      orderInDay: slotIndex + 1,
+      if (!hasTeamConflict && usedCourts < courts) {
+        const nextTeams = new Set(teamsOnSlot)
+        matchTeams.forEach((teamId) => nextTeams.add(teamId))
+        teamsByDaySlot.set(daySlotKey, nextTeams)
+        usageByDaySlot.set(daySlotKey, usedCourts + 1)
+
+        const previousStageSlots = !stageChanged && stageState?.slots ? stageState.slots : []
+        const updatedStageSlots = previousStageSlots.includes(slot)
+          ? previousStageSlots
+          : [...previousStageSlots, slot]
+        dayStageState.set(day, { stage: match.stage, slots: updatedStageSlots })
+        nextSlotByDay.set(day, Math.max(nextSlotByDay.get(day) ?? 0, slot + 1))
+
+        const minutes = toMinutes(safeStartTime) + slot * Math.max(1, config.intervalMinutes)
+
+        return {
+          id: match.id,
+          day,
+          time: toTimeLabel(minutes),
+          court: `C${usedCourts + 1}`,
+          orderInDay: slot + 1,
+        }
+      }
+
+      slot += 1
     }
+
   })
 }

@@ -13,7 +13,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -982,15 +981,6 @@ export const TournamentCategoryPage = ({
     return containingZone?.id ?? null;
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const activeId = String(event.active.id);
-    const overId = event.over?.id ? String(event.over.id) : null;
-    if (!overId) return;
-    const targetZoneId = resolveDropZoneId(overId);
-    if (!targetZoneId) return;
-    moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
@@ -1302,6 +1292,7 @@ export const TournamentCategoryPage = ({
 
     setSavingZoneId(activeZone.id);
     const nextErrors: MatchErrorState = {};
+    let hasSuccessfulSave = false;
 
     try {
       for (const [matchId, payload] of entries) {
@@ -1330,6 +1321,7 @@ export const TournamentCategoryPage = ({
             skipRankingRecalculation: true,
             shouldReload: false,
           });
+          hasSuccessfulSave = true;
         } catch (error) {
           nextErrors[matchId] =
             error instanceof Error ? error.message : "Error al guardar.";
@@ -1346,8 +1338,10 @@ export const TournamentCategoryPage = ({
         ),
       }));
 
-      await recalculateProgressiveTeamResults(data.tournamentCategoryId);
-      await load();
+      if (hasSuccessfulSave) {
+        await recalculateProgressiveTeamResults(data.tournamentCategoryId);
+        await load();
+      }
       if (Object.keys(nextErrors).length === 0) {
         setActionNotice({ type: "success", message: "Resultados de zona guardados." });
       } else {
@@ -1386,6 +1380,7 @@ export const TournamentCategoryPage = ({
 
     setSavingBracket(true);
     const nextErrors: MatchErrorState = {};
+    let hasSuccessfulSave = false;
 
     try {
       for (const [matchId, payload] of entries) {
@@ -1414,6 +1409,7 @@ export const TournamentCategoryPage = ({
             skipRankingRecalculation: true,
             shouldReload: false,
           });
+          hasSuccessfulSave = true;
         } catch (error) {
           nextErrors[matchId] =
             error instanceof Error ? error.message : "Error al guardar.";
@@ -1429,8 +1425,10 @@ export const TournamentCategoryPage = ({
         )
       );
 
-      await recalculateProgressiveTeamResults(data.tournamentCategoryId);
-      await load();
+      if (hasSuccessfulSave) {
+        await recalculateProgressiveTeamResults(data.tournamentCategoryId);
+        await load();
+      }
       if (Object.keys(nextErrors).length === 0) {
         setActionNotice({ type: "success", message: "Resultados de cruces guardados." });
       } else {
@@ -1892,7 +1890,6 @@ export const TournamentCategoryPage = ({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
               <div className="mt-4 grid gap-3 lg:grid-cols-3">

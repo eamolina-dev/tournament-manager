@@ -7,6 +7,8 @@ type MatchForScheduling = {
   id: string
   stage: string
   group_id: string | null
+  team1_id: string | null
+  team2_id: string | null
 }
 
 type ScheduleOptions = {
@@ -74,7 +76,7 @@ export const scheduleGeneratedMatches = async (
 
   const { data: matches, error: matchesError } = await supabase
     .from("matches")
-    .select("id, stage, group_id")
+    .select("id, stage, group_id, team1_id, team2_id")
     .eq("tournament_category_id", tournamentCategoryId)
     .order("match_number", { ascending: true })
   throwIfError(matchesError)
