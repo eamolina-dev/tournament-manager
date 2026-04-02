@@ -20,11 +20,11 @@ const buildStandardSeedOrder = (bracketSize: number): number[] => {
   return order
 }
 
-const getStageFromRound = (round: number): MatchTemplate["stage"] => {
-  if (round === 1) return "final"
-  if (round === 2) return "semi"
-  if (round === 4) return "quarter"
-  if (round === 8) return "round_of_16"
+const getStageFromActiveTeams = (activeTeams: number): MatchTemplate["stage"] => {
+  if (activeTeams === 2) return "final"
+  if (activeTeams === 4) return "semi"
+  if (activeTeams <= 8) return "quarter"
+  if (activeTeams <= 16) return "round_of_16"
   return "round_of_32"
 }
 
@@ -52,17 +52,27 @@ export const generateBracket = (teams: Team[], groupRanking: string[]): MatchTem
     throw new Error(`El cuadro dinámico soporta hasta ${MAX_TEAMS} equipos.`)
   }
 
-  const bracketSize = nextPowerOfTwo(teams.length)
+  const qualifiedTeamsCount = teams.length
+  const bracketSize = nextPowerOfTwo(qualifiedTeamsCount)
+  const byes = bracketSize - qualifiedTeamsCount
+
   const seedOrder = buildStandardSeedOrder(bracketSize)
-  const seedTokens = buildSeedTokens(teams.length, groupRanking)
+  const seedTokens = buildSeedTokens(qualifiedTeamsCount, groupRanking)
 
   let currentRoundSlots: Array<string | null> = seedOrder.map((seed) => seedTokens[seed - 1] ?? null)
+
+  if (byes < 0) {
+    throw new Error("No se pudieron asignar byes para el cuadro de eliminación.")
+  }
 
   const matches: MatchTemplate[] = []
 
   while (currentRoundSlots.length > 1) {
-    const round = currentRoundSlots.length / 2
-    const stage = getStageFromRound(round)
+    const activeTeams = currentRoundSlots.filter(Boolean).length
+    if (activeTeams <= 1) break
+
+    const round = nextPowerOfTwo(activeTeams) / 2
+    const stage = getStageFromActiveTeams(activeTeams)
     const nextRoundSlots: Array<string | null> = []
 
     for (let index = 0; index < currentRoundSlots.length; index += 2) {
