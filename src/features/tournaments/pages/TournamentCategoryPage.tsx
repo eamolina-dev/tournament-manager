@@ -35,6 +35,7 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import {
+  applyMatchScheduling,
   generateFullTournament,
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
@@ -484,6 +485,13 @@ export const TournamentCategoryPage = ({
     if (!orderedEditableMatches.length) return "groups_ready";
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
+  const hasRecordedResults = useMemo(
+    () =>
+      (data?.editableMatches ?? []).some(
+        (match) => Boolean(match.score) || (match.sets?.length ?? 0) > 0
+      ),
+    [data?.editableMatches]
+  );
   const flowStatusCopy = useMemo(() => {
     const copyByStatus: Record<
       FlowStatus,
@@ -777,8 +785,31 @@ export const TournamentCategoryPage = ({
         match_interval_minutes: matchIntervalMinutesInput,
         courts_count: courtsCountInput,
       });
-      setScheduleConfigSuccess("Horarios guardados.");
-      setActionNotice({ type: "success", message: "Horarios guardados correctamente." });
+      if (orderedEditableMatches.length) {
+        const shouldOverwriteSchedule = window.confirm(
+          "Esto actualizará día, hora y cancha de los partidos existentes. ¿Querés continuar?"
+        );
+        if (!shouldOverwriteSchedule) {
+          setScheduleConfigSuccess(
+            "Configuración guardada. No se aplicaron cambios sobre el fixture actual."
+          );
+          setActionNotice({
+            type: "success",
+            message: "Configuración guardada sin reprogramar partidos.",
+          });
+          await load();
+          return;
+        }
+      }
+      await applyMatchScheduling(data.tournamentCategoryId, {
+        zoneDayById,
+        phaseByDay,
+      });
+      setScheduleConfigSuccess("Horarios guardados y aplicados al fixture.");
+      setActionNotice({
+        type: "success",
+        message: "Horarios aplicados sin regenerar la estructura.",
+      });
       await load();
     } catch (error) {
       const message =
@@ -992,6 +1023,14 @@ export const TournamentCategoryPage = ({
 
   const handleGenerateMatches = async () => {
     if (!canGenerateZones || !data) return;
+    if (hasRecordedResults) {
+      const shouldRegenerate = window.confirm(
+        "Ya hay resultados cargados. Regenerar estructura puede borrar resultados y rearmar partidos. ¿Querés continuar?"
+      );
+      if (!shouldRegenerate) {
+        return;
+      }
+    }
     setGenerationError(null);
     setGenerationSuccess(null);
 
@@ -1029,8 +1068,11 @@ export const TournamentCategoryPage = ({
         },
       });
       await load();
-      setGenerationSuccess("Partidos generados correctamente.");
-      setActionNotice({ type: "success", message: "Partidos generados correctamente." });
+      setGenerationSuccess("Estructura generada correctamente. Podés seguir editando en esta página.");
+      setActionNotice({
+        type: "success",
+        message: "Estructura generada. Los horarios pueden actualizarse sin regenerar.",
+      });
     } catch (error) {
       const message =
         error instanceof Error
@@ -1966,9 +2008,9 @@ export const TournamentCategoryPage = ({
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">3. Horarios</h3>
+            <h3 className="font-semibold text-slate-900">3. Horarios (independiente)</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Definí horarios base para generar el fixture automáticamente.
+              Guardá y aplicá horarios sin regenerar la estructura del torneo.
             </p>
 
             <div className="mt-3 space-y-3">
@@ -2114,8 +2156,11 @@ export const TournamentCategoryPage = ({
               onClick={() => void saveScheduleConfig()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Guardar horarios
+              Aplicar / actualizar horarios
             </button>
+            <p className="mt-2 text-xs text-amber-700">
+              Esta acción sobrescribe día, hora y cancha del fixture actual, pero no regenera partidos.
+            </p>
 
             {scheduleConfigError && (
               <p className="mt-2 text-xs text-red-600">{scheduleConfigError}</p>
@@ -2128,10 +2173,9 @@ export const TournamentCategoryPage = ({
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">4. Partidos</h3>
+            <h3 className="font-semibold text-slate-900">4. Estructura</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Paso 1: verificamos/armamos zonas. Paso 2: generamos partidos en
-              base al scheduling.
+              Regenerá grupos + cruces sólo cuando cambie la estructura del torneo.
             </p>
 
             <button
@@ -2139,8 +2183,11 @@ export const TournamentCategoryPage = ({
               onClick={() => void handleGenerateMatches()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Generar partidos
+              Generar estructura
             </button>
+            <p className="mt-2 text-xs text-slate-500">
+              Reemplazar jugadores dentro de un equipo no requiere regenerar estructura.
+            </p>
 
             {!canGenerateZones && (
               <p className="mt-2 text-xs text-amber-600">

@@ -166,6 +166,7 @@ export const generateFullTournament = async (
   options?: {
     dryRun?: boolean
     debug?: boolean
+    applyScheduling?: boolean
     scheduling?: {
       zoneDayById?: Record<string, string>
       phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
@@ -186,6 +187,7 @@ export const generateFullTournament = async (
 
   const debugEnabled = Boolean(options?.debug)
   const dryRun = Boolean(options?.dryRun)
+  const applyScheduling = options?.applyScheduling ?? true
   try {
     const { data: teams, error: teamsError } = await supabase
       .from("teams")
@@ -318,10 +320,12 @@ export const generateFullTournament = async (
       groupsByKey,
     })
 
-    await scheduleGeneratedMatches(tournamentCategoryId, {
-      zoneDayById: remappedZoneDayById,
-      phaseByDay: options?.scheduling?.phaseByDay,
-    })
+    if (applyScheduling) {
+      await scheduleGeneratedMatches(tournamentCategoryId, {
+        zoneDayById: remappedZoneDayById,
+        phaseByDay: options?.scheduling?.phaseByDay,
+      })
+    }
 
     await verifyGeneratedStructure(
       tournamentCategoryId,
