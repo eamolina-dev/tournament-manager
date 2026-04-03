@@ -19,6 +19,13 @@ const formatDate = (value: string | null) => {
   return `${day}/${month}/${year}`;
 };
 
+const compareByStartDate = (a: string | null, b: string | null) => {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b);
+};
+
 export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
   const [tournaments, setTournaments] = useState<PublicTournamentPreview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,14 +34,15 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
     const load = async () => {
       try {
         const data = await getTournaments();
-        setTournaments(
-          data.map((tournament) => ({
+        const sortedTournaments = data
+          .map((tournament) => ({
             id: tournament.id,
             name: tournament.name ?? "Torneo",
             startDate: tournament.start_date,
             endDate: tournament.end_date,
           }))
-        );
+          .sort((a, b) => compareByStartDate(a.startDate, b.startDate));
+        setTournaments(sortedTournaments);
       } finally {
         setLoading(false);
       }

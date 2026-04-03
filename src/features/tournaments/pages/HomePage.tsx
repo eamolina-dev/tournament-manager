@@ -30,6 +30,13 @@ type TournamentCard = {
   }[];
 };
 
+const compareByStartDate = (a: string | null, b: string | null) => {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b);
+};
+
 export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
   const isAdminMode = mode === "admin";
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
@@ -96,7 +103,10 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
         })),
       );
 
-      setTournaments(mergedWithMatchState);
+      const sortedTournaments = [...mergedWithMatchState].sort((a, b) =>
+        compareByStartDate(a.start_date, b.start_date)
+      );
+      setTournaments(sortedTournaments);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Error cargando torneos"
@@ -123,12 +133,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
     return endDate < today;
   };
 
-  const publicTournaments = tournaments
-    .map((tournament) => ({
-      ...tournament,
-      categories: tournament.categories.filter((category) => category.hasMatches),
-    }))
-    .filter((tournament) => tournament.categories.length > 0);
+  const publicTournaments = tournaments;
 
   const visibleTournaments = isAdminMode ? tournaments : publicTournaments;
 
@@ -229,10 +234,18 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                       {cat.hasMatches ? "Fixture listo" : "Sin fixture"}
                     </span>
                   ) : (
-                    <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
-                      {isTournamentFinished(tournament.end_date)
-                        ? "Ver resultados"
-                        : "Ver partidos"}
+                    <span
+                      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        cat.hasMatches
+                          ? "bg-sky-100 text-sky-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {cat.hasMatches
+                        ? isTournamentFinished(tournament.end_date)
+                          ? "Ver resultados"
+                          : "Ver partidos"
+                        : "Próximamente"}
                     </span>
                   )}
                 </button>
@@ -245,7 +258,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
             <p className="text-sm text-[var(--tm-muted)]">
               {isAdminMode
                 ? "Todavía no hay torneos cargados."
-                : "Todavía no hay torneos con partidos publicados."}
+                : "Todavía no hay torneos publicados."}
             </p>
             {isAdminMode ? (
               <button
