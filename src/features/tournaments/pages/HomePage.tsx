@@ -122,14 +122,14 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            Eventos
+            Torneos
           </h1>
           {isAdminMode ? (
             <button
               onClick={() => navigate("/admin/tournaments/new")}
               className="tm-btn-primary px-3 py-2 text-sm"
             >
-              Crear evento
+              Crear torneo
             </button>
           ) : null}
         </div>
@@ -219,14 +219,14 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
         ))}
         {!tournaments.length && !loading ? (
           <article className="tm-card">
-            <p className="text-sm text-[var(--tm-muted)]">Todavía no hay eventos cargados.</p>
+            <p className="text-sm text-[var(--tm-muted)]">Todavía no hay torneos cargados.</p>
             {isAdminMode ? (
               <button
                 type="button"
                 onClick={() => navigate("/admin/tournaments/new")}
                 className="mt-3 tm-btn-primary px-3 py-2 text-sm"
               >
-                Crear primer evento
+                Crear primer torneo
               </button>
             ) : null}
           </article>

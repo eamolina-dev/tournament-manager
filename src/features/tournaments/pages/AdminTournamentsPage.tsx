@@ -184,7 +184,7 @@ export const AdminTournamentsPage = ({
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            Gestión de eventos
+            Gestión de torneos
           </h1>
           <button
             onClick={() => navigate("/")}
@@ -200,7 +200,7 @@ export const AdminTournamentsPage = ({
               setForm((prev) => ({ ...prev, name: event.target.value }));
               setFormError(null);
             }}
-            placeholder="Nombre del evento"
+            placeholder="Nombre del torneo"
             className={`tm-input px-3 py-2 text-sm ${formError ? "border-red-400" : ""}`}
           />
           <input
@@ -235,7 +235,7 @@ export const AdminTournamentsPage = ({
             }
             className="tm-btn-primary px-3 py-2 text-sm"
           >
-            {editingId ? "Guardar cambios" : "Crear evento"}
+            {editingId ? "Guardar cambios" : "Crear torneo"}
           </button>
         </div>
         {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
@@ -277,7 +277,7 @@ export const AdminTournamentsPage = ({
                 onClick={() =>
                   void (async () => {
                     const confirmed = window.confirm(
-                      `¿Eliminar el evento "${tournament.name}"? Esta acción no se puede deshacer.`
+                      `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`
                     );
                     if (!confirmed) return;
                     await deleteTournament(tournament.id);
@@ -314,7 +314,7 @@ export const AdminTournamentsPage = ({
                   onClick={() =>
                     void (async () => {
                       const confirmed = window.confirm(
-                        `¿Eliminar la categoría "${cat.name}" del evento "${tournament.name}"?`
+                        `¿Eliminar la categoría "${cat.name}" del torneo "${tournament.name}"?`
                       );
                       if (!confirmed) return;
                       await deleteTournamentCategory(cat.tournamentCategoryId);

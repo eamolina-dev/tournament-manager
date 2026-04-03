@@ -8,12 +8,12 @@ import {
 import { formatCategoryName } from "../../../shared/lib/category-display";
 import { validateCategorySelection } from "../../../shared/lib/ui-validations";
 
-type EventHubPageProps = {
-  eventId: string;
+type TournamentHubPageProps = {
+  tournamentId: string;
   navigate: (path: string) => void;
 };
 
-type EventCategoryItem = {
+type TournamentCategoryItem = {
   tournamentCategoryId: string;
   categoryId: string | null;
   name: string;
@@ -21,10 +21,10 @@ type EventCategoryItem = {
   sumaValue: number | null;
 };
 
-export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
-  const [eventName, setEventName] = useState("Evento");
-  const [eventDate, setEventDate] = useState<string | null>(null);
-  const [categories, setCategories] = useState<EventCategoryItem[]>([]);
+export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageProps) => {
+  const [tournamentName, setTournamentName] = useState("Torneo");
+  const [tournamentDate, setTournamentDate] = useState<string | null>(null);
+  const [categories, setCategories] = useState<TournamentCategoryItem[]>([]);
   const [categoriesCatalog, setCategoriesCatalog] = useState<
     { id: string; name: string; slug: string | null; level: number }[]
   >([]);
@@ -47,20 +47,20 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
     setError(null);
 
     try {
-      const [eventData, allCategories, tournamentCategories] = await Promise.all([
-        getTournamentById(eventId),
+      const [tournamentData, allCategories, tournamentCategories] = await Promise.all([
+        getTournamentById(tournamentId),
         getAllCategories(),
-        getTournamentCategories(eventId),
+        getTournamentCategories(tournamentId),
       ]);
 
-      if (!eventData) {
-        setError("Evento no encontrado");
+      if (!tournamentData) {
+        setError("Torneo no encontrado");
         setCategories([]);
         return;
       }
 
-      setEventName(eventData.name ?? "Evento");
-      setEventDate(eventData.start_date ?? null);
+      setTournamentName(tournamentData.name ?? "Torneo");
+      setTournamentDate(tournamentData.start_date ?? null);
 
       const categoriesById = new Map(allCategories.map((category) => [category.id, category]));
       const mapped = tournamentCategories
@@ -88,11 +88,11 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
       setCategories(mapped);
       setCategoriesCatalog(allCategories);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Error cargando evento");
+      setError(loadError instanceof Error ? loadError.message : "Error cargando torneo");
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [tournamentId]);
 
   useEffect(() => {
     void load();
@@ -121,23 +121,23 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
     try {
       if (categoryMode === "suma") {
         const created = await createCategory({
-          tournament_id: eventId,
+          tournament_id: tournamentId,
           is_suma: true,
           suma_value: sumSelection,
           category_id: null,
         });
-        navigate(`/eventos/${eventId}/categorias/${created.id}`);
+        navigate(`/torneos/${tournamentId}/categorias/${created.id}`);
         return;
       }
 
       const created = await createCategory({
-        tournament_id: eventId,
+        tournament_id: tournamentId,
         category_id: categorySelection,
         is_suma: false,
         suma_value: null,
       });
 
-      navigate(`/eventos/${eventId}/categorias/${created.id}`);
+      navigate(`/torneos/${tournamentId}/categorias/${created.id}`);
     } catch (createError) {
       setError(
         createError instanceof Error ? createError.message : "No se pudo agregar la categoría",
@@ -156,8 +156,8 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
         >
           ← Volver al Inicio
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">{eventName}</h1>
-        <p className="text-sm text-slate-500">Fecha: {formatDateAr(eventDate)}</p>
+        <h1 className="text-2xl font-bold text-slate-900">{tournamentName}</h1>
+        <p className="text-sm text-slate-500">Fecha: {formatDateAr(tournamentDate)}</p>
       </article>
 
       <article className="tm-card">
@@ -177,7 +177,7 @@ export const EventHubPage = ({ eventId, navigate }: EventHubPageProps) => {
               <p className="text-sm text-slate-800">{category.name}</p>
               <button
                 onClick={() =>
-                  navigate(`/eventos/${eventId}/categorias/${category.tournamentCategoryId}`)
+                  navigate(`/torneos/${tournamentId}/categorias/${category.tournamentCategoryId}`)
                 }
                 className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
               >

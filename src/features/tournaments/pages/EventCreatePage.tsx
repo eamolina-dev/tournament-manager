@@ -17,9 +17,9 @@ import {
   validateTournamentForm,
 } from "../../../shared/lib/ui-validations";
 
-type EventCreatePageProps = {
+type TournamentCreatePageProps = {
   navigate: (path: string) => void;
-  eventId?: string;
+  tournamentId?: string;
   mode?: "default" | "admin";
 };
 
@@ -54,13 +54,13 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-export const EventCreatePage = ({
+export const TournamentCreatePage = ({
   navigate,
-  eventId,
+  tournamentId,
   mode = "default",
-}: EventCreatePageProps) => {
+}: TournamentCreatePageProps) => {
   const isAdminMode = mode === "admin";
-  const isEditMode = Boolean(eventId);
+  const isEditMode = Boolean(tournamentId);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -99,15 +99,15 @@ export const EventCreatePage = ({
           }))
         );
 
-        if (!eventId) return;
+        if (!tournamentId) return;
 
         const [tournament, tournamentCategories] = await Promise.all([
-          getTournamentById(eventId),
-          getTournamentCategories(eventId),
+          getTournamentById(tournamentId),
+          getTournamentCategories(tournamentId),
         ]);
 
         if (!tournament) {
-          setError("Evento no encontrado");
+          setError("Torneo no encontrado");
           return;
         }
 
@@ -140,13 +140,13 @@ export const EventCreatePage = ({
         setExistingCategories(mappedExistingCategories);
       } catch (loadError) {
         setError(
-          loadError instanceof Error ? loadError.message : "No se pudo cargar el evento"
+          loadError instanceof Error ? loadError.message : "No se pudo cargar el torneo"
         );
       } finally {
         setLoading(false);
       }
     })();
-  }, [eventId, isEditMode]);
+  }, [tournamentId, isEditMode]);
 
   const getBackPath = () => (isAdminMode ? "/admin" : "/");
 
@@ -199,11 +199,11 @@ export const EventCreatePage = ({
       return;
     }
 
-    if (!eventId) return;
+    if (!tournamentId) return;
 
     try {
       const createdCategory = await createCategory({
-        tournament_id: eventId,
+        tournament_id: tournamentId,
         category_id: currentDraftItem.category_id,
         is_suma: currentDraftItem.is_suma,
         suma_value: currentDraftItem.suma_value,
@@ -232,8 +232,8 @@ export const EventCreatePage = ({
     setSuccessMessage(null);
 
     try {
-      if (isEditMode && eventId) {
-        await updateTournament(eventId, {
+      if (isEditMode && tournamentId) {
+        await updateTournament(tournamentId, {
           name: name.trim(),
           slug: slugify(name),
           start_date: startDate || null,
@@ -278,11 +278,11 @@ export const EventCreatePage = ({
       navigate(
         isAdminMode
           ? `/admin/tournaments/${createdTournament.id}/edit`
-          : `/eventos/${createdTournament.id}/edit`
+          : `/torneos/${createdTournament.id}/edit`
       );
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "No se pudo guardar el evento"
+        submitError instanceof Error ? submitError.message : "No se pudo guardar el torneo"
       );
     } finally {
       setSaving(false);
@@ -294,7 +294,7 @@ export const EventCreatePage = ({
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-slate-900">
-            {isEditMode ? "Editar evento" : "Crear evento"}
+            {isEditMode ? "Editar torneo" : "Crear torneo"}
           </h1>
           <button
             onClick={() => navigate(getBackPath())}
@@ -306,7 +306,7 @@ export const EventCreatePage = ({
 
         <div className="mt-3 grid gap-2 md:grid-cols-4">
           <label className="space-y-1">
-            <span className="text-xs font-medium text-slate-600">Nombre del evento *</span>
+            <span className="text-xs font-medium text-slate-600">Nombre del torneo *</span>
             <input
               value={name}
               onChange={(event) => {
@@ -397,7 +397,7 @@ export const EventCreatePage = ({
             }
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear evento"}
+            {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear torneo"}
           </button>
         </div>
         {(formErrors.name || formErrors.slug || formErrors.dates) && (
@@ -495,9 +495,9 @@ export const EventCreatePage = ({
                       onClick={() =>
                         isAdminMode
                           ? navigate(
-                              `/admin/tournaments/${eventId}/categories/${existingCategory.id}/setup`
+                              `/admin/tournaments/${tournamentId}/categories/${existingCategory.id}/setup`
                             )
-                          : navigate(`/eventos/${eventId}/categorias/${existingCategory.id}`)
+                          : navigate(`/torneos/${tournamentId}/categorias/${existingCategory.id}`)
                       }
                       className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                     >
@@ -508,7 +508,7 @@ export const EventCreatePage = ({
                         onClick={() =>
                           void (async () => {
                             const confirmed = window.confirm(
-                              `¿Eliminar la categoría "${existingCategory.label}" del evento?`
+                              `¿Eliminar la categoría "${existingCategory.label}" del torneo?`
                             );
                             if (!confirmed) return;
                             await deleteTournamentCategory(existingCategory.id);
@@ -552,7 +552,7 @@ export const EventCreatePage = ({
                 ))}
                 {draftCategories.length === 0 ? (
                   <p className="text-xs text-slate-500">
-                    Aún no agregaste categorías. Sumá al menos una para crear el evento.
+                    Aún no agregaste categorías. Sumá al menos una para crear el torneo.
                   </p>
                 ) : null}
               </div>

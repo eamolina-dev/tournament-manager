@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./widgets/layout/AppShell";
 import { RankingsPage } from "./features/rankings/pages/RankingsPage";
 import { AdminTournamentsPage } from "./features/tournaments/pages/AdminTournamentsPage";
-import { EventCreatePage } from "./features/tournaments/pages/EventCreatePage";
+import { TournamentCreatePage } from "./features/tournaments/pages/EventCreatePage";
 import { HomePage } from "./features/tournaments/pages/HomePage";
 import { TournamentCategoryPage } from "./features/tournaments/pages/TournamentCategoryPage";
 import { PlayersPage } from "./features/players/pages/PlayersPage";
@@ -22,47 +22,48 @@ const matchAdminTournamentPath = (pathname: string) => {
   return { slug: match[1], category: decodeURIComponent(match[2]) };
 };
 
-const matchEventPath = (pathname: string) => {
+const matchTournamentManagePath = (pathname: string) => {
+  const match = pathname.match(/^\/torneos\/([^/]+)$/);
+  if (!match) return null;
+  if (match[1] === "new") return null;
+  return { tournamentId: match[1] };
+};
+
+const matchTournamentCategoryPath = (pathname: string) => {
+  const match = pathname.match(/^\/torneos\/([^/]+)\/categorias\/([^/]+)$/);
+  if (!match) return null;
+  return { tournamentId: match[1], categoryId: match[2] };
+};
+
+const matchLegacyTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/eventos\/([^/]+)$/);
   if (!match) return null;
   if (match[1] === "new") return null;
-  return { eventId: match[1] };
+  return { tournamentId: match[1] };
 };
 
-const matchEventCategoryPath = (pathname: string) => {
-  const match = pathname.match(/^\/eventos\/([^/]+)\/categorias\/([^/]+)$/);
+const matchTournamentEditPath = (pathname: string) => {
+  const match = pathname.match(/^\/torneos\/([^/]+)\/edit$/);
   if (!match) return null;
-  return { eventId: match[1], categoryId: match[2] };
+  return { tournamentId: match[1] };
 };
 
-const matchLegacyEventPath = (pathname: string) => {
-  const match = pathname.match(/^\/torneos\/([^/]+)$/);
-  if (!match) return null;
-  return { eventId: match[1] };
-};
-
-const matchEventEditPath = (pathname: string) => {
-  const match = pathname.match(/^\/eventos\/([^/]+)\/edit$/);
-  if (!match) return null;
-  return { eventId: match[1] };
-};
-
-const matchAdminEventEditPath = (pathname: string) => {
+const matchAdminTournamentEditPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/edit$/);
   if (!match) return null;
-  return { eventId: match[1] };
+  return { tournamentId: match[1] };
 };
 
-const matchAdminEventCategoryPath = (pathname: string) => {
+const matchAdminTournamentCategoryPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/categories\/([^/]+)$/);
   if (!match) return null;
-  return { eventId: match[1], categoryId: match[2] };
+  return { tournamentId: match[1], categoryId: match[2] };
 };
 
-const matchAdminEventCategorySetupPath = (pathname: string) => {
+const matchAdminTournamentCategorySetupPath = (pathname: string) => {
   const match = pathname.match(/^\/admin\/tournaments\/([^/]+)\/categories\/([^/]+)\/setup$/);
   if (!match) return null;
-  return { eventId: match[1], categoryId: match[2] };
+  return { tournamentId: match[1], categoryId: match[2] };
 };
 
 export default function App() {
@@ -82,14 +83,14 @@ export default function App() {
 
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
-  const eventRoute = useMemo(() => matchEventPath(pathname), [pathname]);
-  const eventEditRoute = useMemo(() => matchEventEditPath(pathname), [pathname]);
-  const eventCategoryRoute = useMemo(() => matchEventCategoryPath(pathname), [pathname]);
-  const legacyEventRoute = useMemo(() => matchLegacyEventPath(pathname), [pathname]);
-  const adminEventEditRoute = useMemo(() => matchAdminEventEditPath(pathname), [pathname]);
-  const adminEventCategoryRoute = useMemo(() => matchAdminEventCategoryPath(pathname), [pathname]);
-  const adminEventCategorySetupRoute = useMemo(
-    () => matchAdminEventCategorySetupPath(pathname),
+  const tournamentManageRoute = useMemo(() => matchTournamentManagePath(pathname), [pathname]);
+  const tournamentEditRoute = useMemo(() => matchTournamentEditPath(pathname), [pathname]);
+  const tournamentCategoryRoute = useMemo(() => matchTournamentCategoryPath(pathname), [pathname]);
+  const legacyTournamentRoute = useMemo(() => matchLegacyTournamentPath(pathname), [pathname]);
+  const adminTournamentEditRoute = useMemo(() => matchAdminTournamentEditPath(pathname), [pathname]);
+  const adminTournamentCategoryRoute = useMemo(() => matchAdminTournamentCategoryPath(pathname), [pathname]);
+  const adminTournamentCategorySetupRoute = useMemo(
+    () => matchAdminTournamentCategorySetupPath(pathname),
     [pathname],
   );
 
@@ -100,40 +101,40 @@ export default function App() {
       {pathname === "/admin" && <HomePage navigate={navigate} mode="admin" />}
       {pathname === "/admin/players" && <PlayersPage />}
       {pathname === "/admin/tournaments/new" && (
-        <EventCreatePage navigate={navigate} mode="admin" />
+        <TournamentCreatePage navigate={navigate} mode="admin" />
       )}
-      {adminEventEditRoute && (
-        <EventCreatePage navigate={navigate} eventId={adminEventEditRoute.eventId} mode="admin" />
+      {adminTournamentEditRoute && (
+        <TournamentCreatePage navigate={navigate} tournamentId={adminTournamentEditRoute.tournamentId} mode="admin" />
       )}
-      {adminEventCategoryRoute && (
+      {adminTournamentCategoryRoute && (
         <AdminTournamentResultsPage
-          eventId={adminEventCategoryRoute.eventId}
-          categoryId={adminEventCategoryRoute.categoryId}
+          eventId={adminTournamentCategoryRoute.tournamentId}
+          categoryId={adminTournamentCategoryRoute.categoryId}
           navigate={navigate}
         />
       )}
-      {adminEventCategorySetupRoute && (
+      {adminTournamentCategorySetupRoute && (
         <AdminTournamentSetupPage
-          eventId={adminEventCategorySetupRoute.eventId}
-          categoryId={adminEventCategorySetupRoute.categoryId}
+          eventId={adminTournamentCategorySetupRoute.tournamentId}
+          categoryId={adminTournamentCategorySetupRoute.categoryId}
           navigate={navigate}
         />
       )}
 
-      {pathname === "/eventos/new" && <EventCreatePage navigate={navigate} />}
-      {eventEditRoute && <EventCreatePage navigate={navigate} eventId={eventEditRoute.eventId} />}
-      {eventRoute && <EventCreatePage navigate={navigate} eventId={eventRoute.eventId} />}
-      {eventCategoryRoute && (
+      {pathname === "/torneos/new" && <TournamentCreatePage navigate={navigate} />}
+      {tournamentEditRoute && <TournamentCreatePage navigate={navigate} tournamentId={tournamentEditRoute.tournamentId} />}
+      {tournamentManageRoute && <TournamentCreatePage navigate={navigate} tournamentId={tournamentManageRoute.tournamentId} />}
+      {tournamentCategoryRoute && (
         <TournamentCategoryPage
           slug=""
           category=""
-          eventId={eventCategoryRoute.eventId}
-          categoryId={eventCategoryRoute.categoryId}
+          eventId={tournamentCategoryRoute.tournamentId}
+          categoryId={tournamentCategoryRoute.categoryId}
           isAdmin
           navigate={navigate}
         />
       )}
-      {legacyEventRoute && <EventCreatePage navigate={navigate} eventId={legacyEventRoute.eventId} />}
+      {legacyTournamentRoute && <TournamentCreatePage navigate={navigate} tournamentId={legacyTournamentRoute.tournamentId} />}
       {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
       {pathname === "/rankings" && <RankingsPage />}
       {tournamentRoute && (
@@ -152,20 +153,20 @@ export default function App() {
       )}
       {!tournamentRoute &&
         !adminTournamentRoute &&
-        !eventRoute &&
-        !eventEditRoute &&
-        !eventCategoryRoute &&
-        !legacyEventRoute &&
-        !adminEventEditRoute &&
-        !adminEventCategoryRoute &&
-        !adminEventCategorySetupRoute &&
+        !tournamentManageRoute &&
+        !tournamentEditRoute &&
+        !tournamentCategoryRoute &&
+        !legacyTournamentRoute &&
+        !adminTournamentEditRoute &&
+        !adminTournamentCategoryRoute &&
+        !adminTournamentCategorySetupRoute &&
         pathname !== "/" &&
         pathname !== "/admin" &&
         pathname !== "/admin/players" &&
         pathname !== "/admin/tournaments/new" &&
         pathname !== "/rankings" &&
         pathname !== "/admin/tournaments" &&
-        pathname !== "/eventos/new" && (
+        pathname !== "/torneos/new" && (
           <section className="tm-card">
             <p className="text-sm text-[var(--tm-muted)]">Ruta no encontrada.</p>
           </section>
