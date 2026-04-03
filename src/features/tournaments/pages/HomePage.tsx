@@ -117,6 +117,21 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
     return `${day}-${month}-${year}`;
   };
 
+  const isTournamentFinished = (endDate: string | null) => {
+    if (!endDate) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    return endDate < today;
+  };
+
+  const publicTournaments = tournaments
+    .map((tournament) => ({
+      ...tournament,
+      categories: tournament.categories.filter((category) => category.hasMatches),
+    }))
+    .filter((tournament) => tournament.categories.length > 0);
+
+  const visibleTournaments = isAdminMode ? tournaments : publicTournaments;
+
   return (
     <section className="grid gap-4">
       <article className="tm-card">
@@ -141,7 +156,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {tournaments.map((tournament) => (
+        {visibleTournaments.map((tournament) => (
           <article key={tournament.id} className="tm-card">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -203,23 +218,35 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                   className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
                 >
                   {cat.name}
-                  <span
-                    className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      cat.hasMatches
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-800"
-                    }`}
-                  >
-                    {cat.hasMatches ? "Fixture listo" : "Sin fixture"}
-                  </span>
+                  {isAdminMode ? (
+                    <span
+                      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        cat.hasMatches
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {cat.hasMatches ? "Fixture listo" : "Sin fixture"}
+                    </span>
+                  ) : (
+                    <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                      {isTournamentFinished(tournament.end_date)
+                        ? "Ver resultados"
+                        : "Ver partidos"}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           </article>
         ))}
-        {!tournaments.length && !loading ? (
+        {!visibleTournaments.length && !loading ? (
           <article className="tm-card">
-            <p className="text-sm text-[var(--tm-muted)]">Todavía no hay torneos cargados.</p>
+            <p className="text-sm text-[var(--tm-muted)]">
+              {isAdminMode
+                ? "Todavía no hay torneos cargados."
+                : "Todavía no hay torneos con partidos publicados."}
+            </p>
             {isAdminMode ? (
               <button
                 type="button"
