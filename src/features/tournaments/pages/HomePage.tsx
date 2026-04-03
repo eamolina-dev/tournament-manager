@@ -212,6 +212,10 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                 <button
                   key={cat.tournamentCategoryId}
                   onClick={() => {
+                    if (!isAdminMode && !cat.hasMatches) {
+                      window.alert("El fixture de esta categoría estará disponible próximamente.");
+                      return;
+                    }
                     navigate(
                       isAdminMode
                         ? !cat.hasMatches
@@ -220,7 +224,12 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                         : `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
                     );
                   }}
-                  className="rounded-full border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
+                  className={`rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-surface)] ${
+                    !isAdminMode && !cat.hasMatches
+                      ? "cursor-not-allowed bg-[#0c2033]/70"
+                      : "bg-[#0c2033]"
+                  }`}
+                  aria-disabled={!isAdminMode && !cat.hasMatches}
                 >
                   {cat.name}
                   {isAdminMode ? (
