@@ -80,16 +80,16 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
       <div className="grid gap-3 lg:grid-cols-3">
         <article className="tm-card lg:col-span-2">
           <h2 className="text-lg font-semibold text-[var(--tm-text)]">Sobre el complejo</h2>
-          <p className="mt-2 text-sm text-[var(--tm-muted)]">
+          <p className="mt-2 text-sm text-slate-200/95">
             Estamos en Av. del Deporte 2450, con canchas techadas y al aire libre para entrenamientos
             y competencias durante toda la semana.
           </p>
-          <div className="mt-4 grid gap-2 text-sm text-[var(--tm-muted)] sm:grid-cols-2">
-            <p className="rounded-lg border border-[var(--tm-border)] bg-[#0a1d2f] px-3 py-2">
-              <span className="font-semibold text-[var(--tm-text)]">Canchas:</span> 6 disponibles
+          <div className="mt-4 grid gap-2 text-sm text-slate-100 sm:grid-cols-2">
+            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
+              <span className="font-semibold text-white">Canchas:</span> 6 disponibles
             </p>
-            <p className="rounded-lg border border-[var(--tm-border)] bg-[#0a1d2f] px-3 py-2">
-              <span className="font-semibold text-[var(--tm-text)]">Horario:</span> Lunes a domingo, 8:00 a 23:00
+            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
+              <span className="font-semibold text-white">Horario:</span> Lunes a domingo, 8:00 a 23:00
             </p>
           </div>
         </article>
@@ -99,17 +99,17 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           <div className="mt-3 grid gap-2">
             <button
               onClick={() => navigate("/tournaments")}
-              className="rounded-xl border border-sky-400/40 bg-sky-500/10 px-4 py-3 text-left"
+              className="rounded-xl border border-sky-300/70 bg-sky-500/25 px-4 py-3 text-left"
             >
-              <p className="text-sm font-semibold text-sky-100">Torneos</p>
-              <p className="text-xs text-sky-200/80">Calendario, cuadros y resultados.</p>
+              <p className="text-sm font-semibold text-sky-50">Torneos</p>
+              <p className="text-xs text-sky-100">Calendario, cuadros y resultados.</p>
             </button>
             <button
               onClick={() => navigate("/rankings")}
-              className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-left"
+              className="rounded-xl border border-emerald-300/70 bg-emerald-500/25 px-4 py-3 text-left"
             >
-              <p className="text-sm font-semibold text-emerald-100">Rankings</p>
-              <p className="text-xs text-emerald-200/80">Posiciones actualizadas por categoría.</p>
+              <p className="text-sm font-semibold text-emerald-50">Rankings</p>
+              <p className="text-xs text-emerald-100">Posiciones actualizadas por categoría.</p>
             </button>
           </div>
         </article>
@@ -131,8 +131,8 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             {recentTournaments.map((tournament) => (
               <div key={tournament.id} className="rounded-xl border border-[var(--tm-border)] bg-[#0a1d2f] p-3">
-                <p className="font-semibold text-[var(--tm-text)]">{tournament.name}</p>
-                <p className="mt-1 text-xs text-[var(--tm-muted)]">
+                <p className="font-semibold text-slate-100">{tournament.name}</p>
+                <p className="mt-1 text-xs text-slate-300">
                   {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
                 </p>
               </div>
