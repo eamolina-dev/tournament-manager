@@ -3,9 +3,21 @@ import type { MatchTemplate } from "./match-template"
 
 const MAX_TEAMS = 32
 
+type SeedSource = {
+  token: string
+  position: number
+  group: string
+}
+
 const nextPowerOfTwo = (value: number): number => {
   let result = 1
   while (result < value) result *= 2
+  return result
+}
+
+const previousPowerOfTwo = (value: number): number => {
+  let result = 1
+  while (result * 2 <= value) result *= 2
   return result
 }
 
@@ -28,6 +40,21 @@ const getStageFromActiveTeams = (activeTeams: number): MatchTemplate["stage"] =>
   return "round_of_32"
 }
 
+const parseSeedSource = (token: string): SeedSource | null => {
+  const normalized = token.trim().toUpperCase()
+  const match = normalized.match(/^(\d+)([A-Z])$/)
+  if (!match) return null
+
+  const position = Number.parseInt(match[1], 10)
+  if (!Number.isInteger(position) || position <= 0) return null
+
+  return {
+    token: normalized,
+    position,
+    group: match[2],
+  }
+}
+
 const buildSeedTokens = (teamCount: number, groupRanking: string[]): string[] => {
   if (!groupRanking.length) {
     throw new Error("Se requiere al menos un grupo en groupRanking para armar el cuadro.")
@@ -45,7 +72,6 @@ const buildSeedTokens = (teamCount: number, groupRanking: string[]): string[] =>
 
   return seeds
 }
-
 
 const getGroupFromSeed = (seed: string | null): string | null => {
   if (!seed) return null
@@ -96,6 +122,195 @@ const adjustFirstRoundPairings = (slots: Array<string | null>): Array<string | n
 
   return adjusted
 }
+
+
+const countSameGroupPairConflicts = (slots: Array<string | null>): number => {
+  let conflicts = 0
+
+  for (let index = 0; index < slots.length; index += 2) {
+    const group1 = getGroupFromSeed(slots[index])
+    const group2 = getGroupFromSeed(slots[index + 1])
+    if (group1 && group2 && group1 === group2) {
+      conflicts += 1
+    }
+  }
+
+  return conflicts
+}
+
+const choosePlayInSecondPlaces = (
+  secondPlacesWorstFirst: SeedSource[],
+  requiredCount: number,
+  thirdPlaces: SeedSource[],
+  groupRanking: string[],
+): SeedSource[] => {
+  if (requiredCount <= 0) return []
+
+  let bestSelection: SeedSource[] = secondPlacesWorstFirst.slice(0, requiredCount)
+  let bestScore: { conflicts: number; penalty: number } | null = null
+
+  const evaluateSelection = (selection: SeedSource[]): { conflicts: number; penalty: number } => {
+    const playInSeeds = rankSeedSources([...thirdPlaces, ...selection], groupRanking)
+    const playInSlots = adjustFirstRoundPairings(
+      buildStandardSeedOrder(playInSeeds.length).map((seed) => playInSeeds[seed - 1]?.token ?? null),
+    )
+    const conflicts = countSameGroupPairConflicts(playInSlots)
+    const penalty = selection.reduce(
+      (sum, seed) => sum + secondPlacesWorstFirst.findIndex((candidate) => candidate.token === seed.token),
+      0,
+    )
+
+    return { conflicts, penalty }
+  }
+
+  const search = (start: number, selection: SeedSource[]): void => {
+    if (selection.length === requiredCount) {
+      const score = evaluateSelection(selection)
+      if (
+        !bestScore ||
+        score.conflicts < bestScore.conflicts ||
+        (score.conflicts === bestScore.conflicts && score.penalty < bestScore.penalty)
+      ) {
+        bestScore = score
+        bestSelection = [...selection]
+      }
+      return
+    }
+
+    for (let index = start; index < secondPlacesWorstFirst.length; index += 1) {
+      selection.push(secondPlacesWorstFirst[index])
+      search(index + 1, selection)
+      selection.pop()
+    }
+  }
+
+  search(0, [])
+  return bestSelection
+}
+
+const rankSeedSources = (sources: SeedSource[], groupRanking: string[]): SeedSource[] => {
+  const groupRank = new Map(groupRanking.map((group, index) => [group.trim().toUpperCase(), index]))
+
+  return [...sources].sort((a, b) => {
+    if (a.position !== b.position) return a.position - b.position
+    return (groupRank.get(a.group) ?? Number.MAX_SAFE_INTEGER) -
+      (groupRank.get(b.group) ?? Number.MAX_SAFE_INTEGER)
+  })
+}
+
+const buildInitialRounds = (
+  seedTokens: string[],
+  groupRanking: string[],
+): {
+  playInMatches: Array<{ order: number; team1: string; team2: string; round: number; stage: string }>
+  mainSlots: Array<string | null>
+} => {
+  const qualifiedCount = seedTokens.length
+  const parsedSeeds = seedTokens.map((token) => parseSeedSource(token)).filter(Boolean) as SeedSource[]
+
+  if (parsedSeeds.length !== seedTokens.length) {
+    const bracketSize = nextPowerOfTwo(qualifiedCount)
+    return {
+      playInMatches: [],
+      mainSlots: adjustFirstRoundPairings(
+        buildStandardSeedOrder(bracketSize).map((seed) => seedTokens[seed - 1] ?? null),
+      ),
+    }
+  }
+
+  if ((qualifiedCount & (qualifiedCount - 1)) === 0) {
+    return {
+      playInMatches: [],
+      mainSlots: adjustFirstRoundPairings(
+        buildStandardSeedOrder(qualifiedCount).map((seed) => seedTokens[seed - 1] ?? null),
+      ),
+    }
+  }
+
+  const mainSize = previousPowerOfTwo(qualifiedCount)
+  const playInTeamsCount = 2 * (qualifiedCount - mainSize)
+  const playInWinnersCount = playInTeamsCount / 2
+  const directCount = mainSize - playInWinnersCount
+
+  const rankedSeeds = rankSeedSources(parsedSeeds, groupRanking)
+  const firstPlaces = rankedSeeds.filter((seed) => seed.position === 1)
+  const secondPlaces = rankedSeeds.filter((seed) => seed.position === 2)
+  const thirdPlaces = rankedSeeds.filter((seed) => seed.position === 3)
+
+  if (firstPlaces.length > directCount) {
+    throw new Error("No hay lugar suficiente para evitar play-in de primeros puestos.")
+  }
+
+  if (thirdPlaces.length > playInTeamsCount) {
+    throw new Error("La cantidad de terceros supera los cupos de play-in disponibles.")
+  }
+
+  const groupRank = new Map(groupRanking.map((group, index) => [group.trim().toUpperCase(), index]))
+  const lowestSecondPlaces = [...secondPlaces].sort(
+    (a, b) => (groupRank.get(b.group) ?? -1) - (groupRank.get(a.group) ?? -1),
+  )
+
+  const requiredSecondPlacesInPlayIn = playInTeamsCount - thirdPlaces.length
+  if (requiredSecondPlacesInPlayIn > secondPlaces.length) {
+    throw new Error("No alcanzan segundos puestos para completar los cruces de play-in.")
+  }
+
+  const playInSecondPlaces = choosePlayInSecondPlaces(
+    lowestSecondPlaces,
+    requiredSecondPlacesInPlayIn,
+    thirdPlaces,
+    groupRanking,
+  )
+  const playInSet = new Set([...thirdPlaces, ...playInSecondPlaces].map((seed) => seed.token))
+
+  const playInSeeds = rankSeedSources(
+    rankedSeeds.filter((seed) => playInSet.has(seed.token)),
+    groupRanking,
+  )
+  const directSeeds = rankSeedSources(
+    rankedSeeds.filter((seed) => !playInSet.has(seed.token)),
+    groupRanking,
+  )
+
+  const playInRound = mainSize
+  const playInStage = getStageFromActiveTeams(mainSize * 2)
+  const playInSeedOrder = buildStandardSeedOrder(playInTeamsCount)
+  const playInSlots = adjustFirstRoundPairings(
+    playInSeedOrder.map((seed) => playInSeeds[seed - 1]?.token ?? null),
+  )
+
+  const playInMatches = playInSlots
+    .reduce<Array<{ order: number; team1: string; team2: string; round: number; stage: string }>>(
+      (acc, _, index) => {
+        if (index % 2 !== 0) return acc
+        const team1 = playInSlots[index]
+        const team2 = playInSlots[index + 1]
+        if (!team1 || !team2) return acc
+
+        acc.push({
+          order: index / 2 + 1,
+          team1,
+          team2,
+          round: playInRound,
+          stage: playInStage,
+        })
+        return acc
+      },
+      [],
+    )
+
+  const mainSeedTokens = [
+    ...directSeeds.slice(0, directCount).map((seed) => seed.token),
+    ...Array.from({ length: playInWinnersCount }, (_, index) => `W-${index + 1}-${playInRound}`),
+  ]
+
+  const mainSlots = adjustFirstRoundPairings(
+    buildStandardSeedOrder(mainSize).map((seed) => mainSeedTokens[seed - 1] ?? null),
+  )
+
+  return { playInMatches, mainSlots }
+}
+
 export const generateBracket = (
   teams: Team[],
   groupRanking: string[],
@@ -107,25 +322,24 @@ export const generateBracket = (
   }
 
   const qualifiedTeamsCount = qualifiedSources?.length ?? teams.length
-  const bracketSize = nextPowerOfTwo(qualifiedTeamsCount)
-  const byes = bracketSize - qualifiedTeamsCount
-
-  const seedOrder = buildStandardSeedOrder(bracketSize)
   const seedTokens = qualifiedSources ?? buildSeedTokens(qualifiedTeamsCount, groupRanking)
 
   if (seedTokens.length !== qualifiedTeamsCount) {
     throw new Error("La cantidad de seeds clasificadas no coincide con la cantidad de equipos.")
   }
 
-  let currentRoundSlots: Array<string | null> = adjustFirstRoundPairings(
-    seedOrder.map((seed) => seedTokens[seed - 1] ?? null),
-  )
+  const { playInMatches, mainSlots } = buildInitialRounds(seedTokens, groupRanking)
 
-  if (byes < 0) {
-    throw new Error("No se pudieron asignar byes para el cuadro de eliminación.")
-  }
+  const matches: MatchTemplate[] = playInMatches.map((playInMatch) => ({
+    matchNumber: 0,
+    round: playInMatch.round,
+    order: playInMatch.order,
+    stage: playInMatch.stage,
+    team1: playInMatch.team1,
+    team2: playInMatch.team2,
+  }))
 
-  const matches: MatchTemplate[] = []
+  let currentRoundSlots = mainSlots
 
   while (currentRoundSlots.length > 1) {
     const activeTeams = currentRoundSlots.filter(Boolean).length
@@ -142,7 +356,7 @@ export const generateBracket = (
 
       if (team1 && team2) {
         matches.push({
-          matchNumber: matches.length + 1,
+          matchNumber: 0,
           round,
           order,
           stage,
@@ -160,5 +374,8 @@ export const generateBracket = (
     currentRoundSlots = nextRoundSlots
   }
 
-  return matches
+  return matches.map((match, index) => ({
+    ...match,
+    matchNumber: index + 1,
+  }))
 }
