@@ -8,6 +8,7 @@ import {
   getTournamentCategoryBySlugs,
 } from "../api/queries"
 import { computeGroupStandings } from "../utils/computeGroupStandings"
+import { formatWinningSourceLabel } from "../utils/matchSourceLabel"
 
 export type TournamentCategoryPageData = {
   tournamentCategoryId: string
@@ -214,11 +215,43 @@ export const getTournamentCategoryPageData = async (
     setsByMatch.set(set.match_id ?? "", list)
   }
 
+  const sourceMatchContextByToken = new Map<
+    string,
+    { stage?: string | null; order?: number | null }
+  >()
+
+  matches.forEach((match) => {
+    const tokenOrder = match.round_order
+    const tokenRound = match.round
+    if (!tokenOrder || !tokenRound) return
+
+    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), {
+      stage: match.stage,
+      order: match.round_order,
+    })
+  })
+
+  const resolveTeamName = (
+    teamId: string | null,
+    source: string | null,
+    fallbackLabel: "Equipo 1" | "Equipo 2",
+  ) => {
+    const mappedTeamName = teamsMap.get(teamId ?? "")
+    if (mappedTeamName) return mappedTeamName
+
+    if (source) {
+      const sourceContext = sourceMatchContextByToken.get(source.trim().toUpperCase())
+      return formatWinningSourceLabel(source, sourceContext) ?? source
+    }
+
+    return fallbackLabel
+  }
+
   const allMatches = sortByMatchNumber(
     matches.map((match) => ({
     id: match.id,
-    team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
-    team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
+    team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1"),
+    team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
     team1Id: match.team1_id,
     team2Id: match.team2_id,
     score: toScoreString(setsByMatch.get(match.id) ?? []),
@@ -386,8 +419,8 @@ export const getTournamentCategoryPageData = async (
     teams: teamsForUi,
     editableMatches: sortByMatchNumber(matches.map((match) => ({
       id: match.id,
-      team1: teamsMap.get(match.team1_id ?? "") ?? match.team1_source ?? "Equipo 1",
-      team2: teamsMap.get(match.team2_id ?? "") ?? match.team2_source ?? "Equipo 2",
+      team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1"),
+      team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
       team1Id: match.team1_id,
       team2Id: match.team2_id,
       day: toDay(match.scheduled_at),
