@@ -37,6 +37,7 @@ import {
 import {
   applyMatchScheduling,
   generateFullTournament,
+  saveZonesForCategory,
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
@@ -857,7 +858,7 @@ export const TournamentCategoryPage = ({
     setManualZoneError(null);
   };
 
-  const handleSaveZones = () => {
+  const handleSaveZones = async () => {
     if (!data) return;
     if (!zoneBoardColumns.length) {
       const message = "No hay zonas para guardar.";
@@ -883,14 +884,36 @@ export const TournamentCategoryPage = ({
       ...zone,
       name: `Zona ${String.fromCharCode(65 + index)}`,
     }));
-    setManualZones(relabeledZones);
-    localStorage.setItem(
-      `tm:zones:${data.tournamentCategoryId}`,
-      JSON.stringify(relabeledZones)
-    );
-    setManualZoneError(null);
-    setZoneConfigSuccess("Zonas guardadas correctamente.");
-    setActionNotice({ type: "success", message: "Zonas guardadas correctamente." });
+    try {
+      setSaving(true);
+      await saveZonesForCategory(
+        data.tournamentCategoryId,
+        relabeledZones.map((zone) => ({
+          name: zone.name,
+          teamIds: zone.teamIds,
+        }))
+      );
+
+      setManualZones(relabeledZones);
+      localStorage.setItem(
+        `tm:zones:${data.tournamentCategoryId}`,
+        JSON.stringify(relabeledZones)
+      );
+      setManualZoneError(null);
+      setZoneConfigSuccess("Zonas guardadas en la base y listas para generar partidos.");
+      setActionNotice({
+        type: "success",
+        message: "Zonas guardadas. El fixture se actualizará al regenerar partidos.",
+      });
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudieron guardar las zonas.";
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const sensors = useSensors(
@@ -1909,7 +1932,7 @@ export const TournamentCategoryPage = ({
               </button>
               <button
                 type="button"
-                onClick={handleSaveZones}
+                onClick={() => void handleSaveZones()}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 Guardar zonas

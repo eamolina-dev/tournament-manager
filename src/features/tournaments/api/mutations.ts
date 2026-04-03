@@ -264,6 +264,92 @@ export const deleteTournamentCategory = async (
 
 export { generateFullTournament }
 
+export const saveZonesForCategory = async (
+  tournamentCategoryId: string,
+  zones: { name: string; teamIds: string[] }[],
+): Promise<void> => {
+  if (!tournamentCategoryId) {
+    throw new Error("Falta tournamentCategoryId para guardar zonas.")
+  }
+  if (!zones.length) {
+    throw new Error("No hay zonas para guardar.")
+  }
+
+  const normalizedZones = zones.map((zone, index) => {
+    const name = zone.name.trim()
+    if (!name) {
+      throw new Error("Hay zonas sin nombre.")
+    }
+    if (!zone.teamIds.length) {
+      throw new Error(`La zona ${name} no tiene equipos asignados.`)
+    }
+    if (zone.teamIds.some((teamId) => !teamId)) {
+      throw new Error(`La zona ${name} tiene equipos inválidos.`)
+    }
+
+    return {
+      name,
+      groupKey: String.fromCharCode(65 + index),
+      teamIds: zone.teamIds,
+    }
+  })
+
+  const assignedTeamIds = normalizedZones.flatMap((zone) => zone.teamIds)
+  if (new Set(assignedTeamIds).size !== assignedTeamIds.length) {
+    throw new Error("Un equipo no puede estar en más de una zona.")
+  }
+
+  const { data: existingGroups, error: groupsError } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(groupsError)
+
+  const existingGroupIds = (existingGroups ?? []).map((group) => group.id)
+  if (existingGroupIds.length) {
+    const { error: deleteGroupTeamsError } = await supabase
+      .from("group_teams")
+      .delete()
+      .in("group_id", existingGroupIds)
+    throwIfError(deleteGroupTeamsError)
+  }
+
+  const { error: deleteGroupsError } = await supabase
+    .from("groups")
+    .delete()
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(deleteGroupsError)
+
+  const { data: insertedGroups, error: insertGroupsError } = await supabase
+    .from("groups")
+    .insert(
+      normalizedZones.map((zone) => ({
+        tournament_category_id: tournamentCategoryId,
+        name: zone.name,
+        group_key: zone.groupKey,
+      })),
+    )
+    .select("id, group_key")
+  throwIfError(insertGroupsError)
+
+  const groupIdByKey = new Map((insertedGroups ?? []).map((group) => [group.group_key ?? "", group.id]))
+  const groupTeams = normalizedZones.flatMap((zone) => {
+    const groupId = groupIdByKey.get(zone.groupKey)
+    if (!groupId) {
+      throw new Error(`No se pudo resolver la zona ${zone.name} al guardar.`)
+    }
+
+    return zone.teamIds.map((teamId, index) => ({
+      group_id: groupId,
+      team_id: teamId,
+      position: index + 1,
+    }))
+  })
+
+  const { error: insertGroupTeamsError } = await supabase.from("group_teams").insert(groupTeams)
+  throwIfError(insertGroupTeamsError)
+}
+
 export const updateTournamentCategory = async (
   tournamentCategoryId: string,
   input: TournamentCategoryUpdate,

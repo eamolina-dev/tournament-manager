@@ -161,6 +161,63 @@ const verifyGeneratedStructure = async (
   }
 }
 
+const loadPersistedPlannedGroups = async (
+  tournamentCategoryId: string,
+  validTeamIds: Set<string>,
+): Promise<PlannedGroup[] | null> => {
+  const { data: persistedGroups, error: persistedGroupsError } = await supabase
+    .from("groups")
+    .select("id, name, group_key")
+    .eq("tournament_category_id", tournamentCategoryId)
+    .order("group_key", { ascending: true })
+  throwIfError(persistedGroupsError)
+
+  if (!persistedGroups?.length) return null
+
+  const persistedGroupIds = persistedGroups.map((group) => group.id)
+  const { data: persistedGroupTeams, error: persistedGroupTeamsError } = await supabase
+    .from("group_teams")
+    .select("group_id, team_id, position")
+    .in("group_id", persistedGroupIds)
+    .order("position", { ascending: true })
+  throwIfError(persistedGroupTeamsError)
+
+  const teamsByGroupId = new Map<string, string[]>()
+  for (const row of persistedGroupTeams ?? []) {
+    const list = teamsByGroupId.get(row.group_id) ?? []
+    list.push(row.team_id)
+    teamsByGroupId.set(row.group_id, list)
+  }
+
+  const plannedGroups = persistedGroups.map((group, index) => ({
+    name: group.name,
+    groupKey: (group.group_key ?? String.fromCharCode(65 + index)).toUpperCase(),
+    teamIds: teamsByGroupId.get(group.id) ?? [],
+  }))
+  ensureGroupAssignments(plannedGroups)
+
+  const assignedTeamIds = plannedGroups.flatMap((group) => group.teamIds)
+  const uniqueAssignedTeamIds = new Set(assignedTeamIds)
+  if (assignedTeamIds.length !== uniqueAssignedTeamIds.size) {
+    throw new Error("Las zonas guardadas tienen equipos duplicados. Revisá las zonas y reintentá.")
+  }
+  if (uniqueAssignedTeamIds.size !== validTeamIds.size) {
+    throw new Error(
+      "Las zonas guardadas no coinciden con los equipos actuales. Guardá zonas nuevamente antes de generar partidos.",
+    )
+  }
+
+  for (const teamId of uniqueAssignedTeamIds) {
+    if (!validTeamIds.has(teamId)) {
+      throw new Error(
+        "Las zonas guardadas incluyen equipos inválidos para esta categoría. Guardá zonas nuevamente.",
+      )
+    }
+  }
+
+  return plannedGroups
+}
+
 export const generateFullTournament = async (
   tournamentCategoryId: string,
   options?: {
@@ -208,7 +265,10 @@ export const generateFullTournament = async (
       teamsCount: safeTeams.length,
     })
 
-    const plannedGroups = generateGroups(safeTeams)
+    const validTeamIds = new Set(safeTeams.map((team) => team.id))
+    const plannedGroups =
+      (await loadPersistedPlannedGroups(tournamentCategoryId, validTeamIds)) ??
+      generateGroups(safeTeams)
     ensureGroupAssignments(plannedGroups)
     const preGroupMatchesCount = countGroupMatches(plannedGroups)
     const qualifiedTeamSources = getQualifiedTeamSources(plannedGroups)
