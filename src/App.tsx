@@ -9,6 +9,7 @@ import { PlayersPage } from "./features/players/pages/PlayersPage";
 import { PublicTournamentPage } from "./features/tournaments/pages/PublicTournamentPage";
 import { AdminTournamentSetupPage } from "./features/tournaments/pages/AdminTournamentSetupPage";
 import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTournamentResultsPage";
+import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
 
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
@@ -96,7 +97,8 @@ export default function App() {
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
-      {pathname === "/" && <HomePage navigate={navigate} />}
+      {pathname === "/" && <PublicHomePage navigate={navigate} />}
+      {pathname === "/tournaments" && <HomePage navigate={navigate} />}
 
       {pathname === "/admin" && <HomePage navigate={navigate} mode="admin" />}
       {pathname === "/admin/players" && <PlayersPage />}
@@ -164,6 +166,7 @@ export default function App() {
         pathname !== "/admin" &&
         pathname !== "/admin/players" &&
         pathname !== "/admin/tournaments/new" &&
+        pathname !== "/tournaments" &&
         pathname !== "/rankings" &&
         pathname !== "/admin/tournaments" &&
         pathname !== "/torneos/new" && (

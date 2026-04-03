@@ -7,7 +7,8 @@ type AppShellProps = PropsWithChildren<{
 
 const publicNavItems = [
   { label: "Inicio", href: "/" },
-  { label: "Ranking", href: "/rankings" },
+  { label: "Torneos", href: "/tournaments" },
+  { label: "Rankings", href: "/rankings" },
 ];
 
 const adminNavItems = [
@@ -28,7 +29,9 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
       <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              (item.href === "/tournaments" && pathname.startsWith("/tournament/"));
             return (
               <button
                 key={item.href}
