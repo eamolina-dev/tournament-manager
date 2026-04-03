@@ -41,6 +41,7 @@ export type TournamentCategoryPageData = {
       id: string
       team1: string
       team2: string
+      stageOrder?: number | null
       team1Id?: string | null
       team2Id?: string | null
       score?: string
@@ -58,6 +59,7 @@ export type TournamentCategoryPageData = {
     id: string
     team1: string
     team2: string
+    stageOrder?: number | null
     score?: string
     day: string
     time: string
@@ -70,6 +72,7 @@ export type TournamentCategoryPageData = {
     id: string
     team1: string
     team2: string
+    stageOrder?: number | null
     day: string
     time: string
     court?: string
@@ -81,6 +84,7 @@ export type TournamentCategoryPageData = {
     id: string
     team1: string
     team2: string
+    stageOrder?: number | null
     team1Id: string | null
     team2Id: string | null
     day: string
@@ -254,6 +258,7 @@ export const getTournamentCategoryPageData = async (
     team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
     team1Id: match.team1_id,
     team2Id: match.team2_id,
+    stageOrder: match.round_order,
     score: toScoreString(setsByMatch.get(match.id) ?? []),
     sets: (setsByMatch.get(match.id) ?? []).map((set) => ({
       team1: set.team1_games ?? 0,
@@ -421,6 +426,7 @@ export const getTournamentCategoryPageData = async (
       id: match.id,
       team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1"),
       team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
+      stageOrder: match.round_order,
       team1Id: match.team1_id,
       team2Id: match.team2_id,
       day: toDay(match.scheduled_at),

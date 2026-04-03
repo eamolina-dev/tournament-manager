@@ -6,7 +6,7 @@ export type MatchSetScore = { team1: number; team2: number };
 export type MatchCardProps = {
   match: Pick<
     Match,
-    "id" | "team1" | "team2" | "score" | "day" | "time" | "court"
+    "id" | "team1" | "team2" | "score" | "day" | "time" | "court" | "stage" | "stageOrder"
   > & {
     team1Id?: string | null;
     team2Id?: string | null;
@@ -61,6 +61,23 @@ const buildInitialSets = (match: MatchCardProps["match"]) => {
   return [...mapped, ...EMPTY_SETS.slice(mapped.length)];
 };
 
+const MATCH_STAGE_LABELS: Partial<Record<NonNullable<Match["stage"]>, string>> = {
+  quarter: "Cuartos",
+  semi: "Semifinal",
+  final: "Final",
+  round_of_16: "Octavos",
+};
+
+const getEliminationMatchLabel = (match: MatchCardProps["match"]): string | null => {
+  if (!match.stage) return null;
+  const stageLabel = MATCH_STAGE_LABELS[match.stage];
+  if (!stageLabel) return null;
+  if (match.stageOrder && match.stageOrder > 0) {
+    return `${stageLabel} ${match.stageOrder}`;
+  }
+  return stageLabel;
+};
+
 const areEditableSetsEqual = (
   left: { team1: string; team2: string }[],
   right: { team1: string; team2: string }[],
@@ -110,6 +127,7 @@ export const MatchCard = ({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
+  const eliminationMatchLabel = useMemo(() => getEliminationMatchLabel(match), [match]);
   const onEditStateChangeRef = useRef(onEditStateChange);
 
   const setGridData = useMemo(
@@ -270,6 +288,7 @@ export const MatchCard = ({
       <p className="mt-1 text-[11px] text-[var(--tm-muted)]">
         {match.day} · {match.time}
         {match.court ? ` · ${match.court}` : ""}
+        {eliminationMatchLabel ? ` · ${eliminationMatchLabel}` : ""}
       </p>
 
       {isEditable && (
