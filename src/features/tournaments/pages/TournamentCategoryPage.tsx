@@ -510,7 +510,7 @@ export const TournamentCategoryPage = ({
       groups_ready: {
         step: "Paso 3 de 4",
         label: "Zonas listas",
-        nextAction: "Definí horarios y generá partidos.",
+        nextAction: "Generá partidos y luego aplicá horarios.",
       },
       matches_ready: {
         step: "Paso 4 de 4",
@@ -1025,7 +1025,7 @@ export const TournamentCategoryPage = ({
     if (!canGenerateZones || !data) return;
     if (hasRecordedResults) {
       const shouldRegenerate = window.confirm(
-        "Ya hay resultados cargados. Regenerar estructura puede borrar resultados y rearmar partidos. ¿Querés continuar?"
+        "Ya hay resultados cargados. Regenerar partidos puede borrar resultados y rearmar el fixture. ¿Querés continuar?"
       );
       if (!shouldRegenerate) {
         return;
@@ -1068,10 +1068,10 @@ export const TournamentCategoryPage = ({
         },
       });
       await load();
-      setGenerationSuccess("Estructura generada correctamente. Podés seguir editando en esta página.");
+      setGenerationSuccess("Partidos generados correctamente. Podés seguir editando en esta página.");
       setActionNotice({
         type: "success",
-        message: "Estructura generada. Los horarios pueden actualizarse sin regenerar.",
+        message: "Fixture generado. Los horarios pueden actualizarse sin regenerar partidos.",
       });
     } catch (error) {
       const message =
@@ -1580,7 +1580,7 @@ export const TournamentCategoryPage = ({
       </header>
 
       {isAdmin && !isAdminResultsMode && (
-        <section className="space-y-4 tm-card">
+        <section className="tm-card flex flex-col gap-4">
           <header className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Flujo de carga
@@ -2007,10 +2007,10 @@ export const TournamentCategoryPage = ({
             </DndContext>
           </article>
 
-          <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">3. Horarios (independiente)</h3>
+          <article className="order-4 rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">4. Horarios (independiente)</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Guardá y aplicá horarios sin regenerar la estructura del torneo.
+              Guardá y aplicá horarios sin regenerar partidos.
             </p>
 
             <div className="mt-3 space-y-3">
@@ -2172,10 +2172,10 @@ export const TournamentCategoryPage = ({
             )}
           </article>
 
-          <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">4. Estructura</h3>
+          <article className="order-3 rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">3. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Regenerá grupos + cruces sólo cuando cambie la estructura del torneo.
+              Regenerá grupos + cruces sólo cuando cambie la composición del torneo.
             </p>
 
             <button
@@ -2183,10 +2183,10 @@ export const TournamentCategoryPage = ({
               onClick={() => void handleGenerateMatches()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Generar estructura
+              Generar partidos
             </button>
             <p className="mt-2 text-xs text-slate-500">
-              Reemplazar jugadores dentro de un equipo no requiere regenerar estructura.
+              Reemplazar jugadores dentro de un equipo no requiere regenerar partidos.
             </p>
 
             {!canGenerateZones && (
