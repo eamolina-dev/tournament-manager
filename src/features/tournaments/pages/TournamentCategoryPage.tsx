@@ -35,13 +35,13 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import {
+  assignScheduleToMatches,
   generateFullTournament,
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
 import {
   getScheduleDays,
-  type ScheduleDayOption,
 } from "../../../features/tournaments/services/scheduleDays";
 import { filterValidZonesAndPhases } from "../services/schedulingUtils";
 import {
@@ -142,13 +142,11 @@ type ZoneValidationResult = {
 };
 type MatchGenerationDraft = {
   zones: ZoneBoardColumn[];
-  scheduling: {
-    zoneDayById: Record<string, string>;
-    startTimesByDay: Record<string, string>;
-    matchIntervalMinutes: number;
-    courtsCount: number;
-    phaseByDay: Record<SchedulingPhaseKey, string>;
-  };
+};
+type ManualScheduleDraft = {
+  day: string;
+  time: string;
+  court: string;
 };
 
 type SortableTeamCardProps = {
@@ -240,6 +238,7 @@ const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
 
   return safe;
 };
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const TournamentCategoryPage = ({
   slug,
@@ -334,6 +333,14 @@ export const TournamentCategoryPage = ({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastGenerationDraft, setLastGenerationDraft] =
     useState<MatchGenerationDraft | null>(null);
+  const [manualScheduleDraftByMatchId, setManualScheduleDraftByMatchId] =
+    useState<Record<string, ManualScheduleDraft>>({});
+  const [manualScheduleError, setManualScheduleError] = useState<string | null>(
+    null
+  );
+  const [manualScheduleSuccess, setManualScheduleSuccess] = useState<
+    string | null
+  >(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
 
   const loadPlayers = async ({
@@ -477,6 +484,20 @@ export const TournamentCategoryPage = ({
       ),
     [activeZone?.matches]
   );
+  const scheduleDays = useMemo(
+    () => getScheduleDays(data?.tournamentStartDate, data?.tournamentEndDate),
+    [data?.tournamentStartDate, data?.tournamentEndDate]
+  );
+  const scheduleDayByWeekday = useMemo(() => {
+    const map = new Map<string, string>();
+    scheduleDays.forEach((day) => {
+      const weekday = day.label.split(" (")[0]?.trim().toLocaleLowerCase();
+      if (weekday && !map.has(weekday)) {
+        map.set(weekday, day.key);
+      }
+    });
+    return map;
+  }, [scheduleDays]);
 
   const flowStatus = useMemo<FlowStatus>(() => {
     if (!data?.teams.length) return "draft";
@@ -502,21 +523,46 @@ export const TournamentCategoryPage = ({
       groups_ready: {
         step: "Paso 3 de 4",
         label: "Zonas listas",
-        nextAction: "Definí horarios y generá partidos.",
+        nextAction: "Generá los partidos de la categoría.",
       },
       matches_ready: {
         step: "Paso 4 de 4",
         label: "Fixture generado",
-        nextAction: "Cargá resultados para actualizar posiciones y cruces.",
+        nextAction: "Asigná horarios automáticos o ajustalos manualmente.",
       },
     };
     return copyByStatus[flowStatus];
   }, [flowStatus]);
-  const scheduleDays = useMemo(
-    () => getScheduleDays(data?.tournamentStartDate, data?.tournamentEndDate),
-    [data?.tournamentStartDate, data?.tournamentEndDate]
-  );
 
+  useEffect(() => {
+    if (!orderedEditableMatches.length) {
+      setManualScheduleDraftByMatchId({});
+      return;
+    }
+    const fallbackDay = scheduleDays[0]?.key ?? "";
+    setManualScheduleDraftByMatchId((prev) =>
+      orderedEditableMatches.reduce<Record<string, ManualScheduleDraft>>(
+        (acc, match) => {
+          const prevDraft = prev[match.id];
+          const weekday = match.day?.trim().toLocaleLowerCase();
+          const matchedDay = weekday
+            ? scheduleDayByWeekday.get(weekday) ?? fallbackDay
+            : fallbackDay;
+          acc[match.id] = {
+            day: prevDraft?.day ?? matchedDay,
+            time:
+              prevDraft?.time ??
+              (match.time && match.time !== "--:--"
+                ? match.time
+                : defaultScheduleStartTime),
+            court: prevDraft?.court ?? match.court ?? "C1",
+          };
+          return acc;
+        },
+        {}
+      )
+    );
+  }, [orderedEditableMatches, scheduleDays, scheduleDayByWeekday]);
   useEffect(() => {
     if (!data) return;
     const storedZonesRaw = localStorage.getItem(
@@ -721,35 +767,32 @@ export const TournamentCategoryPage = ({
     setPlayerModalOpen(false);
   };
 
-  const saveScheduleConfig = async () => {
-    if (!data) return;
+  const saveScheduleConfig = async (): Promise<boolean> => {
+    if (!data) return false;
     setScheduleConfigError(null);
     setScheduleConfigSuccess(null);
     setActionNotice(null);
 
     const hasInvalidTime = scheduleDays.some(
-      (day) =>
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(
-          scheduleStartTimesInput[day.key] ?? ""
-        )
+      (day) => !timePattern.test(scheduleStartTimesInput[day.key] ?? "")
     );
     if (hasInvalidTime) {
       const message = "Revisá los horarios de inicio: el formato debe ser HH:MM.";
       setScheduleConfigError(message);
       setActionNotice({ type: "error", message });
-      return;
+      return false;
     }
     if (matchIntervalMinutesInput <= 0) {
       const message = "El intervalo entre partidos debe ser mayor a 0.";
       setScheduleConfigError(message);
       setActionNotice({ type: "error", message });
-      return;
+      return false;
     }
     if (courtsCountInput <= 0) {
       const message = "La cantidad de canchas debe ser mayor a 0.";
       setScheduleConfigError(message);
       setActionNotice({ type: "error", message });
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -777,15 +820,79 @@ export const TournamentCategoryPage = ({
         match_interval_minutes: matchIntervalMinutesInput,
         courts_count: courtsCountInput,
       });
-      setScheduleConfigSuccess("Horarios guardados.");
+      setScheduleConfigSuccess("Configuración de horarios guardada.");
       setActionNotice({ type: "success", message: "Horarios guardados correctamente." });
-      await load();
+      return true;
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : "No se pudo guardar la configuración de horarios.";
       setScheduleConfigError(message);
+      setActionNotice({ type: "error", message });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAutoAssignSchedules = async () => {
+    if (!data) return;
+    setManualScheduleError(null);
+    setManualScheduleSuccess(null);
+    const configWasSaved = await saveScheduleConfig();
+    if (!configWasSaved) return;
+
+    setSaving(true);
+    try {
+      await assignScheduleToMatches(data.tournamentCategoryId, {
+        zoneDayById,
+        phaseByDay,
+      });
+      await load();
+      const message = "Horarios asignados automáticamente.";
+      setManualScheduleSuccess(message);
+      setActionNotice({ type: "success", message });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo asignar el cronograma automático.";
+      setManualScheduleError(message);
+      setActionNotice({ type: "error", message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveManualSchedules = async () => {
+    if (!data || !orderedEditableMatches.length) return;
+    setManualScheduleError(null);
+    setManualScheduleSuccess(null);
+    setSaving(true);
+    try {
+      await Promise.all(
+        orderedEditableMatches.map((match) => {
+          const draft = manualScheduleDraftByMatchId[match.id];
+          if (!draft?.day || !timePattern.test(draft.time)) {
+            throw new Error("Cada partido debe tener día y hora válida (HH:MM).");
+          }
+          return updateMatch(match.id, {
+            scheduled_at: `${draft.day}T${draft.time}:00`,
+            court: draft.court.trim() || null,
+          });
+        })
+      );
+      await load();
+      const message = "Ajustes manuales guardados.";
+      setManualScheduleSuccess(message);
+      setActionNotice({ type: "success", message });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los horarios manuales.";
+      setManualScheduleError(message);
       setActionNotice({ type: "error", message });
     } finally {
       setSaving(false);
@@ -1010,24 +1117,12 @@ export const TournamentCategoryPage = ({
 
     const generationDraft: MatchGenerationDraft = {
       zones: readyZones,
-      scheduling: {
-        zoneDayById,
-        startTimesByDay: scheduleStartTimesInput,
-        matchIntervalMinutes: matchIntervalMinutesInput,
-        courtsCount: courtsCountInput,
-        phaseByDay,
-      },
     };
     setLastGenerationDraft(generationDraft);
 
     setSaving(true);
     try {
-      await generateFullTournament(data.tournamentCategoryId, {
-        scheduling: {
-          zoneDayById,
-          phaseByDay,
-        },
-      });
+      await generateFullTournament(data.tournamentCategoryId);
       await load();
       setGenerationSuccess("Partidos generados correctamente.");
       setActionNotice({ type: "success", message: "Partidos generados correctamente." });
@@ -1966,9 +2061,9 @@ export const TournamentCategoryPage = ({
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">3. Horarios</h3>
+            <h3 className="font-semibold text-slate-900">4. Horarios</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Definí horarios base para generar el fixture automáticamente.
+              Paso final: asigná horarios automáticos y ajustalos manualmente sin regenerar partidos.
             </p>
 
             <div className="mt-3 space-y-3">
@@ -2114,7 +2209,21 @@ export const TournamentCategoryPage = ({
               onClick={() => void saveScheduleConfig()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Guardar horarios
+              Guardar configuración
+            </button>
+            <button
+              disabled={saving || !orderedEditableMatches.length}
+              onClick={() => void handleAutoAssignSchedules()}
+              className="ml-2 mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              Auto asignar horarios
+            </button>
+            <button
+              disabled={saving || !orderedEditableMatches.length}
+              onClick={() => void handleSaveManualSchedules()}
+              className="ml-2 mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              Guardar ajustes manuales
             </button>
 
             {scheduleConfigError && (
@@ -2125,13 +2234,112 @@ export const TournamentCategoryPage = ({
                 {scheduleConfigSuccess}
               </p>
             )}
+            {manualScheduleError && (
+              <p className="mt-2 text-xs text-red-600">{manualScheduleError}</p>
+            )}
+            {manualScheduleSuccess && (
+              <p className="mt-2 text-xs text-emerald-700">
+                {manualScheduleSuccess}
+              </p>
+            )}
+
+            {orderedEditableMatches.length > 0 && (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-2">Partido</th>
+                      <th className="py-2">Día</th>
+                      <th className="py-2">Hora</th>
+                      <th className="py-2">Cancha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderedEditableMatches.map((match) => {
+                      const draft = manualScheduleDraftByMatchId[match.id];
+                      return (
+                        <tr key={match.id} className="border-b border-slate-100">
+                          <td className="py-2 pr-2 text-slate-700">
+                            {match.team1} vs {match.team2}
+                          </td>
+                          <td className="py-2 pr-2">
+                            <select
+                              value={draft?.day ?? ""}
+                              onChange={(event) =>
+                                setManualScheduleDraftByMatchId((prev) => ({
+                                  ...prev,
+                                  [match.id]: {
+                                    ...(prev[match.id] ?? {
+                                      day: "",
+                                      time: defaultScheduleStartTime,
+                                      court: "C1",
+                                    }),
+                                    day: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="rounded border border-slate-300 px-2 py-1"
+                            >
+                              <option value="">Día</option>
+                              {scheduleDays.map((day) => (
+                                <option key={day.key} value={day.key}>
+                                  {day.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="py-2 pr-2">
+                            <input
+                              value={draft?.time ?? defaultScheduleStartTime}
+                              onChange={(event) =>
+                                setManualScheduleDraftByMatchId((prev) => ({
+                                  ...prev,
+                                  [match.id]: {
+                                    ...(prev[match.id] ?? {
+                                      day: scheduleDays[0]?.key ?? "",
+                                      time: defaultScheduleStartTime,
+                                      court: "C1",
+                                    }),
+                                    time: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="HH:MM"
+                              className="w-20 rounded border border-slate-300 px-2 py-1"
+                            />
+                          </td>
+                          <td className="py-2">
+                            <input
+                              value={draft?.court ?? "C1"}
+                              onChange={(event) =>
+                                setManualScheduleDraftByMatchId((prev) => ({
+                                  ...prev,
+                                  [match.id]: {
+                                    ...(prev[match.id] ?? {
+                                      day: scheduleDays[0]?.key ?? "",
+                                      time: defaultScheduleStartTime,
+                                      court: "C1",
+                                    }),
+                                    court: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-20 rounded border border-slate-300 px-2 py-1"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </article>
 
           <article className="rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">4. Partidos</h3>
+            <h3 className="font-semibold text-slate-900">3. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Paso 1: verificamos/armamos zonas. Paso 2: generamos partidos en
-              base al scheduling.
+              Generá zonas y cruces. Este paso no depende del scheduling.
             </p>
 
             <button

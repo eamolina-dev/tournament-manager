@@ -10,7 +10,6 @@ import {
   validateTeamRefs,
 } from "./generateGroups"
 import { generateGroupMatches, isValidGroupMatch } from "./generateGroupMatches"
-import { scheduleGeneratedMatches } from "./scheduleGeneratedMatches"
 
 type InsertedGroup = { id: string; name: string; group_key: string }
 
@@ -78,43 +77,6 @@ const rollbackGeneratedTournamentData = async (
 }
 
 
-const remapZoneDaysByGeneratedGroup = ({
-  zoneDayById,
-  plannedGroups,
-  groupsByKey,
-}: {
-  zoneDayById?: Record<string, string>
-  plannedGroups: PlannedGroup[]
-  groupsByKey: Map<string, string>
-}): Record<string, string> | undefined => {
-  if (!zoneDayById) return undefined
-
-  const explicitDays = plannedGroups.map((group) => zoneDayById[group.groupKey] ?? "")
-  const hasExplicit = explicitDays.some(Boolean)
-
-  if (hasExplicit) {
-    return plannedGroups.reduce<Record<string, string>>((acc, group, index) => {
-      const groupId = groupsByKey.get(group.groupKey)
-      const day = explicitDays[index]
-      if (groupId && day) {
-        acc[groupId] = day
-      }
-      return acc
-    }, {})
-  }
-
-  const orderedDays = Object.values(zoneDayById).filter(Boolean)
-  if (!orderedDays.length) return undefined
-
-  return plannedGroups.reduce<Record<string, string>>((acc, group, index) => {
-    const groupId = groupsByKey.get(group.groupKey)
-    if (!groupId) return acc
-
-    acc[groupId] = orderedDays[index] ?? orderedDays[0]
-    return acc
-  }, {})
-}
-
 const verifyGeneratedStructure = async (
   tournamentCategoryId: string,
   expectedGroupTeams: number,
@@ -166,10 +128,6 @@ export const generateFullTournament = async (
   options?: {
     dryRun?: boolean
     debug?: boolean
-    scheduling?: {
-      zoneDayById?: Record<string, string>
-      phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
-    }
   },
 ): Promise<{
   dryRun: boolean
@@ -310,17 +268,6 @@ export const generateFullTournament = async (
       tournamentCategoryId,
       qualifiedTeamSources,
       groupRanking,
-    })
-
-    const remappedZoneDayById = remapZoneDaysByGeneratedGroup({
-      zoneDayById: options?.scheduling?.zoneDayById,
-      plannedGroups,
-      groupsByKey,
-    })
-
-    await scheduleGeneratedMatches(tournamentCategoryId, {
-      zoneDayById: remappedZoneDayById,
-      phaseByDay: options?.scheduling?.phaseByDay,
     })
 
     await verifyGeneratedStructure(

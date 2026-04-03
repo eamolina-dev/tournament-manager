@@ -17,6 +17,7 @@ import {
 import {
   generateFullTournament,
 } from "../services/generateTournament"
+import { scheduleGeneratedMatches } from "../services/scheduleGeneratedMatches"
 import type {
   Tournament,
   TournamentCategory,
@@ -310,6 +311,16 @@ export const generateGroupsAndMatches = async (
   tournamentCategoryId: string
 ): Promise<void> => {
   await generateFullTournament(tournamentCategoryId)
+}
+
+export const assignScheduleToMatches = async (
+  tournamentCategoryId: string,
+  scheduling?: {
+    zoneDayById?: Record<string, string>
+    phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
+  },
+): Promise<void> => {
+  await scheduleGeneratedMatches(tournamentCategoryId, scheduling)
 }
 
 export const resolveEliminationTeamSources = async (
