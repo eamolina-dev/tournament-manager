@@ -98,13 +98,13 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
             Estamos en Av. del Deporte 2450, con canchas techadas y al aire
             libre para entrenamientos y competencias durante toda la semana.
           </p>
-          <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="font-semibold text-slate-900">Canchas:</span> 6
+          <div className="mt-4 grid gap-2 text-sm text-slate-100 sm:grid-cols-2">
+            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
+              <span className="font-semibold text-white">Canchas:</span> 6
               disponibles
             </p>
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <span className="font-semibold text-slate-900">Horario:</span> Lunes a
+            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
+              <span className="font-semibold text-white">Horario:</span> Lunes a
               domingo, 8:00 a 23:00
             </p>
           </div>

@@ -52,3 +52,7 @@ body {
 .tm-zebra-table tbody tr:nth-child(even) {
   background: #f1f5f9;
 }
+
+.tm-setup-step-card {
+  box-shadow: 0 1px 8px rgba(15, 35, 56, 0.08);
+}
