@@ -94,17 +94,17 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           <h2 className="text-lg font-semibold text-[var(--tm-text)]">
             Sobre el complejo
           </h2>
-          <p className="mt-2 text-sm text-slate-200/95">
+          <p className="mt-2 text-sm text-slate-700">
             Estamos en Av. del Deporte 2450, con canchas techadas y al aire
             libre para entrenamientos y competencias durante toda la semana.
           </p>
-          <div className="mt-4 grid gap-2 text-sm text-slate-100 sm:grid-cols-2">
-            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
-              <span className="font-semibold text-white">Canchas:</span> 6
+          <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="font-semibold text-slate-900">Canchas:</span> 6
               disponibles
             </p>
-            <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
-              <span className="font-semibold text-white">Horario:</span> Lunes a
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="font-semibold text-slate-900">Horario:</span> Lunes a
               domingo, 8:00 a 23:00
             </p>
           </div>
@@ -117,19 +117,19 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           <div className="mt-3 grid gap-2">
             <button
               onClick={() => navigate("/tournaments")}
-              className="rounded-xl border border-sky-300/70 bg-sky-500/25 px-4 py-3 text-left"
+              className="rounded-xl border border-sky-200 bg-sky-100 px-4 py-3 text-left"
             >
-              <p className="text-sm font-semibold text-sky-50">Torneos</p>
-              <p className="text-xs text-sky-100">
+              <p className="text-sm font-semibold text-sky-900">Torneos</p>
+              <p className="text-xs text-sky-700">
                 Calendario, cuadros y resultados.
               </p>
             </button>
             <button
               onClick={() => navigate("/rankings")}
-              className="rounded-xl border border-emerald-300/70 bg-emerald-500/25 px-4 py-3 text-left"
+              className="rounded-xl border border-emerald-200 bg-emerald-100 px-4 py-3 text-left"
             >
-              <p className="text-sm font-semibold text-emerald-50">Rankings</p>
-              <p className="text-xs text-emerald-100">
+              <p className="text-sm font-semibold text-emerald-900">Rankings</p>
+              <p className="text-xs text-emerald-700">
                 Posiciones actualizadas por categoría.
               </p>
             </button>

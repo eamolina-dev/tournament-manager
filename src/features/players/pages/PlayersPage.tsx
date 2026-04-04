@@ -194,7 +194,7 @@ export const PlayersPage = () => {
           <p className="mt-4 text-sm text-slate-500">Cargando jugadores...</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="tm-zebra-table w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-2">
@@ -216,8 +216,11 @@ export const PlayersPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((player) => (
-                  <tr key={player.id} className="border-b border-slate-100 last:border-none">
+                {filteredRows.map((player, rowIndex) => (
+                  <tr
+                    key={player.id}
+                    className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
+                  >
                     <td className="py-2 text-slate-700">{player.name}</td>
                     <td className="py-2 text-slate-700">{player.category}</td>
                     <td className="py-2 text-slate-700">{player.gender ?? "-"}</td>

@@ -4,6 +4,7 @@
   --tm-bg: #061320;
   --tm-surface: #f7fbff;
   --tm-surface-soft: #edf4ff;
+  --tm-page-surface: #eef3f9;
   --tm-border: #c8d7e8;
   --tm-text: #0f2338;
   --tm-muted: #5a738d;
@@ -14,7 +15,9 @@
 
 body {
   min-height: 100vh;
-  background: radial-gradient(circle at top, #123252 0%, var(--tm-bg) 58%);
+  background:
+    radial-gradient(circle at top, #123252 0%, var(--tm-bg) 58%),
+    var(--tm-page-surface);
   color: var(--tm-text);
 }
 
@@ -22,7 +25,8 @@ body {
   border-radius: 1rem;
   border: 1px solid var(--tm-border);
   background: var(--tm-surface);
-  padding: 1rem;
+  padding: 1.125rem;
+  box-shadow: 0 2px 10px rgba(6, 19, 32, 0.06);
 }
 
 .tm-card-compact {
@@ -43,4 +47,8 @@ body {
   background: linear-gradient(90deg, var(--tm-primary) 0%, var(--tm-accent) 100%);
   color: #ffffff;
   font-weight: 700;
+}
+
+.tm-zebra-table tbody tr:nth-child(even) {
+  background: #f1f5f9;
 }

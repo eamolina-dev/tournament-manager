@@ -1544,7 +1544,7 @@ export const TournamentCategoryPage = ({
           {!isAdmin && navigate && (
             <button
               onClick={() => navigate("/")}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800"
             >
               Volver al Inicio
             </button>
@@ -1552,7 +1552,7 @@ export const TournamentCategoryPage = ({
           {isAdmin && isAdminResultsMode && navigate && (
             <button
               onClick={() => navigate("/admin")}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800"
             >
               Volver al Inicio
             </button>
@@ -1807,7 +1807,7 @@ export const TournamentCategoryPage = ({
                   }
                 })()
               }
-              className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+              className="mt-4 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
             >
               Agregar al borrador
             </button>
@@ -1842,7 +1842,7 @@ export const TournamentCategoryPage = ({
                   }
                 })()
               }
-              className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              className="mt-3 rounded-lg border border-slate-400 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
               {savingDraftTeams ? "Guardando equipos..." : "Guardar equipos"}
             </button>
@@ -2283,22 +2283,23 @@ export const TournamentCategoryPage = ({
 
       {isAdminResultsMode && (
         <section className="space-y-4 tm-card">
-          <div className="flex flex-wrap gap-2">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="flex flex-wrap gap-2">
             {adminResultsTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                   tab === activeTab
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-300 bg-white text-slate-700"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 {tab}
               </button>
             ))}
+            </div>
           </div>
-          <p className="text-xs text-slate-500">Se recuerda tu pestaña anterior automáticamente.</p>
 
           {activeTab === "Zonas" && activeZone && (
             <section>
@@ -2309,8 +2310,8 @@ export const TournamentCategoryPage = ({
                     onClick={() => setZoneId(zone.id)}
                     className={`rounded-full px-3 py-1 text-sm ${
                       zone.id === activeZone.id
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                     }`}
                   >
                     {zone.name}
@@ -2371,8 +2372,8 @@ export const TournamentCategoryPage = ({
                     onClick={() => setActiveAdminBracketStage(stage)}
                     className={`rounded-full px-3 py-1 text-sm ${
                       stage === activeAdminBracketStage
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                     }`}
                   >
                     {eliminationStageLabel[stage]}
@@ -2413,22 +2414,23 @@ export const TournamentCategoryPage = ({
 
       {!isAdmin && (
         <section className="space-y-4 tm-card">
-          <div className="flex flex-wrap gap-2">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="flex flex-wrap gap-2">
             {sectionTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                   tab === activeTab
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-300 bg-white text-slate-700"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 {tab}
               </button>
             ))}
+            </div>
           </div>
-          <p className="text-xs text-slate-500">Se recuerda tu pestaña anterior automáticamente.</p>
 
           {activeTab === "Zonas" && activeZone && (
             <section>
@@ -2439,8 +2441,8 @@ export const TournamentCategoryPage = ({
                     onClick={() => setZoneId(zone.id)}
                     className={`rounded-full px-3 py-1 text-sm ${
                       zone.id === activeZone.id
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                     }`}
                   >
                     {zone.name}
@@ -2448,7 +2450,7 @@ export const TournamentCategoryPage = ({
                 ))}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="tm-zebra-table w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2">Equipo</th>
@@ -2458,10 +2460,10 @@ export const TournamentCategoryPage = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {activeZone.standings.map((standing) => (
+                    {activeZone.standings.map((standing, rowIndex) => (
                       <tr
                         key={standing.teamId}
-                        className="border-b border-slate-100 last:border-none"
+                        className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
                       >
                         <td className="py-2">{standing.teamName}</td>
                         <td className="py-2">{standing.pts}</td>
@@ -2475,7 +2477,7 @@ export const TournamentCategoryPage = ({
               <div className="mt-4">
                 {orderedZoneMatches.length ? (
                   <>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Partidos
                     </p>
                     <div className={matchCardsGridClass}>
@@ -2588,7 +2590,7 @@ export const TournamentCategoryPage = ({
                 Mostrando {filteredResults.length} de {(data?.results ?? []).length} jugadores.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="tm-zebra-table w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2">Jugador</th>
@@ -2598,10 +2600,10 @@ export const TournamentCategoryPage = ({
                   </thead>
                   <tbody>
                     {filteredResults.length ? (
-                      filteredResults.map((row) => (
+                      filteredResults.map((row, rowIndex) => (
                         <tr
                           key={row.playerId}
-                          className="border-b border-slate-100 last:border-none"
+                          className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
                         >
                           <td className="py-2 text-slate-700">
                             {row.playerName}

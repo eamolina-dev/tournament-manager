@@ -210,7 +210,7 @@ export const MatchCard = ({
   return (
     <article
       className={`h-full tm-card ${
-        isModified ? "border-emerald-400/60 bg-emerald-950/30" : ""
+        isModified ? "border-emerald-300 bg-emerald-50" : "bg-[var(--tm-surface)]"
       }`}
     >
       <div className="overflow-x-auto">
