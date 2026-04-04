@@ -6,35 +6,29 @@ type AppShellProps = PropsWithChildren<{
   navigate: (path: string) => void;
 }>;
 
-type NavItem = { label: string; href: string };
+const publicNavItems = [
+  { label: "Home", href: "/" },
+  { label: "Tournaments", href: "/tournaments" },
+  { label: "Rankings", href: "/rankings" },
+];
 
-const getNavItems = (pathname: string, slug: string | null): NavItem[] => {
-  if (pathname === "/login") return [];
+const adminNavItems = [
+  { label: "Tournaments", href: "/admin" },
+  { label: "Players", href: "/admin/players" },
+];
 
-  if (slug) {
-    if (pathname.startsWith(`/${slug}/admin`)) {
-      return [{ label: "Admin", href: `/${slug}/admin` }];
-    }
-
-    return [{ label: "Inicio", href: `/${slug}` }];
+const getNavItems = (pathname: string, slug: string | null) => {
+  const isSlugAdminPath = Boolean(slug && pathname.startsWith(`/${slug}/admin`));
+  if (isSlugAdminPath) {
+    return adminNavItems.map((item) => ({ ...item, href: `/${slug}${item.href}` }));
   }
 
-  if (pathname.startsWith("/admin")) {
-    return [
-      { label: "Torneos", href: "/admin" },
-      { label: "Jugadores", href: "/admin/players" },
-    ];
-  }
-
-  return [
-    { label: "Inicio", href: "/" },
-    { label: "Torneos", href: "/tournaments" },
-    { label: "Rankings", href: "/rankings" },
-  ];
+  if (pathname.startsWith("/admin")) return adminNavItems;
+  return publicNavItems;
 };
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
-  const { slug, user } = useTenantAuth();
+  const { slug } = useTenantAuth();
   const navItems = getNavItems(pathname, slug);
 
   return (
@@ -57,14 +51,6 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
               </button>
             );
           })}
-          {slug && user ? (
-            <button
-              onClick={() => navigate(`/${slug}/admin`)}
-              className="ml-auto rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
-            >
-              Panel
-            </button>
-          ) : null}
         </div>
       </header>
 

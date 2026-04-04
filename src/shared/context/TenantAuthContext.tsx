@@ -17,13 +17,9 @@ type TenantAuthContextValue = {
 const TenantAuthContext = createContext<TenantAuthContextValue | undefined>(undefined);
 
 const getSlugFromPathname = (pathname: string): string | null => {
-  const normalizedPath = pathname.replace(/^\/+|\/+$/g, "");
-  if (!normalizedPath) return null;
-
-  const [firstSegment] = normalizedPath.split("/");
-  if (!firstSegment || firstSegment === "login") return null;
-
-  return firstSegment;
+  const match = pathname.match(/^\/([^/]+)\/admin(?:\/|$)/);
+  if (!match) return null;
+  return match[1];
 };
 
 export const TenantAuthProvider = ({ children }: PropsWithChildren) => {

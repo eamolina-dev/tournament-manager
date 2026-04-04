@@ -17,6 +17,7 @@ import {
   validateCategorySelection,
   validateTournamentForm,
 } from "../../../shared/lib/ui-validations";
+import { getCurrentClientId } from "../../../shared/lib/current-client";
 
 type TournamentCreatePageProps = {
   navigate: (path: string) => void;
@@ -246,11 +247,7 @@ export const TournamentCreatePage = ({
         return;
       }
 
-      const clientId = client?.id;
-      if (!clientId) {
-        setError("No se pudo resolver el cliente para este usuario.");
-        return;
-      }
+      const clientId = client?.id ?? getCurrentClientId();
       const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
 
       const createdTournament = await createTournament({
@@ -288,7 +285,7 @@ export const TournamentCreatePage = ({
       navigate(
         isAdminMode
           ? `/admin/tournaments/${createdTournament.id}/edit`
-          : `/torneos/${createdTournament.id}/edit`
+          : `/tournaments/${createdTournament.id}/edit`
       );
     } catch (submitError) {
       setError(
@@ -507,7 +504,7 @@ export const TournamentCreatePage = ({
                           ? navigate(
                               `/admin/tournaments/${tournamentId}/categories/${existingCategory.id}/setup`
                             )
-                          : navigate(`/torneos/${tournamentId}/categorias/${existingCategory.id}`)
+                          : navigate(`/tournaments/${tournamentId}/categories/${existingCategory.id}`)
                       }
                       className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                     >

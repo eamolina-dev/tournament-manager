@@ -1,11 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { supabase } from "../../../shared/lib/supabase";
+import { useTenantAuth } from "../../../shared/context/TenantAuthContext";
 
 type LoginPageProps = {
   navigate: (path: string) => void;
 };
 
 export const LoginPage = ({ navigate }: LoginPageProps) => {
+  const { slug } = useTenantAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,11 +17,11 @@ export const LoginPage = ({ navigate }: LoginPageProps) => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
-    if (!redirect) return "/";
+    if (!redirect) return slug ? `/${slug}/admin` : "/admin";
     if (!redirect.startsWith("/")) return "/";
 
     return redirect;
-  }, []);
+  }, [slug]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

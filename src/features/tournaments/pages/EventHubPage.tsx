@@ -126,7 +126,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
           suma_value: sumSelection,
           category_id: null,
         });
-        navigate(`/torneos/${tournamentId}/categorias/${created.id}`);
+        navigate(`/tournaments/${tournamentId}/categories/${created.id}`);
         return;
       }
 
@@ -137,7 +137,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
         suma_value: null,
       });
 
-      navigate(`/torneos/${tournamentId}/categorias/${created.id}`);
+      navigate(`/tournaments/${tournamentId}/categories/${created.id}`);
     } catch (createError) {
       setError(
         createError instanceof Error ? createError.message : "No se pudo agregar la categoría",
@@ -177,7 +177,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
               <p className="text-sm text-slate-800">{category.name}</p>
               <button
                 onClick={() =>
-                  navigate(`/torneos/${tournamentId}/categorias/${category.tournamentCategoryId}`)
+                  navigate(`/tournaments/${tournamentId}/categories/${category.tournamentCategoryId}`)
                 }
                 className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
               >

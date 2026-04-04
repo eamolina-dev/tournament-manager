@@ -13,17 +13,13 @@ import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { useTenantAuth } from "./shared/context/TenantAuthContext";
 
-const matchTenantPublicPath = (pathname: string) => {
-  const match = pathname.match(/^\/([^/]+)$/);
+const matchSlugAdminPath = (pathname: string) => {
+  const match = pathname.match(/^\/([^/]+)\/admin(?:\/(.*))?$/);
   if (!match) return null;
-  if (match[1] === "login") return null;
-  return { slug: match[1] };
-};
-
-const matchTenantAdminPath = (pathname: string) => {
-  const match = pathname.match(/^\/([^/]+)\/admin$/);
-  if (!match) return null;
-  return { slug: match[1] };
+  return {
+    slug: match[1],
+    nestedPath: match[2] ?? "",
+  };
 };
 
 const matchTournamentPath = (pathname: string) => {
@@ -39,27 +35,20 @@ const matchAdminTournamentPath = (pathname: string) => {
 };
 
 const matchTournamentManagePath = (pathname: string) => {
-  const match = pathname.match(/^\/torneos\/([^/]+)$/);
+  const match = pathname.match(/^\/tournaments\/([^/]+)$/);
   if (!match) return null;
   if (match[1] === "new") return null;
   return { tournamentId: match[1] };
 };
 
 const matchTournamentCategoryPath = (pathname: string) => {
-  const match = pathname.match(/^\/torneos\/([^/]+)\/categorias\/([^/]+)$/);
+  const match = pathname.match(/^\/tournaments\/([^/]+)\/categories\/([^/]+)$/);
   if (!match) return null;
   return { tournamentId: match[1], categoryId: match[2] };
 };
 
-const matchLegacyTournamentPath = (pathname: string) => {
-  const match = pathname.match(/^\/eventos\/([^/]+)$/);
-  if (!match) return null;
-  if (match[1] === "new") return null;
-  return { tournamentId: match[1] };
-};
-
 const matchTournamentEditPath = (pathname: string) => {
-  const match = pathname.match(/^\/torneos\/([^/]+)\/edit$/);
+  const match = pathname.match(/^\/tournaments\/([^/]+)\/edit$/);
   if (!match) return null;
   return { tournamentId: match[1] };
 };
@@ -82,9 +71,17 @@ const matchAdminTournamentCategorySetupPath = (pathname: string) => {
   return { tournamentId: match[1], categoryId: match[2] };
 };
 
+const rewriteSlugAdminPath = (slugAdminRoute: { slug: string; nestedPath: string } | null) => {
+  if (!slugAdminRoute || slugAdminRoute.nestedPath === "login") return null;
+
+  const path = slugAdminRoute.nestedPath;
+  if (path === "") return "/admin";
+  return `/admin/${path}`;
+};
+
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
-  const { user, isLoading, isAuthorizedForSlug, authError, client } = useTenantAuth();
+  const { user, isLoading, isAuthorizedForSlug, authError } = useTenantAuth();
 
   useEffect(() => {
     const onPopState = () => setPathname(window.location.pathname);
@@ -98,78 +95,71 @@ export default function App() {
     setPathname(window.location.pathname);
   };
 
-  const tenantPublicRoute = useMemo(() => matchTenantPublicPath(pathname), [pathname]);
-  const tenantAdminRoute = useMemo(() => matchTenantAdminPath(pathname), [pathname]);
-  const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
-  const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
-  const tournamentManageRoute = useMemo(() => matchTournamentManagePath(pathname), [pathname]);
-  const tournamentEditRoute = useMemo(() => matchTournamentEditPath(pathname), [pathname]);
-  const tournamentCategoryRoute = useMemo(() => matchTournamentCategoryPath(pathname), [pathname]);
-  const legacyTournamentRoute = useMemo(() => matchLegacyTournamentPath(pathname), [pathname]);
-  const adminTournamentEditRoute = useMemo(() => matchAdminTournamentEditPath(pathname), [pathname]);
-  const adminTournamentCategoryRoute = useMemo(() => matchAdminTournamentCategoryPath(pathname), [pathname]);
+  const slugAdminRoute = useMemo(() => matchSlugAdminPath(pathname), [pathname]);
+  const resolvedPathname = useMemo(() => rewriteSlugAdminPath(slugAdminRoute) ?? pathname, [pathname, slugAdminRoute]);
+  const tournamentRoute = useMemo(() => matchTournamentPath(resolvedPathname), [resolvedPathname]);
+  const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(resolvedPathname), [resolvedPathname]);
+  const tournamentManageRoute = useMemo(() => matchTournamentManagePath(resolvedPathname), [resolvedPathname]);
+  const tournamentEditRoute = useMemo(() => matchTournamentEditPath(resolvedPathname), [resolvedPathname]);
+  const tournamentCategoryRoute = useMemo(() => matchTournamentCategoryPath(resolvedPathname), [resolvedPathname]);
+  const adminTournamentEditRoute = useMemo(() => matchAdminTournamentEditPath(resolvedPathname), [resolvedPathname]);
+  const adminTournamentCategoryRoute = useMemo(() => matchAdminTournamentCategoryPath(resolvedPathname), [resolvedPathname]);
   const adminTournamentCategorySetupRoute = useMemo(
-    () => matchAdminTournamentCategorySetupPath(pathname),
-    [pathname],
+    () => matchAdminTournamentCategorySetupPath(resolvedPathname),
+    [resolvedPathname],
   );
 
-  useEffect(() => {
-    if (!tenantAdminRoute || isLoading || user) return;
+  const isSlugAdminLogin = Boolean(slugAdminRoute && slugAdminRoute.nestedPath === "login");
+  const requiresSlugAdminAuth = Boolean(slugAdminRoute && !isSlugAdminLogin);
+  const hasSlugAdminAccess = Boolean(!requiresSlugAdminAuth || (!isLoading && user && isAuthorizedForSlug));
 
-    const redirect = encodeURIComponent(`${pathname}${window.location.search}`);
-    navigate(`/login?redirect=${redirect}`);
-  }, [isLoading, pathname, tenantAdminRoute, user]);
+  useEffect(() => {
+    if (!requiresSlugAdminAuth || isLoading || user) return;
+
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+    navigate(`/${slugAdminRoute?.slug}/admin/login?redirect=${redirect}`);
+  }, [isLoading, requiresSlugAdminAuth, slugAdminRoute?.slug, user]);
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
-      {pathname === "/login" && <LoginPage navigate={navigate} />}
+      {isSlugAdminLogin && <LoginPage navigate={navigate} />}
 
-      {tenantPublicRoute && <PublicHomePage navigate={navigate} />}
-
-      {tenantAdminRoute && isLoading && (
+      {requiresSlugAdminAuth && isLoading && (
         <section className="tm-card">
-          <p className="text-sm text-[var(--tm-muted)]">Validando sesión...</p>
+          <p className="text-sm text-[var(--tm-muted)]">Validating session...</p>
         </section>
       )}
-      {tenantAdminRoute && !isLoading && user && !isAuthorizedForSlug && (
+      {requiresSlugAdminAuth && !isLoading && user && !isAuthorizedForSlug && (
         <section className="tm-card">
           <p className="text-sm text-red-600">
-            Acceso bloqueado: el usuario autenticado no pertenece al cliente <strong>{tenantAdminRoute.slug}</strong>.
+            Access denied: authenticated user does not belong to client <strong>{slugAdminRoute?.slug}</strong>.
           </p>
           {authError ? <p className="mt-2 text-sm text-red-600">{authError}</p> : null}
         </section>
       )}
-      {tenantAdminRoute && !isLoading && user && isAuthorizedForSlug && (
-        <section className="grid gap-3">
-          <article className="tm-card">
-            <h1 className="text-2xl font-bold text-[var(--tm-text)]">Panel privado</h1>
-            <p className="mt-2 text-sm text-[var(--tm-muted)]">
-              Cliente activo: <strong>{client?.name}</strong> ({tenantAdminRoute.slug})
-            </p>
-          </article>
-          <HomePage navigate={navigate} mode="admin" />
-        </section>
+
+      {resolvedPathname === "/" && <PublicHomePage navigate={navigate} />}
+      {resolvedPathname === "/tournaments" && <HomePage navigate={navigate} />}
+
+      {resolvedPathname === "/admin" && !requiresSlugAdminAuth && <HomePage navigate={navigate} mode="admin" />}
+      {resolvedPathname === "/admin" && requiresSlugAdminAuth && !isLoading && user && isAuthorizedForSlug && (
+        <HomePage navigate={navigate} mode="admin" />
       )}
-
-      {pathname === "/" && <PublicHomePage navigate={navigate} />}
-      {pathname === "/tournaments" && <HomePage navigate={navigate} />}
-
-      {pathname === "/admin" && <HomePage navigate={navigate} mode="admin" />}
-      {pathname === "/admin/players" && <PlayersPage />}
-      {pathname === "/admin/tournaments/new" && (
+      {resolvedPathname === "/admin/players" && hasSlugAdminAccess && <PlayersPage />}
+      {resolvedPathname === "/admin/tournaments/new" && hasSlugAdminAccess && (
         <TournamentCreatePage navigate={navigate} mode="admin" />
       )}
-      {adminTournamentEditRoute && (
+      {adminTournamentEditRoute && hasSlugAdminAccess && (
         <TournamentCreatePage navigate={navigate} tournamentId={adminTournamentEditRoute.tournamentId} mode="admin" />
       )}
-      {adminTournamentCategoryRoute && (
+      {adminTournamentCategoryRoute && hasSlugAdminAccess && (
         <AdminTournamentResultsPage
           eventId={adminTournamentCategoryRoute.tournamentId}
           categoryId={adminTournamentCategoryRoute.categoryId}
           navigate={navigate}
         />
       )}
-      {adminTournamentCategorySetupRoute && (
+      {adminTournamentCategorySetupRoute && hasSlugAdminAccess && (
         <AdminTournamentSetupPage
           eventId={adminTournamentCategorySetupRoute.tournamentId}
           categoryId={adminTournamentCategorySetupRoute.categoryId}
@@ -177,7 +167,7 @@ export default function App() {
         />
       )}
 
-      {pathname === "/torneos/new" && <TournamentCreatePage navigate={navigate} />}
+      {resolvedPathname === "/tournaments/new" && <TournamentCreatePage navigate={navigate} />}
       {tournamentEditRoute && <TournamentCreatePage navigate={navigate} tournamentId={tournamentEditRoute.tournamentId} />}
       {tournamentManageRoute && <TournamentCreatePage navigate={navigate} tournamentId={tournamentManageRoute.tournamentId} />}
       {tournamentCategoryRoute && (
@@ -190,9 +180,8 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {legacyTournamentRoute && <TournamentCreatePage navigate={navigate} tournamentId={legacyTournamentRoute.tournamentId} />}
-      {pathname === "/admin/tournaments" && <AdminTournamentsPage navigate={navigate} />}
-      {pathname === "/rankings" && <RankingsPage />}
+      {resolvedPathname === "/admin/tournaments" && hasSlugAdminAccess && <AdminTournamentsPage navigate={navigate} />}
+      {resolvedPathname === "/rankings" && <RankingsPage />}
       {tournamentRoute && (
         <PublicTournamentPage
           slug={tournamentRoute.slug}
@@ -200,35 +189,33 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {adminTournamentRoute && (
+      {adminTournamentRoute && hasSlugAdminAccess && (
         <AdminTournamentSetupPage
           slug={adminTournamentRoute.slug}
           category={adminTournamentRoute.category}
           navigate={navigate}
         />
       )}
-      {!tenantPublicRoute &&
-        !tenantAdminRoute &&
+      {!isSlugAdminLogin &&
+        hasSlugAdminAccess &&
         !tournamentRoute &&
         !adminTournamentRoute &&
         !tournamentManageRoute &&
         !tournamentEditRoute &&
         !tournamentCategoryRoute &&
-        !legacyTournamentRoute &&
         !adminTournamentEditRoute &&
         !adminTournamentCategoryRoute &&
         !adminTournamentCategorySetupRoute &&
-        pathname !== "/" &&
-        pathname !== "/login" &&
-        pathname !== "/admin" &&
-        pathname !== "/admin/players" &&
-        pathname !== "/admin/tournaments/new" &&
-        pathname !== "/tournaments" &&
-        pathname !== "/rankings" &&
-        pathname !== "/admin/tournaments" &&
-        pathname !== "/torneos/new" && (
+        resolvedPathname !== "/" &&
+        resolvedPathname !== "/admin" &&
+        resolvedPathname !== "/admin/players" &&
+        resolvedPathname !== "/admin/tournaments/new" &&
+        resolvedPathname !== "/tournaments" &&
+        resolvedPathname !== "/rankings" &&
+        resolvedPathname !== "/admin/tournaments" &&
+        resolvedPathname !== "/tournaments/new" && (
           <section className="tm-card">
-            <p className="text-sm text-[var(--tm-muted)]">Ruta no encontrada.</p>
+            <p className="text-sm text-[var(--tm-muted)]">Route not found.</p>
           </section>
         )}
     </AppShell>
