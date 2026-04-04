@@ -1,37 +1,48 @@
 import type { PropsWithChildren } from "react";
+import { useTenantAuth } from "../../shared/context/TenantAuthContext";
 
 type AppShellProps = PropsWithChildren<{
   pathname: string;
   navigate: (path: string) => void;
 }>;
 
-const publicNavItems = [
-  { label: "Inicio", href: "/" },
-  { label: "Torneos", href: "/tournaments" },
-  { label: "Rankings", href: "/rankings" },
-];
+type NavItem = { label: string; href: string };
 
-const adminNavItems = [
-  { label: "Torneos", href: "/admin" },
-  { label: "Jugadores", href: "/admin/players" },
-];
+const getNavItems = (pathname: string, slug: string | null): NavItem[] => {
+  if (pathname === "/login") return [];
 
-const getNavItems = (pathname: string) => {
-  if (pathname.startsWith("/admin")) return adminNavItems;
-  return publicNavItems;
+  if (slug) {
+    if (pathname.startsWith(`/${slug}/admin`)) {
+      return [{ label: "Admin", href: `/${slug}/admin` }];
+    }
+
+    return [{ label: "Inicio", href: `/${slug}` }];
+  }
+
+  if (pathname.startsWith("/admin")) {
+    return [
+      { label: "Torneos", href: "/admin" },
+      { label: "Jugadores", href: "/admin/players" },
+    ];
+  }
+
+  return [
+    { label: "Inicio", href: "/" },
+    { label: "Torneos", href: "/tournaments" },
+    { label: "Rankings", href: "/rankings" },
+  ];
 };
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
-  const navItems = getNavItems(pathname);
+  const { slug, user } = useTenantAuth();
+  const navItems = getNavItems(pathname, slug);
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
           {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href === "/tournaments" && pathname.startsWith("/tournament/"));
+            const isActive = pathname === item.href;
             return (
               <button
                 key={item.href}
@@ -46,6 +57,14 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
               </button>
             );
           })}
+          {slug && user ? (
+            <button
+              onClick={() => navigate(`/${slug}/admin`)}
+              className="ml-auto rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
+            >
+              Panel
+            </button>
+          ) : null}
         </div>
       </header>
 

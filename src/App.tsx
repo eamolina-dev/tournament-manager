@@ -10,6 +10,21 @@ import { PublicTournamentPage } from "./features/tournaments/pages/PublicTournam
 import { AdminTournamentSetupPage } from "./features/tournaments/pages/AdminTournamentSetupPage";
 import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTournamentResultsPage";
 import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
+import { LoginPage } from "./features/auth/pages/LoginPage";
+import { useTenantAuth } from "./shared/context/TenantAuthContext";
+
+const matchTenantPublicPath = (pathname: string) => {
+  const match = pathname.match(/^\/([^/]+)$/);
+  if (!match) return null;
+  if (match[1] === "login") return null;
+  return { slug: match[1] };
+};
+
+const matchTenantAdminPath = (pathname: string) => {
+  const match = pathname.match(/^\/([^/]+)\/admin$/);
+  if (!match) return null;
+  return { slug: match[1] };
+};
 
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
@@ -69,6 +84,7 @@ const matchAdminTournamentCategorySetupPath = (pathname: string) => {
 
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
+  const { user, isLoading, isAuthorizedForSlug, authError, client } = useTenantAuth();
 
   useEffect(() => {
     const onPopState = () => setPathname(window.location.pathname);
@@ -82,6 +98,8 @@ export default function App() {
     setPathname(window.location.pathname);
   };
 
+  const tenantPublicRoute = useMemo(() => matchTenantPublicPath(pathname), [pathname]);
+  const tenantAdminRoute = useMemo(() => matchTenantAdminPath(pathname), [pathname]);
   const tournamentRoute = useMemo(() => matchTournamentPath(pathname), [pathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(pathname), [pathname]);
   const tournamentManageRoute = useMemo(() => matchTournamentManagePath(pathname), [pathname]);
@@ -95,8 +113,44 @@ export default function App() {
     [pathname],
   );
 
+  useEffect(() => {
+    if (!tenantAdminRoute || isLoading || user) return;
+
+    const redirect = encodeURIComponent(`${pathname}${window.location.search}`);
+    navigate(`/login?redirect=${redirect}`);
+  }, [isLoading, pathname, tenantAdminRoute, user]);
+
   return (
     <AppShell pathname={pathname} navigate={navigate}>
+      {pathname === "/login" && <LoginPage navigate={navigate} />}
+
+      {tenantPublicRoute && <PublicHomePage navigate={navigate} />}
+
+      {tenantAdminRoute && isLoading && (
+        <section className="tm-card">
+          <p className="text-sm text-[var(--tm-muted)]">Validando sesión...</p>
+        </section>
+      )}
+      {tenantAdminRoute && !isLoading && user && !isAuthorizedForSlug && (
+        <section className="tm-card">
+          <p className="text-sm text-red-600">
+            Acceso bloqueado: el usuario autenticado no pertenece al cliente <strong>{tenantAdminRoute.slug}</strong>.
+          </p>
+          {authError ? <p className="mt-2 text-sm text-red-600">{authError}</p> : null}
+        </section>
+      )}
+      {tenantAdminRoute && !isLoading && user && isAuthorizedForSlug && (
+        <section className="grid gap-3">
+          <article className="tm-card">
+            <h1 className="text-2xl font-bold text-[var(--tm-text)]">Panel privado</h1>
+            <p className="mt-2 text-sm text-[var(--tm-muted)]">
+              Cliente activo: <strong>{client?.name}</strong> ({tenantAdminRoute.slug})
+            </p>
+          </article>
+          <HomePage navigate={navigate} mode="admin" />
+        </section>
+      )}
+
       {pathname === "/" && <PublicHomePage navigate={navigate} />}
       {pathname === "/tournaments" && <HomePage navigate={navigate} />}
 
@@ -153,7 +207,9 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {!tournamentRoute &&
+      {!tenantPublicRoute &&
+        !tenantAdminRoute &&
+        !tournamentRoute &&
         !adminTournamentRoute &&
         !tournamentManageRoute &&
         !tournamentEditRoute &&
@@ -163,6 +219,7 @@ export default function App() {
         !adminTournamentCategoryRoute &&
         !adminTournamentCategorySetupRoute &&
         pathname !== "/" &&
+        pathname !== "/login" &&
         pathname !== "/admin" &&
         pathname !== "/admin/players" &&
         pathname !== "/admin/tournaments/new" &&

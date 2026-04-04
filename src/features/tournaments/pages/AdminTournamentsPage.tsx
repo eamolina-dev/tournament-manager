@@ -12,7 +12,7 @@ import {
   getTournaments,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName } from "../../../shared/lib/category-display";
-import { getCurrentClientId } from "../../../shared/lib/current-client";
+import { useTenantAuth } from "../../../shared/context/TenantAuthContext";
 import { resolveActiveCircuitIdForClient } from "../../../shared/lib/active-circuit";
 import {
   validateCategorySelection,
@@ -51,6 +51,7 @@ const slugify = (value: string): string =>
 export const AdminTournamentsPage = ({
   navigate,
 }: AdminTournamentsPageProps) => {
+  const { client } = useTenantAuth();
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
   const [categoriesCatalog, setCategoriesCatalog] = useState<
     { id: string; name: string; slug: string | null; level: number }[]
@@ -148,7 +149,11 @@ export const AdminTournamentsPage = ({
     }
     setFormError(null);
 
-    const clientId = getCurrentClientId();
+    const clientId = client?.id;
+    if (!clientId) {
+      setError("No se pudo resolver el cliente para este usuario.");
+      return;
+    }
     const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
 
     const payload = {

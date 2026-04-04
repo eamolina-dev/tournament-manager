@@ -11,7 +11,7 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
-import { getCurrentClientId } from "../../../shared/lib/current-client";
+import { useTenantAuth } from "../../../shared/context/TenantAuthContext";
 import { resolveActiveCircuitIdForClient } from "../../../shared/lib/active-circuit";
 import {
   validateCategorySelection,
@@ -60,6 +60,7 @@ export const TournamentCreatePage = ({
   tournamentId,
   mode = "default",
 }: TournamentCreatePageProps) => {
+  const { client } = useTenantAuth();
   const isAdminMode = mode === "admin";
   const isEditMode = Boolean(tournamentId);
   const [name, setName] = useState("");
@@ -245,7 +246,11 @@ export const TournamentCreatePage = ({
         return;
       }
 
-      const clientId = getCurrentClientId();
+      const clientId = client?.id;
+      if (!clientId) {
+        setError("No se pudo resolver el cliente para este usuario.");
+        return;
+      }
       const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
 
       const createdTournament = await createTournament({
