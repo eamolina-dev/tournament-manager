@@ -11,7 +11,8 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
-import { getOptionalCurrentCircuitId } from "../../../shared/lib/current-circuit";
+import { getCurrentClientId } from "../../../shared/lib/current-client";
+import { resolveActiveCircuitIdForClient } from "../../../shared/lib/active-circuit";
 import {
   validateCategorySelection,
   validateTournamentForm,
@@ -29,7 +30,6 @@ type CategoryOption = {
 };
 
 type TournamentCategoryGender = "M" | "F" | "X";
-type TournamentType = "competitive" | "independent";
 
 type CategoryDraftItem = {
   key: string;
@@ -62,13 +62,9 @@ export const TournamentCreatePage = ({
 }: TournamentCreatePageProps) => {
   const isAdminMode = mode === "admin";
   const isEditMode = Boolean(tournamentId);
-  const defaultCircuitId = useMemo(() => getOptionalCurrentCircuitId(), []);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [tournamentType, setTournamentType] = useState<TournamentType>(
-    defaultCircuitId ? "competitive" : "independent"
-  );
   const [categoryMode, setCategoryMode] = useState<"normal" | "suma">("normal");
   const [categorySelection, setCategorySelection] = useState("");
   const [sumSelection, setSumSelection] = useState(13);
@@ -119,7 +115,6 @@ export const TournamentCreatePage = ({
         setName(tournament.name ?? "");
         setStartDate(tournament.start_date ?? "");
         setEndDate(tournament.end_date ?? "");
-        setTournamentType(tournament.circuit_id ? "competitive" : "independent");
 
         const categoriesById = new Map(
           allCategories.map((category) => [category.id, category.name])
@@ -230,13 +225,6 @@ export const TournamentCreatePage = ({
       endDate,
       slug: slugify(name),
     });
-    if (tournamentType === "competitive" && !defaultCircuitId) {
-      setFormErrors((prev) => ({
-        ...prev,
-        slug: "No hay un circuito configurado para crear torneos competitivos.",
-      }));
-      return;
-    }
     setFormErrors((prev) => ({ ...prev, ...nextErrors }));
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -247,7 +235,6 @@ export const TournamentCreatePage = ({
     try {
       if (isEditMode && tournamentId) {
         await updateTournament(tournamentId, {
-          circuit_id: tournamentType === "competitive" ? defaultCircuitId : null,
           name: name.trim(),
           slug: slugify(name),
           start_date: startDate || null,
@@ -258,8 +245,12 @@ export const TournamentCreatePage = ({
         return;
       }
 
+      const clientId = getCurrentClientId();
+      const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
+
       const createdTournament = await createTournament({
-        circuit_id: tournamentType === "competitive" ? defaultCircuitId : null,
+        client_id: clientId,
+        circuit_id: activeCircuitId,
         name: name.trim(),
         slug: slugify(name),
         start_date: startDate || null,
@@ -318,22 +309,7 @@ export const TournamentCreatePage = ({
           </button>
         </div>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-5">
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-slate-600">Tipo de torneo</span>
-            <select
-              value={tournamentType}
-              onChange={(event) =>
-                setTournamentType(
-                  event.target.value === "independent" ? "independent" : "competitive"
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="competitive">Competitivo (con circuito)</option>
-              <option value="independent">Independiente (sin circuito)</option>
-            </select>
-          </label>
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
           <label className="space-y-1">
             <span className="text-xs font-medium text-slate-600">Nombre del torneo *</span>
             <input
@@ -414,7 +390,6 @@ export const TournamentCreatePage = ({
             disabled={
               saving ||
               loading ||
-              (tournamentType === "competitive" && !defaultCircuitId) ||
               (!isEditMode && draftCategories.length === 0) ||
               Object.keys(
                 validateTournamentForm({
@@ -438,12 +413,6 @@ export const TournamentCreatePage = ({
         <p className="mt-1 text-xs text-slate-500">
           Campos obligatorios: <span className="font-semibold">*</span>
         </p>
-        {tournamentType === "competitive" && !defaultCircuitId ? (
-          <p className="mt-1 text-xs text-amber-700">
-            Falta configurar <code>VITE_CIRCUIT_ID</code>. Cambiá a torneo independiente o
-            configurá un circuito.
-          </p>
-        ) : null}
 
         <div className="mt-4 rounded-xl border border-slate-200 p-3">
           <p className="text-sm font-semibold text-slate-900">Categoría / tipo</p>

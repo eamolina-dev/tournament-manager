@@ -12,7 +12,8 @@ import {
   getTournaments,
 } from "../../../features/tournaments/api/queries";
 import { formatCategoryName } from "../../../shared/lib/category-display";
-import { getCurrentCircuitId } from "../../../shared/lib/current-circuit";
+import { getCurrentClientId } from "../../../shared/lib/current-client";
+import { resolveActiveCircuitIdForClient } from "../../../shared/lib/active-circuit";
 import {
   validateCategorySelection,
   validateTournamentForm,
@@ -147,8 +148,12 @@ export const AdminTournamentsPage = ({
     }
     setFormError(null);
 
+    const clientId = getCurrentClientId();
+    const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
+
     const payload = {
-      circuit_id: getCurrentCircuitId(),
+      client_id: clientId,
+      circuit_id: activeCircuitId,
       name: form.name.trim(),
       slug: slugify(form.name),
       start_date: form.startDate || null,

@@ -1,62 +1,34 @@
-# Adaptación del flujo de torneos con `circuit_id` opcional
+# Simplificación del flujo de creación de torneos (circuito implícito)
 
-## 1) Análisis de impacto
+## 1) Análisis
 
-### Creación (wizard)
-- Antes, la creación exigía `circuit_id` en frontend (`createTournament` + `EventCreatePage`).
-- Con `circuit_id` opcional, el wizard debe permitir:
-  - Torneo competitivo: guardar `circuit_id`.
-  - Torneo independiente: guardar `circuit_id = null`.
-- El resto del wizard (jugadores/parejas, zonas, partidos, horarios) puede mantenerse sin bifurcar el flujo porque depende de `tournament_category_id`.
+### Complejidad introducida recientemente
+- Se agregó un selector explícito de tipo de torneo ("competitivo" vs "independiente") en el wizard.
+- Esa decisión apareció demasiado temprano en el flujo, aumentando fricción en una tarea operativa que antes era directa.
+- También se sumaron mensajes de estado extra vinculados a configuración de circuito, visibles en UI.
 
-### Edición
-- El formulario de edición debe reflejar el estado actual:
-  - Si el torneo tiene circuito, abrir como competitivo.
-  - Si no tiene circuito, abrir como independiente.
-- Debe permitir cambiar entre ambos tipos sin romper torneos existentes.
+### Dependencias nuevas de selección explícita
+- El formulario de creación/edición pasó a persistir `circuit_id` en base a la selección manual.
+- La validación y el estado del submit quedaron condicionados por esa selección.
 
-### Generación de partidos
-- No requiere cambios estructurales: la generación ya trabaja por categoría (`tournament_category_id`) y no por circuito.
+### Estrategia de simplificación
+- Volver al flujo original del wizard (sin selector de tipo).
+- Resolver el circuito en segundo plano al crear el torneo.
+- Mantener el modelo preparado para `circuit_id` opcional, pero sin exponer esa decisión en UI por ahora.
 
-### Rankings
-- Para torneos sin circuito no deben aplicarse reglas de ranking por circuito.
-- La lógica de recálculo ya contempla este caso: si no hay `circuit_id`, usa reglas vacías.
+## 2) Decisión implementada
 
-## 2) Supuestos actuales que requerían circuito
+### Flujo de creación
+- Se eliminó el selector de tipo de torneo y cualquier paso/estado asociado.
+- El wizard mantiene su secuencia habitual (nombre/fechas + categorías, luego setup por categoría).
 
-1. `createTournament` lanzaba error si faltaba `circuit_id`.
-2. `updateTournament` lanzaba error si el torneo quedaba sin `circuit_id`.
-3. Validación de superposición por fechas se aplicaba siempre, en lugar de aplicar sólo dentro de un circuito.
-4. El formulario de creación siempre intentaba usar `VITE_CIRCUIT_ID`.
+### Asignación implícita de circuito activo
+- Al crear torneo, el sistema obtiene `client_id` actual desde configuración (`VITE_CLIENT_ID`).
+- Con ese cliente, resuelve el circuito activo de forma simple:
+  1. prioriza circuito del año actual,
+  2. si no existe, usa el más reciente por año/creación.
+- El usuario no interactúa con estos datos en UI.
 
-## 3) Decisión UX
-
-Se recomienda **selector explícito de tipo** al inicio del formulario:
-- "Competitivo (con circuito)"
-- "Independiente (sin circuito)"
-
-Motivo:
-- Hace visible la decisión de producto.
-- Evita inferencias implícitas difíciles de entender.
-- Permite mantener el resto del wizard intacto.
-
-## 4) Riesgos UX y mitigación
-
-- **Confusión por falta de circuito configurado** en modo competitivo:
-  - Mitigar con mensaje claro y deshabilitar guardado competitivo sin circuito.
-- **Flujo más largo**:
-  - Mitigar agregando sólo un selector simple, sin nuevos pasos.
-- **Estados inconsistentes**:
-  - Mitigar inicializando tipo según `tournament.circuit_id` en edición.
-
-## 5) Plan por etapas
-
-### Etapa 1 (mínima)
-- Permitir `circuit_id = null` en creación/edición.
-- Limitar validación de solapamiento de fechas sólo cuando hay circuito.
-- Mantener estructura del wizard.
-
-### Etapa 2 (UX)
-- Agregar selector de tipo de torneo en el formulario.
-- Mensajería contextual para casos competitivos sin circuito configurado.
-- Evitar pasos extra para torneos independientes.
+### Compatibilidad
+- Se conserva soporte de datos para `circuit_id` opcional (no se elimina del modelo).
+- No se rompen torneos existentes: edición mantiene comportamiento previo sin exigir nuevos pasos en interfaz.
