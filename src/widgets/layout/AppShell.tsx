@@ -28,8 +28,9 @@ const getNavItems = (pathname: string, slug: string | null) => {
 };
 
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
-  const { slug } = useTenantAuth();
+  const { slug, user, signOut } = useTenantAuth();
   const navItems = getNavItems(pathname, slug);
+  const isAdminPath = pathname.startsWith("/admin") || Boolean(slug && pathname.startsWith(`/${slug}/admin`));
 
   return (
     <div className="min-h-screen">
@@ -51,6 +52,19 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
               </button>
             );
           })}
+          {isAdminPath && user ? (
+            <button
+              onClick={() => {
+                void (async () => {
+                  await signOut();
+                  navigate(slug ? `/${slug}/admin/login` : "/admin/login");
+                })();
+              }}
+              className="ml-auto rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"
+            >
+              Cerrar sesión
+            </button>
+          ) : null}
         </div>
       </header>
 

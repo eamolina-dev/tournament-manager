@@ -12,6 +12,7 @@ type TenantAuthContextValue = {
   isLoading: boolean;
   isAuthorizedForSlug: boolean;
   authError: string | null;
+  signOut: () => Promise<void>;
 };
 
 const TenantAuthContext = createContext<TenantAuthContextValue | undefined>(undefined);
@@ -147,6 +148,9 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
       isLoading,
       isAuthorizedForSlug,
       authError,
+      signOut: async () => {
+        await supabase.auth.signOut();
+      },
     }),
     [authError, clientBySlug, isAuthorizedForSlug, isLoading, slug, user],
   );
