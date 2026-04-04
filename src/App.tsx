@@ -113,7 +113,6 @@ export default function App() {
   );
 
   const isSlugAdminLogin = Boolean(slugAdminRoute && slugAdminRoute.nestedPath === "login");
-  const isDirectLogin = resolvedPathname === "/login";
   const isLegacyAdminLogin = resolvedPathname === "/admin/login";
   const requiresSlugAdminAuth = Boolean(slugAdminRoute && !isSlugAdminLogin);
   const hasSlugAdminAccess = Boolean(!requiresSlugAdminAuth || (!isLoading && user && isAuthorizedForSlug));
@@ -138,15 +137,19 @@ export default function App() {
     if (!requiresSlugAdminAuth || isLoading || user) return;
 
     const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-    navigate(`/login?redirect=${redirect}`);
+    navigate(`/${slugAdminRoute?.slug}/admin/login?redirect=${redirect}`);
   }, [isLoading, requiresSlugAdminAuth, slugAdminRoute?.slug, user]);
+
+  if (isSlugAdminLogin || isLegacyAdminLogin) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[1200px] flex-col gap-4 px-4 py-5">
+        <LoginPage navigate={navigate} />
+      </main>
+    );
+  }
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
-      {isSlugAdminLogin && <LoginPage navigate={navigate} />}
-      {isDirectLogin && <LoginPage navigate={navigate} />}
-      {isLegacyAdminLogin && <LoginPage navigate={navigate} />}
-
       {requiresSlugAdminAuth && isLoading && (
         <section className="tm-card">
           <p className="text-sm text-[var(--tm-muted)]">Validating session...</p>
@@ -224,10 +227,7 @@ export default function App() {
           navigate={navigate}
         />
       )}
-      {!isSlugAdminLogin &&
-        !isDirectLogin &&
-        !isLegacyAdminLogin &&
-        hasSlugAdminAccess &&
+      {hasSlugAdminAccess &&
         !tournamentRoute &&
         !adminTournamentRoute &&
         !tournamentManageRoute &&
@@ -241,7 +241,6 @@ export default function App() {
         resolvedPathname !== "/admin/players" &&
         resolvedPathname !== "/admin/tournaments/new" &&
         resolvedPathname !== "/admin/login" &&
-        resolvedPathname !== "/login" &&
         resolvedPathname !== "/tournaments" &&
         resolvedPathname !== "/rankings" &&
         resolvedPathname !== "/admin/tournaments" &&
