@@ -157,7 +157,9 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
   }, [session, slug]);
 
   const isAuthorizedForSlug = Boolean(
-    user && clientBySlug?.id && clientByUser?.id && clientBySlug.id === clientByUser.id,
+    user &&
+      clientBySlug &&
+      (clientBySlug.owner_user_id === user.id || (clientByUser?.id && clientBySlug.id === clientByUser.id)),
   );
 
   const value = useMemo<TenantAuthContextValue>(

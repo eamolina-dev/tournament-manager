@@ -23,6 +23,18 @@ const matchSlugAdminPath = (pathname: string) => {
   };
 };
 
+const reservedRootSegments = new Set(["admin", "tournament", "tournaments", "rankings", "login"]);
+
+const matchSlugPublicPath = (pathname: string) => {
+  const match = pathname.match(/^\/([^/]+)(?:\/(tournaments|rankings))?\/?$/);
+  if (!match) return null;
+  if (reservedRootSegments.has(match[1])) return null;
+  return {
+    slug: match[1],
+    nestedPath: match[2] ?? "",
+  };
+};
+
 const matchTournamentPath = (pathname: string) => {
   const match = pathname.match(/^\/tournament\/([^/]+)\/([^/]+)$/);
   if (!match) return null;
@@ -80,6 +92,12 @@ const rewriteSlugAdminPath = (slugAdminRoute: { slug: string; nestedPath: string
   return `/admin/${path}`;
 };
 
+const rewriteSlugPublicPath = (slugPublicRoute: { slug: string; nestedPath: string } | null) => {
+  if (!slugPublicRoute) return null;
+  if (slugPublicRoute.nestedPath === "") return "/";
+  return `/${slugPublicRoute.nestedPath}`;
+};
+
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const { user, slug, isLoading, isAuthorizedForSlug, authError } = useTenantAuth();
@@ -99,7 +117,11 @@ export default function App() {
   };
 
   const slugAdminRoute = useMemo(() => matchSlugAdminPath(pathname), [pathname]);
-  const resolvedPathname = useMemo(() => rewriteSlugAdminPath(slugAdminRoute) ?? pathname, [pathname, slugAdminRoute]);
+  const slugPublicRoute = useMemo(() => matchSlugPublicPath(pathname), [pathname]);
+  const resolvedPathname = useMemo(
+    () => rewriteSlugAdminPath(slugAdminRoute) ?? rewriteSlugPublicPath(slugPublicRoute) ?? pathname,
+    [pathname, slugAdminRoute, slugPublicRoute],
+  );
   const tournamentRoute = useMemo(() => matchTournamentPath(resolvedPathname), [resolvedPathname]);
   const adminTournamentRoute = useMemo(() => matchAdminTournamentPath(resolvedPathname), [resolvedPathname]);
   const tournamentManageRoute = useMemo(() => matchTournamentManagePath(resolvedPathname), [resolvedPathname]);
@@ -113,9 +135,10 @@ export default function App() {
   );
 
   const isSlugAdminLogin = Boolean(slugAdminRoute && slugAdminRoute.nestedPath === "login");
-  const isLegacyAdminLogin = resolvedPathname === "/admin/login";
+  const isUnscopedAdminPath = pathname.startsWith("/admin") && !slugAdminRoute;
+  const isScopedAdminRoute = Boolean(slugAdminRoute && !isSlugAdminLogin);
   const requiresSlugAdminAuth = Boolean(slugAdminRoute && !isSlugAdminLogin);
-  const hasSlugAdminAccess = Boolean(!requiresSlugAdminAuth || (!isLoading && user && isAuthorizedForSlug));
+  const hasSlugAdminAccess = Boolean(isScopedAdminRoute && !isLoading && user && isAuthorizedForSlug);
 
   useEffect(() => {
     if (resolvedPathname !== "/" || isLoading) return;
@@ -140,7 +163,7 @@ export default function App() {
     navigate(`/${slugAdminRoute?.slug}/admin/login?redirect=${redirect}`);
   }, [isLoading, requiresSlugAdminAuth, slugAdminRoute?.slug, user]);
 
-  if (isSlugAdminLogin || isLegacyAdminLogin) {
+  if (isSlugAdminLogin) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[1200px] flex-col gap-4 px-4 py-5">
         <LoginPage navigate={navigate} />
@@ -172,8 +195,7 @@ export default function App() {
       {/^\/[^/]+$/.test(resolvedPathname) && <PublicHomePage navigate={navigate} />}
       {resolvedPathname === "/tournaments" && <HomePage navigate={navigate} />}
 
-      {resolvedPathname === "/admin" && !requiresSlugAdminAuth && <HomePage navigate={navigate} mode="admin" />}
-      {resolvedPathname === "/admin" && requiresSlugAdminAuth && !isLoading && user && isAuthorizedForSlug && (
+      {resolvedPathname === "/admin" && hasSlugAdminAccess && (
         <HomePage navigate={navigate} mode="admin" />
       )}
       {resolvedPathname === "/admin/players" && hasSlugAdminAccess && <PlayersPage />}
@@ -227,6 +249,11 @@ export default function App() {
           navigate={navigate}
         />
       )}
+      {isUnscopedAdminPath && (
+        <section className="tm-card">
+          <p className="text-sm text-[var(--tm-muted)]">Route not found.</p>
+        </section>
+      )}
       {hasSlugAdminAccess &&
         !tournamentRoute &&
         !adminTournamentRoute &&
@@ -240,7 +267,7 @@ export default function App() {
         resolvedPathname !== "/admin" &&
         resolvedPathname !== "/admin/players" &&
         resolvedPathname !== "/admin/tournaments/new" &&
-        resolvedPathname !== "/admin/login" &&
+        !isUnscopedAdminPath &&
         resolvedPathname !== "/tournaments" &&
         resolvedPathname !== "/rankings" &&
         resolvedPathname !== "/admin/tournaments" &&

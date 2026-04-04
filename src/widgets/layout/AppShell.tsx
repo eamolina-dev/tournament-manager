@@ -17,13 +17,27 @@ const adminNavItems = [
   { label: "Jugadores", href: "/admin/players" },
 ];
 
+const reservedRootSegments = new Set(["admin", "tournament", "tournaments", "rankings", "login"]);
+
+const getScopedSlug = (pathname: string, tenantSlug: string | null) => {
+  if (tenantSlug) return tenantSlug;
+  const match = pathname.match(/^\/([^/]+)/);
+  if (!match) return null;
+  if (reservedRootSegments.has(match[1])) return null;
+  return match[1];
+};
+
 const getNavItems = (pathname: string, slug: string | null) => {
-  const isSlugAdminPath = Boolean(slug && pathname.startsWith(`/${slug}/admin`));
+  const scopedSlug = getScopedSlug(pathname, slug);
+  const isSlugAdminPath = Boolean(scopedSlug && pathname.startsWith(`/${scopedSlug}/admin`));
   if (isSlugAdminPath) {
-    return adminNavItems.map((item) => ({ ...item, href: `/${slug}${item.href}` }));
+    return adminNavItems.map((item) => ({ ...item, href: `/${scopedSlug}${item.href}` }));
   }
 
-  if (pathname.startsWith("/admin")) return adminNavItems;
+  if (scopedSlug && (pathname === `/${scopedSlug}` || pathname.startsWith(`/${scopedSlug}/`))) {
+    return publicNavItems.map((item) => ({ ...item, href: `/${scopedSlug}${item.href === "/" ? "" : item.href}` }));
+  }
+
   return publicNavItems;
 };
 
