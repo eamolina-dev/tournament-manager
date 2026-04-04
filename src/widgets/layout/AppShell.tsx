@@ -57,7 +57,7 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
               onClick={() => {
                 void (async () => {
                   await signOut();
-                  navigate(slug ? `/${slug}/admin/login` : "/admin/login");
+                  navigate("/login");
                 })();
               }}
               className="ml-auto rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"

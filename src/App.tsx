@@ -12,6 +12,7 @@ import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTo
 import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { useTenantAuth } from "./shared/context/TenantAuthContext";
+import { supabase } from "./shared/lib/supabase";
 
 const matchSlugAdminPath = (pathname: string) => {
   const match = pathname.match(/^\/([^/]+)\/admin(?:\/(.*))?$/);
@@ -81,7 +82,7 @@ const rewriteSlugAdminPath = (slugAdminRoute: { slug: string; nestedPath: string
 
 export default function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
-  const { user, isLoading, isAuthorizedForSlug, authError } = useTenantAuth();
+  const { user, slug, isLoading, isAuthorizedForSlug, authError } = useTenantAuth();
 
   useEffect(() => {
     const onPopState = () => setPathname(window.location.pathname);
@@ -90,8 +91,10 @@ export default function App() {
   }, []);
 
   const navigate = (path: string) => {
-    if (path === `${window.location.pathname}${window.location.search}`) return;
-    window.history.pushState({}, "", path);
+    const nextPath = path.startsWith("/admin") && slug ? `/${slug}${path}` : path;
+    if (nextPath === `${window.location.pathname}${window.location.search}`) return;
+    window.history.pushState({}, "", nextPath);
+    window.dispatchEvent(new Event("tm:navigate"));
     setPathname(window.location.pathname);
   };
 
@@ -110,20 +113,38 @@ export default function App() {
   );
 
   const isSlugAdminLogin = Boolean(slugAdminRoute && slugAdminRoute.nestedPath === "login");
+  const isDirectLogin = resolvedPathname === "/login";
   const isLegacyAdminLogin = resolvedPathname === "/admin/login";
   const requiresSlugAdminAuth = Boolean(slugAdminRoute && !isSlugAdminLogin);
   const hasSlugAdminAccess = Boolean(!requiresSlugAdminAuth || (!isLoading && user && isAuthorizedForSlug));
 
   useEffect(() => {
+    if (resolvedPathname !== "/" || isLoading) return;
+
+    void (async () => {
+      const { data: firstClient } = await supabase
+        .from("clients")
+        .select("slug")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!firstClient?.slug) return;
+      navigate(`/${firstClient.slug}`);
+    })();
+  }, [isLoading, resolvedPathname]);
+
+  useEffect(() => {
     if (!requiresSlugAdminAuth || isLoading || user) return;
 
     const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-    navigate(`/${slugAdminRoute?.slug}/admin/login?redirect=${redirect}`);
+    navigate(`/login?redirect=${redirect}`);
   }, [isLoading, requiresSlugAdminAuth, slugAdminRoute?.slug, user]);
 
   return (
     <AppShell pathname={pathname} navigate={navigate}>
       {isSlugAdminLogin && <LoginPage navigate={navigate} />}
+      {isDirectLogin && <LoginPage navigate={navigate} />}
       {isLegacyAdminLogin && <LoginPage navigate={navigate} />}
 
       {requiresSlugAdminAuth && isLoading && (
@@ -140,7 +161,12 @@ export default function App() {
         </section>
       )}
 
-      {resolvedPathname === "/" && <PublicHomePage navigate={navigate} />}
+      {resolvedPathname === "/" && (
+        <section className="tm-card">
+          <p className="text-sm text-[var(--tm-muted)]">Resolviendo cliente...</p>
+        </section>
+      )}
+      {/^\/[^/]+$/.test(resolvedPathname) && <PublicHomePage navigate={navigate} />}
       {resolvedPathname === "/tournaments" && <HomePage navigate={navigate} />}
 
       {resolvedPathname === "/admin" && !requiresSlugAdminAuth && <HomePage navigate={navigate} mode="admin" />}
@@ -199,6 +225,7 @@ export default function App() {
         />
       )}
       {!isSlugAdminLogin &&
+        !isDirectLogin &&
         !isLegacyAdminLogin &&
         hasSlugAdminAccess &&
         !tournamentRoute &&
@@ -214,6 +241,7 @@ export default function App() {
         resolvedPathname !== "/admin/players" &&
         resolvedPathname !== "/admin/tournaments/new" &&
         resolvedPathname !== "/admin/login" &&
+        resolvedPathname !== "/login" &&
         resolvedPathname !== "/tournaments" &&
         resolvedPathname !== "/rankings" &&
         resolvedPathname !== "/admin/tournaments" &&

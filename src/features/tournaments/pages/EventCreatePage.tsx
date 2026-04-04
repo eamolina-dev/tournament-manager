@@ -17,7 +17,6 @@ import {
   validateCategorySelection,
   validateTournamentForm,
 } from "../../../shared/lib/ui-validations";
-import { getCurrentClientId } from "../../../shared/lib/current-client";
 
 type TournamentCreatePageProps = {
   navigate: (path: string) => void;
@@ -247,7 +246,11 @@ export const TournamentCreatePage = ({
         return;
       }
 
-      const clientId = client?.id ?? getCurrentClientId();
+      if (!client?.id) {
+        throw new Error("No se pudo resolver el cliente desde el slug actual.");
+      }
+
+      const clientId = client.id;
       const activeCircuitId = await resolveActiveCircuitIdForClient(clientId);
 
       const createdTournament = await createTournament({

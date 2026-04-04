@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import type { Database } from "../types/database";
 
@@ -7,6 +7,7 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 type TenantAuthContextValue = {
   user: User | null;
+  session: Session | null;
   client: Client | null;
   slug: string | null;
   isLoading: boolean;
@@ -26,6 +27,7 @@ const getSlugFromPathname = (pathname: string): string | null => {
 export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [clientBySlug, setClientBySlug] = useState<Client | null>(null);
   const [clientByUser, setClientByUser] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,10 +37,26 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     const onPopState = () => setPathname(window.location.pathname);
+    const onInternalNavigate = () => setPathname(window.location.pathname);
     window.addEventListener("popstate", onPopState);
+    window.addEventListener("tm:navigate", onInternalNavigate);
 
     return () => {
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("tm:navigate", onInternalNavigate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession ?? null);
+      setUser(nextSession?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -49,19 +67,29 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
       setIsLoading(true);
       setAuthError(null);
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        if (!isCancelled) {
-          setAuthError(sessionError.message);
-          setUser(null);
-        }
-        setIsLoading(false);
-        return;
-      }
+      let currentSession = session;
+      let currentUser = session?.user ?? null;
 
-      const currentUser = sessionData.session?.user ?? null;
-      if (!isCancelled) {
-        setUser(currentUser);
+      if (!currentSession) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          if (!isCancelled) {
+            setAuthError(sessionError.message);
+            setSession(null);
+            setUser(null);
+            setClientBySlug(null);
+            setClientByUser(null);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        currentSession = sessionData.session ?? null;
+        currentUser = currentSession?.user ?? null;
+        if (!isCancelled) {
+          setSession(currentSession);
+          setUser(currentUser);
+        }
       }
 
       if (!slug) {
@@ -123,18 +151,10 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
 
     void loadSessionAndTenant();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setPathname(window.location.pathname);
-    });
-
     return () => {
       isCancelled = true;
-      subscription.unsubscribe();
     };
-  }, [slug]);
+  }, [session, slug]);
 
   const isAuthorizedForSlug = Boolean(
     user && clientBySlug?.id && clientByUser?.id && clientBySlug.id === clientByUser.id,
@@ -143,6 +163,7 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
   const value = useMemo<TenantAuthContextValue>(
     () => ({
       user,
+      session,
       client: isAuthorizedForSlug ? clientBySlug : null,
       slug,
       isLoading,
@@ -150,9 +171,12 @@ export const TenantAuthProvider = ({ children }: PropsWithChildren) => {
       authError,
       signOut: async () => {
         await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        setClientByUser(null);
       },
     }),
-    [authError, clientBySlug, isAuthorizedForSlug, isLoading, slug, user],
+    [authError, clientBySlug, isAuthorizedForSlug, isLoading, session, slug, user],
   );
 
   return <TenantAuthContext.Provider value={value}>{children}</TenantAuthContext.Provider>;
