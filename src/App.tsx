@@ -110,6 +110,7 @@ export default function App() {
   );
 
   const isSlugAdminLogin = Boolean(slugAdminRoute && slugAdminRoute.nestedPath === "login");
+  const isLegacyAdminLogin = resolvedPathname === "/admin/login";
   const requiresSlugAdminAuth = Boolean(slugAdminRoute && !isSlugAdminLogin);
   const hasSlugAdminAccess = Boolean(!requiresSlugAdminAuth || (!isLoading && user && isAuthorizedForSlug));
 
@@ -123,6 +124,7 @@ export default function App() {
   return (
     <AppShell pathname={pathname} navigate={navigate}>
       {isSlugAdminLogin && <LoginPage navigate={navigate} />}
+      {isLegacyAdminLogin && <LoginPage navigate={navigate} />}
 
       {requiresSlugAdminAuth && isLoading && (
         <section className="tm-card">
@@ -197,6 +199,7 @@ export default function App() {
         />
       )}
       {!isSlugAdminLogin &&
+        !isLegacyAdminLogin &&
         hasSlugAdminAccess &&
         !tournamentRoute &&
         !adminTournamentRoute &&
@@ -210,6 +213,7 @@ export default function App() {
         resolvedPathname !== "/admin" &&
         resolvedPathname !== "/admin/players" &&
         resolvedPathname !== "/admin/tournaments/new" &&
+        resolvedPathname !== "/admin/login" &&
         resolvedPathname !== "/tournaments" &&
         resolvedPathname !== "/rankings" &&
         resolvedPathname !== "/admin/tournaments" &&

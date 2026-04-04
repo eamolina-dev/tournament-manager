@@ -7,14 +7,14 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 const publicNavItems = [
-  { label: "Home", href: "/" },
-  { label: "Tournaments", href: "/tournaments" },
+  { label: "Inicio", href: "/" },
+  { label: "Torneos", href: "/tournaments" },
   { label: "Rankings", href: "/rankings" },
 ];
 
 const adminNavItems = [
-  { label: "Tournaments", href: "/admin" },
-  { label: "Players", href: "/admin/players" },
+  { label: "Torneos", href: "/admin" },
+  { label: "Jugadores", href: "/admin/players" },
 ];
 
 const getNavItems = (pathname: string, slug: string | null) => {
