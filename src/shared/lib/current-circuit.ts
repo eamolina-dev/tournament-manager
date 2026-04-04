@@ -7,3 +7,8 @@ export const getCurrentCircuitId = (): string => {
 
   return circuitId.trim()
 }
+
+export const getOptionalCurrentCircuitId = (): string | null => {
+  const circuitId = import.meta.env.VITE_CIRCUIT_ID
+  return circuitId?.trim() ? circuitId.trim() : null
+}

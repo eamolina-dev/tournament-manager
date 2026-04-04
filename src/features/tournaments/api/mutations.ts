@@ -115,13 +115,10 @@ export const createTournament = async (
 ): Promise<Tournament> => {
   assertNonEmptyString(input.name, "Falta el nombre del torneo.")
   assertNonEmptyString(input.slug, "Falta el slug del torneo.")
-  if (!input.circuit_id) {
-    throw new Error("Falta circuit_id para crear el torneo.")
-  }
   if (input.start_date && input.end_date && input.start_date > input.end_date) {
     throw new Error("La fecha de inicio no puede ser mayor a la fecha de fin.")
   }
-  if (input.start_date && input.end_date) {
+  if (input.circuit_id && input.start_date && input.end_date) {
     await assertNoTournamentDateOverlap({
       circuitId: input.circuit_id,
       startDate: input.start_date,
@@ -211,11 +208,7 @@ export const updateTournament = async (
   const nextEndDate = input.end_date ?? currentTournament.end_date
   const nextCircuitId = input.circuit_id ?? currentTournament.circuit_id
 
-  if (!nextCircuitId) {
-    throw new Error("Falta circuit_id para actualizar el torneo.")
-  }
-
-  if (nextStartDate && nextEndDate) {
+  if (nextCircuitId && nextStartDate && nextEndDate) {
     await assertNoTournamentDateOverlap({
       circuitId: nextCircuitId,
       startDate: nextStartDate,
