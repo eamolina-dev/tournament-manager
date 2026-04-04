@@ -51,22 +51,63 @@ export type Database = {
       }
       circuits: {
         Row: {
+          client_id: string | null
           created_at: string
           id: string
           name: string
           year: number
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
           id?: string
           name: string
           year: number
         }
         Update: {
+          client_id?: string | null
           created_at?: string
           id?: string
           name?: string
           year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "circuits_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          location: string | null
+          logo_url: string | null
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          logo_url?: string | null
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          logo_url?: string | null
+          name?: string
+          slug?: string
         }
         Relationships: []
       }
@@ -539,7 +580,7 @@ export type Database = {
       }
       players: {
         Row: {
-          circuit_id: string | null
+          client_id: string | null
           created_at: string
           current_category_id: string | null
           gender: string | null
@@ -547,7 +588,7 @@ export type Database = {
           name: string
         }
         Insert: {
-          circuit_id?: string | null
+          client_id?: string | null
           created_at?: string
           current_category_id?: string | null
           gender?: string | null
@@ -555,7 +596,7 @@ export type Database = {
           name: string
         }
         Update: {
-          circuit_id?: string | null
+          client_id?: string | null
           created_at?: string
           current_category_id?: string | null
           gender?: string | null
@@ -571,10 +612,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "players_circuit_id_fkey"
-            columns: ["circuit_id"]
+            foreignKeyName: "players_client_id_fkey"
+            columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "circuits"
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -815,6 +856,7 @@ export type Database = {
       tournaments: {
         Row: {
           circuit_id: string | null
+          client_id: string | null
           created_at: string
           end_date: string | null
           id: string
@@ -826,6 +868,7 @@ export type Database = {
         }
         Insert: {
           circuit_id?: string | null
+          client_id?: string | null
           created_at?: string
           end_date?: string | null
           id?: string
@@ -837,6 +880,7 @@ export type Database = {
         }
         Update: {
           circuit_id?: string | null
+          client_id?: string | null
           created_at?: string
           end_date?: string | null
           id?: string
@@ -852,6 +896,13 @@ export type Database = {
             columns: ["circuit_id"]
             isOneToOne: false
             referencedRelation: "circuits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
