@@ -141,7 +141,7 @@ export default function App() {
   const hasSlugAdminAccess = Boolean(isScopedAdminRoute && !isLoading && user && isAuthorizedForSlug);
 
   useEffect(() => {
-    if (resolvedPathname !== "/" || isLoading) return;
+    if (pathname !== "/" || isLoading) return;
 
     void (async () => {
       const { data: firstClient } = await supabase
@@ -154,7 +154,7 @@ export default function App() {
       if (!firstClient?.slug) return;
       navigate(`/${firstClient.slug}`);
     })();
-  }, [isLoading, resolvedPathname]);
+  }, [isLoading, pathname]);
 
   useEffect(() => {
     if (!requiresSlugAdminAuth || isLoading || user) return;
@@ -187,12 +187,12 @@ export default function App() {
         </section>
       )}
 
-      {resolvedPathname === "/" && (
+      {pathname === "/" && (
         <section className="tm-card">
           <p className="text-sm text-[var(--tm-muted)]">Resolviendo cliente...</p>
         </section>
       )}
-      {/^\/[^/]+$/.test(resolvedPathname) && <PublicHomePage navigate={navigate} />}
+      {slugPublicRoute?.nestedPath === "" && <PublicHomePage navigate={navigate} />}
       {resolvedPathname === "/tournaments" && <HomePage navigate={navigate} />}
 
       {resolvedPathname === "/admin" && hasSlugAdminAccess && (
