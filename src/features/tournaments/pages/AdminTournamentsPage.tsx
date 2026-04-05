@@ -21,6 +21,7 @@ import {
 
 type AdminTournamentsPageProps = {
   navigate: (path: string) => void;
+  tenantSlug: string;
 };
 
 type TournamentCard = {
@@ -50,7 +51,9 @@ const slugify = (value: string): string =>
 
 export const AdminTournamentsPage = ({
   navigate,
+  tenantSlug,
 }: AdminTournamentsPageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const { client } = useTenantAuth();
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
   const [categoriesCatalog, setCategoriesCatalog] = useState<
@@ -305,9 +308,7 @@ export const AdminTournamentsPage = ({
                   onClick={() => {
                     if (!cat.slug) return;
                     navigate(
-                      `/admin/tournament/${tournament.slug}/${
-                        cat.slug ?? cat.id
-                      }`
+                      `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
                     );
                   }}
                   className="rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-text)]"

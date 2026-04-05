@@ -4,6 +4,7 @@ import { formatCategoryName } from "../../../shared/lib/category-display";
 import { TournamentCategoryPage } from "./TournamentCategoryPage";
 
 type AdminTournamentSetupPageProps = {
+  tenantSlug: string;
   slug?: string;
   category?: string;
   eventId?: string;
@@ -12,12 +13,14 @@ type AdminTournamentSetupPageProps = {
 };
 
 export const AdminTournamentSetupPage = ({
+  tenantSlug,
   slug = "",
   category = "",
   eventId,
   categoryId,
   navigate,
 }: AdminTournamentSetupPageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const [tabs, setTabs] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export const AdminTournamentSetupPage = ({
             <button
               key={tab.id}
               type="button"
-              onClick={() => navigate(`/admin/tournaments/${eventId}/categories/${tab.id}/setup`)}
+              onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${eventId}/categories/${tab.id}/setup`)}
               className={`rounded-full border px-3 py-1 text-sm ${
                 tab.id === resolvedCategoryId
                   ? "border-slate-900 bg-slate-900 text-white"
@@ -74,6 +77,7 @@ export const AdminTournamentSetupPage = ({
 
       {resolvedCategoryId ? (
         <TournamentCategoryPage
+          tenantSlug={tenantSlug}
           slug={slug}
           category={category}
           eventId={eventId}

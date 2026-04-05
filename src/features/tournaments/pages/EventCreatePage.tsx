@@ -20,6 +20,7 @@ import {
 
 type TournamentCreatePageProps = {
   navigate: (path: string) => void;
+  tenantSlug: string;
   tournamentId?: string;
   mode?: "default" | "admin";
 };
@@ -57,9 +58,11 @@ const slugify = (value: string): string =>
 
 export const TournamentCreatePage = ({
   navigate,
+  tenantSlug,
   tournamentId,
   mode = "default",
 }: TournamentCreatePageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const { client } = useTenantAuth();
   const isAdminMode = mode === "admin";
   const isEditMode = Boolean(tournamentId);
@@ -150,7 +153,7 @@ export const TournamentCreatePage = ({
     })();
   }, [tournamentId, isEditMode]);
 
-  const getBackPath = () => (isAdminMode ? "/admin" : "/");
+  const getBackPath = () => (isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`);
 
   const selectedCategoryName = useMemo(
     () => categoriesCatalog.find((category) => category.id === categorySelection)?.name ?? "",
@@ -287,8 +290,8 @@ export const TournamentCreatePage = ({
       setSuccessMessage("Torneo creado. Ahora podés seguir configurando categorías.");
       navigate(
         isAdminMode
-          ? `/admin/tournaments/${createdTournament.id}/edit`
-          : `/tournaments/${createdTournament.id}/edit`
+          ? `${tenantBasePath}/admin/tournaments/${createdTournament.id}/edit`
+          : `${tenantBasePath}/tournaments/${createdTournament.id}/edit`
       );
     } catch (submitError) {
       setError(
@@ -505,9 +508,9 @@ export const TournamentCreatePage = ({
                       onClick={() =>
                         isAdminMode
                           ? navigate(
-                              `/admin/tournaments/${tournamentId}/categories/${existingCategory.id}/setup`
+                              `${tenantBasePath}/admin/tournaments/${tournamentId}/categories/${existingCategory.id}/setup`
                             )
-                          : navigate(`/tournaments/${tournamentId}/categories/${existingCategory.id}`)
+                          : navigate(`${tenantBasePath}/tournaments/${tournamentId}/categories/${existingCategory.id}`)
                       }
                       className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                     >

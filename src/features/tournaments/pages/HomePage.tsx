@@ -10,6 +10,7 @@ import { formatCategoryName } from "../../../shared/lib/category-display";
 
 type HomePageProps = {
   navigate: (path: string) => void;
+  tenantSlug: string;
   mode?: "public" | "admin";
 };
 
@@ -37,7 +38,8 @@ const compareByStartDate = (a: string | null, b: string | null) => {
   return a.localeCompare(b);
 };
 
-export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
+export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const isAdminMode = mode === "admin";
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +148,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
           </h1>
           {isAdminMode ? (
             <button
-              onClick={() => navigate("/admin/tournaments/new")}
+              onClick={() => navigate(`${tenantBasePath}/admin/tournaments/new`)}
               className="tm-btn-primary px-3 py-2 text-sm"
             >
               Crear torneo
@@ -175,7 +177,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
               {isAdminMode ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/admin/tournaments/${tournament.id}/edit`)}
+                    onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${tournament.id}/edit`)}
                     className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
                   >
                     Editar
@@ -219,9 +221,9 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
                     navigate(
                       isAdminMode
                         ? !cat.hasMatches
-                          ? `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
-                          : `/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
-                        : `/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
+                          ? `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
+                          : `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
+                        : `${tenantBasePath}/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
                     );
                   }}
                   className={`rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-surface)] ${
@@ -272,7 +274,7 @@ export const HomePage = ({ navigate, mode = "public" }: HomePageProps) => {
             {isAdminMode ? (
               <button
                 type="button"
-                onClick={() => navigate("/admin/tournaments/new")}
+                onClick={() => navigate(`${tenantBasePath}/admin/tournaments/new`)}
                 className="mt-3 tm-btn-primary px-3 py-2 text-sm"
               >
                 Crear primer torneo

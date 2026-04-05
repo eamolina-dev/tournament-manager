@@ -7,13 +7,16 @@ type AdminTournamentResultsPageProps = {
   eventId: string;
   categoryId: string;
   navigate: (path: string) => void;
+  tenantSlug: string;
 };
 
 export const AdminTournamentResultsPage = ({
   eventId,
   categoryId,
   navigate,
+  tenantSlug,
 }: AdminTournamentResultsPageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const [tabs, setTabs] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export const AdminTournamentResultsPage = ({
             <button
               key={tab.id}
               type="button"
-              onClick={() => navigate(`/admin/tournaments/${eventId}/categories/${tab.id}`)}
+              onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${eventId}/categories/${tab.id}`)}
               className={`rounded-full border px-3 py-1 text-sm ${
                 tab.id === resolvedCategoryId
                   ? "border-slate-900 bg-slate-900 text-white"
@@ -67,6 +70,7 @@ export const AdminTournamentResultsPage = ({
 
       {resolvedCategoryId ? (
         <TournamentCategoryPage
+          tenantSlug={tenantSlug}
           slug=""
           category=""
           eventId={eventId}

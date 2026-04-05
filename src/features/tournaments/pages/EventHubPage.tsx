@@ -11,6 +11,7 @@ import { validateCategorySelection } from "../../../shared/lib/ui-validations";
 type TournamentHubPageProps = {
   tournamentId: string;
   navigate: (path: string) => void;
+  tenantSlug: string;
 };
 
 type TournamentCategoryItem = {
@@ -21,7 +22,8 @@ type TournamentCategoryItem = {
   sumaValue: number | null;
 };
 
-export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageProps) => {
+export const TournamentHubPage = ({ tournamentId, navigate, tenantSlug }: TournamentHubPageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const [tournamentName, setTournamentName] = useState("Torneo");
   const [tournamentDate, setTournamentDate] = useState<string | null>(null);
   const [categories, setCategories] = useState<TournamentCategoryItem[]>([]);
@@ -126,7 +128,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
           suma_value: sumSelection,
           category_id: null,
         });
-        navigate(`/tournaments/${tournamentId}/categories/${created.id}`);
+        navigate(`${tenantBasePath}/tournaments/${tournamentId}/categories/${created.id}`);
         return;
       }
 
@@ -137,7 +139,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
         suma_value: null,
       });
 
-      navigate(`/tournaments/${tournamentId}/categories/${created.id}`);
+      navigate(`${tenantBasePath}/tournaments/${tournamentId}/categories/${created.id}`);
     } catch (createError) {
       setError(
         createError instanceof Error ? createError.message : "No se pudo agregar la categoría",
@@ -151,7 +153,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
     <section className="grid gap-4">
       <article className="tm-card">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(`${tenantBasePath}/`)}
           className="mb-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
         >
           ← Volver al Inicio
@@ -177,7 +179,7 @@ export const TournamentHubPage = ({ tournamentId, navigate }: TournamentHubPageP
               <p className="text-sm text-slate-800">{category.name}</p>
               <button
                 onClick={() =>
-                  navigate(`/tournaments/${tournamentId}/categories/${category.tournamentCategoryId}`)
+                  navigate(`${tenantBasePath}/tournaments/${tournamentId}/categories/${category.tournamentCategoryId}`)
                 }
                 className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
               >

@@ -3,6 +3,7 @@ import { getTournaments } from "../api/queries";
 
 type PublicHomePageProps = {
   navigate: (path: string) => void;
+  tenantSlug: string;
 };
 
 type PublicTournamentPreview = {
@@ -26,7 +27,8 @@ const compareByStartDate = (a: string | null, b: string | null) => {
   return a.localeCompare(b);
 };
 
-export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
+export const PublicHomePage = ({ navigate, tenantSlug }: PublicHomePageProps) => {
+  const tenantBasePath = `/${tenantSlug}`;
   const [tournaments, setTournaments] = useState<PublicTournamentPreview[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,13 +76,13 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <button
-              onClick={() => navigate("/tournaments")}
+              onClick={() => navigate(`${tenantBasePath}/tournaments`)}
               className="tm-btn-primary px-4 py-2 text-sm"
             >
               Ver torneos
             </button>
             <button
-              onClick={() => navigate("/rankings")}
+              onClick={() => navigate(`${tenantBasePath}/rankings`)}
               className="rounded-lg border border-[var(--tm-border)] bg-[#0a1d2f] px-4 py-2 text-sm font-medium text-[var(--tm-surface)]"
             >
               Ver rankings
@@ -116,7 +118,7 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
           </h2>
           <div className="mt-3 grid gap-2">
             <button
-              onClick={() => navigate("/tournaments")}
+              onClick={() => navigate(`${tenantBasePath}/tournaments`)}
               className="rounded-xl border border-sky-200 bg-sky-100 px-4 py-3 text-left"
             >
               <p className="text-sm font-semibold text-sky-900">Torneos</p>
@@ -125,7 +127,7 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
               </p>
             </button>
             <button
-              onClick={() => navigate("/rankings")}
+              onClick={() => navigate(`${tenantBasePath}/rankings`)}
               className="rounded-xl border border-emerald-200 bg-emerald-100 px-4 py-3 text-left"
             >
               <p className="text-sm font-semibold text-emerald-900">Rankings</p>
@@ -143,7 +145,7 @@ export const PublicHomePage = ({ navigate }: PublicHomePageProps) => {
             Torneos recientes
           </h2>
           <button
-            onClick={() => navigate("/tournaments")}
+            onClick={() => navigate(`${tenantBasePath}/tournaments`)}
             className="text-sm font-medium text-[var(--tm-accent)]"
           >
             Ver todos

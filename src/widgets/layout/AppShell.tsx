@@ -14,7 +14,7 @@ const publicNavItems = [
 ];
 
 const adminNavItems = [
-  { label: "Torneos", href: "/admin" },
+  { label: "Torneos", href: "/admin/tournaments" },
   { label: "Jugadores", href: "/admin/players" },
 ];
 
@@ -72,7 +72,7 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
               onClick={() => {
                 void (async () => {
                   await signOut();
-                  navigate(slug ? `/${slug}/admin/login` : "/admin/login");
+                  navigate(slug ? `/${slug}/admin/login` : "/");
                 })();
               }}
               className="ml-auto rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm text-[var(--tm-muted)]"

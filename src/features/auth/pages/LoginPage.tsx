@@ -17,7 +17,7 @@ export const LoginPage = ({ navigate }: LoginPageProps) => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
-    if (!redirect) return slug ? `/${slug}/admin` : "/";
+    if (!redirect) return slug ? `/${slug}/admin/tournaments` : "/";
     if (!redirect.startsWith("/")) return "/";
 
     return redirect;

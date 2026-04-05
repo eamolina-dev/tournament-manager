@@ -84,6 +84,7 @@ import {
 import { validateTeamPair } from "../../../shared/lib/ui-validations";
 
 export const TournamentCategoryPage = ({
+  tenantSlug = "",
   slug,
   category,
   eventId,
@@ -93,6 +94,7 @@ export const TournamentCategoryPage = ({
   adminViewMode = "full",
   navigate,
 }: TournamentCategoryPageProps) => {
+  const tenantBasePath = tenantSlug ? `/${tenantSlug}` : "";
   const isAdminResultsMode = isAdmin && adminViewMode === "results";
   const availableTabs = isAdminResultsMode ? adminResultsTabs : sectionTabs;
   const [activeTab, setActiveTab] = usePersistentTab<SectionTab>({
@@ -1372,8 +1374,8 @@ export const TournamentCategoryPage = ({
               onClick={() =>
                 navigate(
                   eventId
-                    ? `/admin/tournaments/${eventId}/edit`
-                    : "/admin/tournaments/new"
+                    ? `${tenantBasePath}/admin/tournaments/${eventId}/edit`
+                    : `${tenantBasePath}/admin/tournaments/new`
                 )
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -1383,7 +1385,7 @@ export const TournamentCategoryPage = ({
           ) : null}
           {!isAdmin && navigate && (
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(`${tenantBasePath}/`)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               Volver al Inicio
@@ -1391,7 +1393,7 @@ export const TournamentCategoryPage = ({
           )}
           {isAdmin && isAdminResultsMode && navigate && (
             <button
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate(`${tenantBasePath}/admin/tournaments`)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
               Volver al Inicio
@@ -1401,7 +1403,7 @@ export const TournamentCategoryPage = ({
           {isAdmin && !eventId && navigate && (
             <button
               onClick={() =>
-                navigate(`/tournament/${slug}/${category}?owner=1`)
+                navigate(`${tenantBasePath}/tournament/${slug}/${category}?owner=1`)
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
@@ -2068,7 +2070,7 @@ export const TournamentCategoryPage = ({
                     type="button"
                     onClick={() =>
                       navigate(
-                        `/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`
+                        `${tenantBasePath}/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`
                       )
                     }
                     className="rounded-full border border-emerald-300 px-3 py-1 text-xs text-emerald-700"

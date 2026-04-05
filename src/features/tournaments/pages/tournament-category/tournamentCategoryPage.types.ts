@@ -3,6 +3,7 @@ import type { Database } from "../../../../shared/types/database";
 import type { MatchSetScore } from "../../../matches/components/MatchCard";
 
 export type TournamentCategoryPageProps = {
+  tenantSlug?: string;
   slug: string;
   category: string;
   eventId?: string;
