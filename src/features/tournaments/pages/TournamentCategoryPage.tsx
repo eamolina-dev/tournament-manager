@@ -2553,7 +2553,6 @@ const ScheduleSection = ({
   }[];
   storageKey: string;
 }) => {
-  const [compactMode, setCompactMode] = useState(false);
   const dayTabs = useMemo(
     () => Array.from(new Set(matches.map((match) => match.day))),
     [matches]
@@ -2594,17 +2593,10 @@ const ScheduleSection = ({
           </button>
         ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setCompactMode((prev) => !prev)}
-          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
-        >
-          {compactMode ? "Vista cómoda" : "Vista compacta"}
-        </button>
       </div>
       <div className="overflow-x-auto">
         {dayMatches.length ? (
-          <table className={`min-w-[500px] w-full text-left ${compactMode ? "text-xs" : "text-sm"}`}>
+          <table className="min-w-[500px] w-full text-left text-sm">
             <thead>
               <tr className="sticky top-0 z-10 border-b border-slate-200 bg-white text-slate-500">
                 <th className="sticky left-0 z-20 w-20 bg-white py-2 pr-2">
@@ -2634,9 +2626,7 @@ const ScheduleSection = ({
                       <td key={`${time}-${court}`} className="py-2 px-1">
                         {match ? (
                           <div
-                            className={`w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-left ${
-                              compactMode ? "py-1.5" : "py-2"
-                            }`}
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left"
                           >
                             <p className="text-xs font-medium text-slate-800 leading-tight">
                               {match.team1}
@@ -2650,9 +2640,7 @@ const ScheduleSection = ({
                           </div>
                         ) : (
                           <div
-                            className={`flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400 ${
-                              compactMode ? "h-[58px]" : "h-[74px]"
-                            }`}
+                            className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400"
                           >
                             -
                           </div>

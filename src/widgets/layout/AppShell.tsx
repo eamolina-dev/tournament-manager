@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { useTenantAuth } from "../../shared/context/TenantAuthContext";
+import { Footer } from "./Footer";
 
 type AppShellProps = PropsWithChildren<{
   pathname: string;
@@ -47,7 +48,7 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
   const isAdminPath = pathname.startsWith("/admin") || Boolean(slug && pathname.startsWith(`/${slug}/admin`));
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
           {navItems.map((item) => {
@@ -82,7 +83,8 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 py-5">{children}</main>
+      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-4 px-4 py-5">{children}</main>
+      {!isAdminPath ? <Footer /> : null}
     </div>
   );
 };
