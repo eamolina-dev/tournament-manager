@@ -65,7 +65,8 @@ export const TournamentCreatePage = ({
   const tenantBasePath = `/${tenantSlug}`;
   const { client } = useTenantAuth();
   const isAdminMode = mode === "admin";
-  const isEditMode = Boolean(tournamentId);
+  const [currentTournamentId, setCurrentTournamentId] = useState<string | undefined>(tournamentId);
+  const isEditMode = Boolean(currentTournamentId);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -90,6 +91,10 @@ export const TournamentCreatePage = ({
   }>({});
 
   useEffect(() => {
+    setCurrentTournamentId(tournamentId);
+  }, [tournamentId]);
+
+  useEffect(() => {
     void (async () => {
       setError(null);
       setSuccessMessage(null);
@@ -104,11 +109,11 @@ export const TournamentCreatePage = ({
           }))
         );
 
-        if (!tournamentId) return;
+        if (!currentTournamentId) return;
 
         const [tournament, tournamentCategories] = await Promise.all([
-          getTournamentById(tournamentId),
-          getTournamentCategories(tournamentId),
+          getTournamentById(currentTournamentId),
+          getTournamentCategories(currentTournamentId),
         ]);
 
         if (!tournament) {
@@ -151,7 +156,7 @@ export const TournamentCreatePage = ({
         setLoading(false);
       }
     })();
-  }, [tournamentId, isEditMode]);
+  }, [currentTournamentId, isEditMode]);
 
   const getBackPath = () => (isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`);
 
@@ -204,11 +209,11 @@ export const TournamentCreatePage = ({
       return;
     }
 
-    if (!tournamentId) return;
+    if (!currentTournamentId) return;
 
     try {
       const createdCategory = await createCategory({
-        tournament_id: tournamentId,
+        tournament_id: currentTournamentId,
         category_id: currentDraftItem.category_id,
         is_suma: currentDraftItem.is_suma,
         suma_value: currentDraftItem.suma_value,
@@ -237,8 +242,8 @@ export const TournamentCreatePage = ({
     setSuccessMessage(null);
 
     try {
-      if (isEditMode && tournamentId) {
-        await updateTournament(tournamentId, {
+      if (isEditMode && currentTournamentId) {
+        await updateTournament(currentTournamentId, {
           name: name.trim(),
           slug: slugify(name),
           start_date: startDate || null,
@@ -287,12 +292,15 @@ export const TournamentCreatePage = ({
         return;
       }
 
-      setSuccessMessage("Torneo creado. Ahora podés seguir configurando categorías.");
-      navigate(
-        isAdminMode
-          ? `${tenantBasePath}/admin/tournaments/${createdTournament.id}/edit`
-          : `${tenantBasePath}/tournaments/${createdTournament.id}/edit`
+      setCurrentTournamentId(createdTournament.id);
+      setExistingCategories(
+        createdCategories.map((created, index) => ({
+          ...categoriesToCreate[index],
+          id: created.id,
+        }))
       );
+      setDraftCategories([]);
+      setSuccessMessage("Torneo creado. Se recargó la vista para seguir configurando categorías.");
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : "No se pudo guardar el torneo"
@@ -508,9 +516,11 @@ export const TournamentCreatePage = ({
                       onClick={() =>
                         isAdminMode
                           ? navigate(
-                              `${tenantBasePath}/admin/tournaments/${tournamentId}/categories/${existingCategory.id}/setup`
+                              `${tenantBasePath}/admin/tournaments/${currentTournamentId}/categories/${existingCategory.id}/setup`
                             )
-                          : navigate(`${tenantBasePath}/tournaments/${tournamentId}/categories/${existingCategory.id}`)
+                          : navigate(
+                              `${tenantBasePath}/tournaments/${currentTournamentId}/categories/${existingCategory.id}`
+                            )
                       }
                       className="rounded-full border border-slate-300 px-3 py-1 text-sm"
                     >
