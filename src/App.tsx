@@ -53,10 +53,10 @@ export default function App() {
   const isAdminTournamentEditRoute =
     isAdminPath && adminSegments.length === 4 && adminSegments[0] === "tournaments" && adminSegments[2] === "edit";
   const isAdminTournamentResultsRoute =
-    isAdminPath && adminSegments.length === 5 && adminSegments[0] === "tournaments" && adminSegments[2] === "categories";
+    isAdminPath && adminSegments.length === 4 && adminSegments[0] === "tournaments" && adminSegments[2] === "categories";
   const isAdminTournamentSetupRoute =
     isAdminPath &&
-    adminSegments.length === 6 &&
+    adminSegments.length === 5 &&
     adminSegments[0] === "tournaments" &&
     adminSegments[2] === "categories" &&
     adminSegments[4] === "setup";
