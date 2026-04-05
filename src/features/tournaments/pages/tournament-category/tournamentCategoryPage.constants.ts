@@ -1,0 +1,33 @@
+import type { SchedulingPhaseKey } from "./tournamentCategoryPage.types";
+
+export const sectionTabs = ["Zonas", "Cruces", "Posiciones", "Horarios"] as const;
+export const adminResultsTabs = ["Zonas", "Cruces"] as const;
+export const eliminationStageOrder = [
+  "round_of_32",
+  "round_of_16",
+  "round_of_8",
+  "quarter",
+  "semi",
+  "final",
+] as const;
+export const eliminationStageLabel: Record<
+  (typeof eliminationStageOrder)[number],
+  string
+> = {
+  round_of_32: "32avos",
+  round_of_16: "Octavos",
+  round_of_8: "Ronda de 8",
+  quarter: "Cuartos",
+  semi: "Semifinal",
+  final: "Final",
+};
+export const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
+export const defaultScheduleStartTime = "09:00";
+export const defaultMatchIntervalMinutes = 60;
+export const defaultCourtsCount = 1;
+
+export const schedulingPhaseLabels: Record<SchedulingPhaseKey, string> = {
+  quarterfinals: "Cuartos de final",
+  semifinals: "Semifinales",
+  finals: "Finales",
+};

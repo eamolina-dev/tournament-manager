@@ -1,25 +1,13 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   PointerSensor,
   closestCenter,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  rectSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
   propagateMatchWinner,
   replaceMatchSets,
@@ -50,6 +38,40 @@ import {
   MatchCardFull,
   type MatchSetScore,
 } from "../../matches/components/MatchCard";
+import {
+  adminResultsTabs,
+  defaultCourtsCount,
+  defaultMatchIntervalMinutes,
+  defaultScheduleStartTime,
+  eliminationStageLabel,
+  eliminationStageOrder,
+  matchCardsGridClass,
+  schedulingPhaseLabels,
+  sectionTabs,
+} from "./tournament-category/tournamentCategoryPage.constants";
+import {
+  DroppableZone,
+  SortableTeamCard,
+} from "./tournament-category/tournamentCategoryPageDnd";
+import {
+  areZoneColumnsEqual,
+  parseScheduleStartTimes,
+} from "./tournament-category/tournamentCategoryPage.utils";
+import type {
+  ActionNotice,
+  DraftTeam,
+  EditedResultsState,
+  FlowStatus,
+  MatchErrorState,
+  MatchGenerationDraft,
+  SchedulingPhaseKey,
+  SectionTab,
+  TeamFormState,
+  TournamentCategoryGender,
+  TournamentCategoryPageProps,
+  ZoneBoardColumn,
+  ZoneValidationResult,
+} from "./tournament-category/tournamentCategoryPage.types";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { TournamentBracket } from "../components/TournamentBracket";
 import { SearchInput } from "../../../shared/components/SearchInput";
@@ -60,188 +82,6 @@ import {
   getGenderShortLabel,
 } from "../../../shared/lib/category-display";
 import { validateTeamPair } from "../../../shared/lib/ui-validations";
-import type { Database } from "../../../shared/types/database";
-
-type TournamentCategoryPageProps = {
-  slug: string;
-  category: string;
-  eventId?: string;
-  categoryId?: string;
-  isAdmin?: boolean;
-  isOwner?: boolean;
-  adminViewMode?: "full" | "results";
-  navigate?: (path: string) => void;
-};
-
-const sectionTabs = ["Zonas", "Cruces", "Posiciones", "Horarios"] as const;
-const adminResultsTabs = ["Zonas", "Cruces"] as const;
-const eliminationStageOrder = [
-  "round_of_32",
-  "round_of_16",
-  "round_of_8",
-  "quarter",
-  "semi",
-  "final",
-] as const;
-const eliminationStageLabel: Record<
-  (typeof eliminationStageOrder)[number],
-  string
-> = {
-  round_of_32: "32avos",
-  round_of_16: "Octavos",
-  round_of_8: "Ronda de 8",
-  quarter: "Cuartos",
-  semi: "Semifinal",
-  final: "Final",
-};
-const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
-const defaultScheduleStartTime = "09:00";
-const defaultMatchIntervalMinutes = 60;
-const defaultCourtsCount = 1;
-
-type SectionTab = (typeof sectionTabs)[number];
-
-type FlowStatus = "draft" | "teams_ready" | "groups_ready" | "matches_ready";
-type ActionNotice = { type: "success" | "error"; message: string } | null;
-
-type TeamFormState = {
-  player1Id: string;
-  player2Id: string;
-};
-
-type DraftTeam = {
-  id: string;
-  key: string;
-  name: string;
-  player1Id: string;
-  player2Id: string;
-};
-
-type EditedResultsState = Record<
-  string,
-  {
-    sets: MatchSetScore[];
-  }
->;
-
-type MatchErrorState = Record<string, string>;
-type TournamentCategoryGender =
-  Database["public"]["Tables"]["tournament_categories"]["Row"]["gender"];
-
-type SchedulingPhaseKey = "quarterfinals" | "semifinals" | "finals";
-type ZoneBoardColumn = {
-  id: string;
-  name: string;
-  teamIds: string[];
-};
-type ZoneTeam = {
-  id: string;
-  name: string;
-};
-type ZoneValidationResult = {
-  warnings: string[];
-  zoneWarningsById: Record<string, string>;
-};
-type MatchGenerationDraft = {
-  zones: ZoneBoardColumn[];
-  scheduling: {
-    zoneDayById: Record<string, string>;
-    startTimesByDay: Record<string, string>;
-    matchIntervalMinutes: number;
-    courtsCount: number;
-    phaseByDay: Record<SchedulingPhaseKey, string>;
-  };
-};
-
-type SortableTeamCardProps = {
-  team: ZoneTeam;
-};
-type DroppableZoneProps = {
-  zoneId: string;
-  className: string;
-  children: ReactNode;
-};
-
-const SortableTeamCard = ({ team }: SortableTeamCardProps) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: team.id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-      {...attributes}
-      {...listeners}
-      className={`cursor-grab rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm active:cursor-grabbing ${
-        isDragging ? "opacity-60" : ""
-      }`}
-    >
-      {team.name}
-    </div>
-  );
-};
-
-const DroppableZone = ({ zoneId, className, children }: DroppableZoneProps) => {
-  const { setNodeRef } = useDroppable({ id: zoneId });
-  return (
-    <div ref={setNodeRef} id={zoneId} className={className}>
-      {children}
-    </div>
-  );
-};
-
-const schedulingPhaseLabels: Record<SchedulingPhaseKey, string> = {
-  quarterfinals: "Cuartos de final",
-  semifinals: "Semifinales",
-  finals: "Finales",
-};
-
-const areZoneColumnsEqual = (
-  left: ZoneBoardColumn[],
-  right: ZoneBoardColumn[]
-): boolean =>
-  left.length === right.length &&
-  left.every((zone, index) => {
-    const comparedZone = right[index];
-    if (!comparedZone) return false;
-    return (
-      zone.id === comparedZone.id &&
-      zone.name === comparedZone.name &&
-      zone.teamIds.length === comparedZone.teamIds.length &&
-      zone.teamIds.every(
-        (teamId, teamIndex) => teamId === comparedZone.teamIds[teamIndex]
-      )
-    );
-  });
-
-const parseScheduleStartTimes = (value: unknown): Record<string, string> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-
-  const safe: Record<string, string> = {};
-  Object.entries(value as Record<string, unknown>).forEach(
-    ([key, rawValue]) => {
-      if (
-        typeof rawValue === "string" &&
-        /^([01]\d|2[0-3]):[0-5]\d$/.test(rawValue)
-      ) {
-        safe[key] = rawValue;
-      }
-    }
-  );
-
-  return safe;
-};
 
 export const TournamentCategoryPage = ({
   slug,
