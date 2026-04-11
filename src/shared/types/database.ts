@@ -583,42 +583,38 @@ export type Database = {
       }
       players: {
         Row: {
-          client_id: string | null
+          base_category_id: string | null
           created_at: string
-          current_category_id: string | null
+          email: string | null
           gender: string | null
           id: string
           name: string
+          phone: string | null
         }
         Insert: {
-          client_id?: string | null
+          base_category_id?: string | null
           created_at?: string
-          current_category_id?: string | null
+          email?: string | null
           gender?: string | null
           id?: string
           name: string
+          phone?: string | null
         }
         Update: {
-          client_id?: string | null
+          base_category_id?: string | null
           created_at?: string
-          current_category_id?: string | null
+          email?: string | null
           gender?: string | null
           id?: string
           name?: string
+          phone?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "players_category_fkey"
-            columns: ["current_category_id"]
+            foreignKeyName: "players_base_category_id_fkey"
+            columns: ["base_category_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "players_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -751,24 +747,24 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
-          player1_id: string
-          player2_id: string
+          player1_id: string | null
+          player2_id: string | null
           tournament_category_id: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           id?: string
-          player1_id: string
-          player2_id: string
+          player1_id?: string | null
+          player2_id?: string | null
           tournament_category_id: string
         }
         Update: {
           created_at?: string
           display_name?: string | null
           id?: string
-          player1_id?: string
-          player2_id?: string
+          player1_id?: string | null
+          player2_id?: string | null
           tournament_category_id?: string
         }
         Relationships: [
