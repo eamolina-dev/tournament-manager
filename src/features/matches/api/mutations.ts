@@ -18,9 +18,28 @@ import type {
   MatchSetInsert,
   MatchUpdate,
 } from "../../../shared/types/entities"
-
+import {
+  assertTournamentEditableByCategoryId,
+  assertTournamentEditableByMatchId,
+} from "../../tournaments/services/tournamentStatusGuard"
 
 type MatchSetScoreInput = { setNumber: number; team1Games: number; team2Games: number }
+
+const RESULT_UPDATE_FIELDS = new Set(["winner_team_id"])
+
+const getProvidedMatchUpdateFields = (input: MatchUpdate): string[] =>
+  Object.entries(input)
+    .filter(([, value]) => value !== undefined)
+    .map(([field]) => field)
+
+const assertNonEmptyMatchUpdate = (providedFields: string[]): void => {
+  if (!providedFields.length) {
+    throw new Error("No fields to update.")
+  }
+}
+
+const isResultOnlyMatchUpdate = (providedFields: string[]): boolean =>
+  providedFields.every((field) => RESULT_UPDATE_FIELDS.has(field))
 
 const assertValidRegularSet = (set: MatchSetScoreInput): void => {
   const winnerGames = Math.max(set.team1Games, set.team2Games)
@@ -130,6 +149,8 @@ export const createMatch = async (input: MatchInsert): Promise<Match> => {
   if (!input.tournament_category_id) {
     throw new Error("Falta tournament_category_id para crear el partido.")
   }
+  await assertTournamentEditableByCategoryId(input.tournament_category_id)
+
   if (!input.team1_id || !input.team2_id) {
     throw new Error("Faltan team1_id/team2_id para crear el partido.")
   }
@@ -184,6 +205,13 @@ export const updateMatch = async (
     skipRankingRecalculation?: boolean
   }
 ): Promise<Match> => {
+  const providedFields = getProvidedMatchUpdateFields(input)
+  assertNonEmptyMatchUpdate(providedFields)
+
+  if (!isResultOnlyMatchUpdate(providedFields)) {
+    await assertTournamentEditableByMatchId(matchId)
+  }
+
   if (
     input.team1_id !== undefined &&
     input.team2_id !== undefined &&
@@ -233,6 +261,8 @@ export const updateMatch = async (
 }
 
 export const deleteMatch = async (matchId: string): Promise<void> => {
+  await assertTournamentEditableByMatchId(matchId)
+
   const { error } = await supabase.from("matches").delete().eq("id", matchId)
 
   throwIfError(error)

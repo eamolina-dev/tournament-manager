@@ -862,6 +862,7 @@ export type Database = {
           name: string | null
           slug: string | null
           start_date: string | null
+          status: string | null
           sum_limit: number | null
           type: string | null
         }
@@ -874,6 +875,7 @@ export type Database = {
           name?: string | null
           slug?: string | null
           start_date?: string | null
+          status?: string | null
           sum_limit?: number | null
           type?: string | null
         }
@@ -886,6 +888,7 @@ export type Database = {
           name?: string | null
           slug?: string | null
           start_date?: string | null
+          status?: string | null
           sum_limit?: number | null
           type?: string | null
         }

@@ -328,6 +328,10 @@ export const TournamentCategoryPage = ({
     if (!orderedEditableMatches.length) return "groups_ready";
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
+  const isTournamentEditable = data?.tournamentStatus === "draft";
+  const structuralLockMessage =
+    "El torneo ya comenzó: solo podés cargar resultados.";
+
   const hasRecordedResults = useMemo(
     () =>
       (data?.editableMatches ?? []).some(
@@ -574,6 +578,11 @@ export const TournamentCategoryPage = ({
 
   const saveScheduleConfig = async () => {
     if (!data) return;
+    if (!isTournamentEditable) {
+      setScheduleConfigError(structuralLockMessage);
+      setActionNotice({ type: "error", message: structuralLockMessage });
+      return;
+    }
     setScheduleConfigError(null);
     setScheduleConfigSuccess(null);
     setActionNotice(null);
@@ -702,6 +711,11 @@ export const TournamentCategoryPage = ({
 
   const handleSaveZones = async () => {
     if (!data) return;
+    if (!isTournamentEditable) {
+      setManualZoneError(structuralLockMessage);
+      setActionNotice({ type: "error", message: structuralLockMessage });
+      return;
+    }
     if (!zoneBoardColumns.length) {
       const message = "No hay zonas para guardar.";
       setManualZoneError(message);
@@ -1038,16 +1052,12 @@ export const TournamentCategoryPage = ({
     matchId,
     sets,
     winnerTeamId,
-    team1Id,
-    team2Id,
     skipRankingRecalculation = false,
     shouldReload = true,
   }: {
     matchId: string;
     sets: MatchSetScore[];
     winnerTeamId: string | null;
-    team1Id?: string | null;
-    team2Id?: string | null;
     skipRankingRecalculation?: boolean;
     shouldReload?: boolean;
   }): Promise<void> => {
@@ -1079,8 +1089,6 @@ export const TournamentCategoryPage = ({
       matchId,
       {
         winner_team_id: winnerTeamId,
-        ...(team1Id ? { team1_id: team1Id } : {}),
-        ...(team2Id ? { team2_id: team2Id } : {}),
       },
       {
         skipRankingRecalculation,
@@ -1371,6 +1379,7 @@ export const TournamentCategoryPage = ({
           </h1>
           {isAdmin && !isAdminResultsMode && navigate ? (
             <button
+              disabled={!isTournamentEditable}
               onClick={() =>
                 navigate(
                   eventId
@@ -1544,9 +1553,14 @@ export const TournamentCategoryPage = ({
             </div>
 
             <button
+              disabled={!isTournamentEditable}
               onClick={() =>
                 void (async () => {
                   if (!data) return;
+                  if (!isTournamentEditable) {
+                    setTeamDraftError(structuralLockMessage);
+                    return;
+                  }
                   setSaving(true);
                   setTeamDraftError(null);
                   try {
@@ -1655,10 +1669,14 @@ export const TournamentCategoryPage = ({
             </button>
 
             <button
-              disabled={!draftTeams.length || savingDraftTeams}
+              disabled={!isTournamentEditable || !draftTeams.length || savingDraftTeams}
               onClick={() =>
                 void (async () => {
                   if (!data || !draftTeams.length) return;
+                  if (!isTournamentEditable) {
+                    setTeamDraftError(structuralLockMessage);
+                    return;
+                  }
                   setSavingDraftTeams(true);
                   setTeamDraftError(null);
                   try {
@@ -1706,7 +1724,14 @@ export const TournamentCategoryPage = ({
                     >
                       <span>{team.name}</span>
                       <button
-                        onClick={() => void deleteTeam(team.id).then(load)}
+                        onClick={() => {
+                          if (!isTournamentEditable) {
+                            setTeamDraftError(structuralLockMessage);
+                            return;
+                          }
+                          void deleteTeam(team.id).then(load);
+                        }}
+                        disabled={!isTournamentEditable}
                         className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
                       >
                         Eliminar
@@ -1767,7 +1792,7 @@ export const TournamentCategoryPage = ({
               <button
                 type="button"
                 onClick={handleGenerateZonesAutomatically}
-                disabled={!teamsForZoneBoard.length}
+                disabled={!isTournamentEditable || !teamsForZoneBoard.length}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
               >
                 Generar zonas automáticamente
@@ -1775,7 +1800,8 @@ export const TournamentCategoryPage = ({
               <button
                 type="button"
                 onClick={() => void handleSaveZones()}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                disabled={!isTournamentEditable || saving}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
               >
                 Guardar zonas
               </button>
@@ -2017,8 +2043,8 @@ export const TournamentCategoryPage = ({
             </div>
 
             <button
-              disabled={saving}
               onClick={() => void saveScheduleConfig()}
+              disabled={!isTournamentEditable || saving}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
               Aplicar / actualizar horarios

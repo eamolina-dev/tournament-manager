@@ -26,7 +26,10 @@ import type {
   TournamentInsert,
   TournamentUpdate,
 } from "../../../shared/types/entities"
-
+import {
+  assertTournamentEditableByCategoryId,
+  assertTournamentEditableByTournamentId,
+} from "../services/tournamentStatusGuard"
 
 const assertNoTournamentDateOverlap = async ({
   circuitId,
@@ -152,6 +155,8 @@ export const createCategory = async (
   if (!input.tournament_id) {
     throw new Error("Falta tournament_id para vincular la categoría al torneo.")
   }
+
+  await assertTournamentEditableByTournamentId(input.tournament_id)
   if (input.courts_count !== null && input.courts_count !== undefined) {
     assertPositiveInteger(input.courts_count, "courts_count debe ser un entero mayor a 0.")
   }
@@ -247,6 +252,8 @@ export const deleteTournament = async (tournamentId: string): Promise<void> => {
 export const deleteTournamentCategory = async (
   tournamentCategoryId: string
 ): Promise<void> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
+
   const { error } = await supabase
     .from("tournament_categories")
     .delete()
@@ -267,6 +274,8 @@ export const saveZonesForCategory = async (
   if (!zones.length) {
     throw new Error("No hay zonas para guardar.")
   }
+
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
 
   const normalizedZones = zones.map((zone, index) => {
     const name = zone.name.trim()
@@ -347,6 +356,8 @@ export const updateTournamentCategory = async (
   tournamentCategoryId: string,
   input: TournamentCategoryUpdate,
 ): Promise<TournamentCategory> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
+
   if (input.courts_count !== null && input.courts_count !== undefined) {
     assertPositiveInteger(input.courts_count, "courts_count debe ser un entero mayor a 0.")
   }
@@ -379,6 +390,8 @@ export const updateTournamentCategory = async (
 export const generatePlayoffsAfterGroups = async (
   tournamentCategoryId: string
 ): Promise<void> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
+
   const { error } = await supabase.rpc("generate_playoffs_after_groups", {
     p_tournament_category_id: tournamentCategoryId,
   })
@@ -389,6 +402,7 @@ export const generatePlayoffsAfterGroups = async (
 export const generateGroupsAndMatches = async (
   tournamentCategoryId: string
 ): Promise<void> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
   await generateFullTournament(tournamentCategoryId)
 }
 
@@ -399,12 +413,15 @@ export const applyMatchScheduling = async (
     phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
   },
 ): Promise<void> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
   await scheduleGeneratedMatches(tournamentCategoryId, options)
 }
 
 export const resolveEliminationTeamSources = async (
   tournamentCategoryId: string,
 ): Promise<number> => {
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
+
   const [groups, matches, teams] = await Promise.all([
     getGroupsByCategory(tournamentCategoryId),
     getMatchesByCategory(tournamentCategoryId),

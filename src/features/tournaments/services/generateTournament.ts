@@ -11,6 +11,7 @@ import {
 } from "./generateGroups"
 import { generateGroupMatches, isValidGroupMatch } from "./generateGroupMatches"
 import { scheduleGeneratedMatches } from "./scheduleGeneratedMatches"
+import { assertTournamentEditableByCategoryId } from "./tournamentStatusGuard"
 
 type InsertedGroup = { id: string; name: string; group_key: string }
 
@@ -241,6 +242,8 @@ export const generateFullTournament = async (
   if (!tournamentCategoryId) {
     throw new Error("Falta tournamentCategoryId para generar el torneo completo.")
   }
+
+  await assertTournamentEditableByCategoryId(tournamentCategoryId)
 
   const debugEnabled = Boolean(options?.debug)
   const dryRun = Boolean(options?.dryRun)

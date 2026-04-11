@@ -17,6 +17,7 @@ export type TournamentCategoryPageData = {
   tournamentName: string
   tournamentStartDate: string | null
   tournamentEndDate: string | null
+  tournamentStatus: string | null
   categoryName: string
   isSuma: boolean
   sumaValue: number | null
@@ -394,6 +395,7 @@ export const getTournamentCategoryPageData = async (
     tournamentName: tournament.name ?? "Torneo",
     tournamentStartDate: tournament.start_date,
     tournamentEndDate: tournament.end_date,
+    tournamentStatus: tournament.status ?? null,
     categoryName:
       category.is_suma && category.suma_value != null
         ? `Suma ${category.suma_value}`

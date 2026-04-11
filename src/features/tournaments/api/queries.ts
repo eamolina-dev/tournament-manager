@@ -28,10 +28,10 @@ export const getTournamentById = async (
 
 export const getTournamentBySlug = async (
   tournamentSlug: string
-): Promise<Pick<Tournament, "id" | "name" | "start_date" | "end_date"> | null> => {
+): Promise<Pick<Tournament, "id" | "name" | "start_date" | "end_date" | "status"> | null> => {
   const { data, error } = await supabase
     .from("tournaments")
-    .select("id, name, start_date, end_date")
+    .select("id, name, start_date, end_date, status")
     .eq("slug", tournamentSlug)
     .maybeSingle()
 
