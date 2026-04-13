@@ -206,8 +206,8 @@ export const TournamentCategoryPage = ({
         .map((player) => ({
           id: player.id,
           name: player.name?.trim() ?? "",
-          categoryLevel: player.current_category_id
-            ? categoryLevelById.get(player.current_category_id) ?? null
+          categoryLevel: player.base_category_id
+            ? categoryLevelById.get(player.base_category_id) ?? null
             : null,
         }))
         .sort((a, b) => a.name.localeCompare(b.name))
@@ -594,7 +594,8 @@ export const TournamentCategoryPage = ({
         )
     );
     if (hasInvalidTime) {
-      const message = "Revisá los horarios de inicio: el formato debe ser HH:MM.";
+      const message =
+        "Revisá los horarios de inicio: el formato debe ser HH:MM.";
       setScheduleConfigError(message);
       setActionNotice({ type: "error", message });
       return;
@@ -756,15 +757,20 @@ export const TournamentCategoryPage = ({
         JSON.stringify(relabeledZones)
       );
       setManualZoneError(null);
-      setZoneConfigSuccess("Zonas guardadas en la base y listas para generar partidos.");
+      setZoneConfigSuccess(
+        "Zonas guardadas en la base y listas para generar partidos."
+      );
       setActionNotice({
         type: "success",
-        message: "Zonas guardadas. El fixture se actualizará al regenerar partidos.",
+        message:
+          "Zonas guardadas. El fixture se actualizará al regenerar partidos.",
       });
       await load();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "No se pudieron guardar las zonas.";
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar las zonas.";
       setManualZoneError(message);
       setActionNotice({ type: "error", message });
     } finally {
@@ -947,10 +953,13 @@ export const TournamentCategoryPage = ({
         },
       });
       await load();
-      setGenerationSuccess("Partidos generados correctamente. Podés seguir editando en esta página.");
+      setGenerationSuccess(
+        "Partidos generados correctamente. Podés seguir editando en esta página."
+      );
       setActionNotice({
         type: "success",
-        message: "Fixture generado. Los horarios pueden actualizarse sin regenerar partidos.",
+        message:
+          "Fixture generado. Los horarios pueden actualizarse sin regenerar partidos.",
       });
     } catch (error) {
       const message =
@@ -1200,7 +1209,8 @@ export const TournamentCategoryPage = ({
       );
       setActionNotice({
         type: "error",
-        message: "Hay resultados inválidos. Corregí los errores antes de guardar.",
+        message:
+          "Hay resultados inválidos. Corregí los errores antes de guardar.",
       });
       return;
     }
@@ -1258,7 +1268,10 @@ export const TournamentCategoryPage = ({
         await load();
       }
       if (Object.keys(nextErrors).length === 0) {
-        setActionNotice({ type: "success", message: "Resultados de zona guardados." });
+        setActionNotice({
+          type: "success",
+          message: "Resultados de zona guardados.",
+        });
       } else {
         setActionNotice({
           type: "error",
@@ -1288,7 +1301,8 @@ export const TournamentCategoryPage = ({
       );
       setActionNotice({
         type: "error",
-        message: "Hay resultados inválidos. Corregí los errores antes de guardar.",
+        message:
+          "Hay resultados inválidos. Corregí los errores antes de guardar.",
       });
       return;
     }
@@ -1345,7 +1359,10 @@ export const TournamentCategoryPage = ({
         await load();
       }
       if (Object.keys(nextErrors).length === 0) {
-        setActionNotice({ type: "success", message: "Resultados de cruces guardados." });
+        setActionNotice({
+          type: "success",
+          message: "Resultados de cruces guardados.",
+        });
       } else {
         setActionNotice({
           type: "error",
@@ -1412,7 +1429,9 @@ export const TournamentCategoryPage = ({
           {isAdmin && !eventId && navigate && (
             <button
               onClick={() =>
-                navigate(`${tenantBasePath}/tournament/${slug}/${category}?owner=1`)
+                navigate(
+                  `${tenantBasePath}/tournament/${slug}/${category}?owner=1`
+                )
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
@@ -1493,7 +1512,9 @@ export const TournamentCategoryPage = ({
             </div>
             {!selectablePlayers.length && (
               <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-                <p className="text-xs text-slate-500">No hay jugadores disponibles.</p>
+                <p className="text-xs text-slate-500">
+                  No hay jugadores disponibles.
+                </p>
                 <button
                   type="button"
                   onClick={openCreatePlayerModal}
@@ -1669,7 +1690,9 @@ export const TournamentCategoryPage = ({
             </button>
 
             <button
-              disabled={!isTournamentEditable || !draftTeams.length || savingDraftTeams}
+              disabled={
+                !isTournamentEditable || !draftTeams.length || savingDraftTeams
+              }
               onClick={() =>
                 void (async () => {
                   if (!data || !draftTeams.length) return;
@@ -1741,7 +1764,9 @@ export const TournamentCategoryPage = ({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-sm text-slate-500">Aún no hay equipos creados.</p>
+                  <p className="text-sm text-slate-500">
+                    Aún no hay equipos creados.
+                  </p>
                   <p className="text-xs text-slate-500">
                     Seleccioná dos jugadores y usá “Agregar al borrador”.
                   </p>
@@ -1899,7 +1924,9 @@ export const TournamentCategoryPage = ({
           </article>
 
           <article className="tm-setup-step-card order-4 rounded-xl border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900">4. Horarios (independiente)</h3>
+            <h3 className="font-semibold text-slate-900">
+              4. Horarios (independiente)
+            </h3>
             <p className="mt-1 text-xs text-slate-500">
               Guardá y aplicá horarios sin regenerar partidos.
             </p>
@@ -2050,7 +2077,8 @@ export const TournamentCategoryPage = ({
               Aplicar / actualizar horarios
             </button>
             <p className="mt-2 text-xs text-amber-700">
-              Esta acción sobrescribe día, hora y cancha del fixture actual, pero no regenera partidos.
+              Esta acción sobrescribe día, hora y cancha del fixture actual,
+              pero no regenera partidos.
             </p>
 
             {scheduleConfigError && (
@@ -2066,7 +2094,8 @@ export const TournamentCategoryPage = ({
           <article className="tm-setup-step-card order-3 rounded-xl border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900">3. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Regenerá grupos + cruces sólo cuando cambie la composición del torneo.
+              Regenerá grupos + cruces sólo cuando cambie la composición del
+              torneo.
             </p>
 
             <button
@@ -2077,7 +2106,8 @@ export const TournamentCategoryPage = ({
               Generar partidos
             </button>
             <p className="mt-2 text-xs text-slate-500">
-              Reemplazar jugadores dentro de un equipo no requiere regenerar partidos.
+              Reemplazar jugadores dentro de un equipo no requiere regenerar
+              partidos.
             </p>
 
             {!canGenerateZones && (
@@ -2327,7 +2357,9 @@ export const TournamentCategoryPage = ({
                     {activeZone.standings.map((standing, rowIndex) => (
                       <tr
                         key={standing.teamId}
-                        className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
+                        className={`border-b border-slate-100 last:border-none ${
+                          rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
+                        }`}
                       >
                         <td className="py-2">{standing.teamName}</td>
                         <td className="py-2">{standing.pts}</td>
@@ -2451,7 +2483,8 @@ export const TournamentCategoryPage = ({
                 />
               </div>
               <p className="mb-2 text-xs text-slate-500">
-                Mostrando {filteredResults.length} de {(data?.results ?? []).length} jugadores.
+                Mostrando {filteredResults.length} de{" "}
+                {(data?.results ?? []).length} jugadores.
               </p>
               <div className="overflow-x-auto">
                 <table className="tm-zebra-table w-full text-left text-sm">
@@ -2467,7 +2500,9 @@ export const TournamentCategoryPage = ({
                       filteredResults.map((row, rowIndex) => (
                         <tr
                           key={row.playerId}
-                          className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
+                          className={`border-b border-slate-100 last:border-none ${
+                            rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
+                          }`}
                         >
                           <td className="py-2 text-slate-700">
                             {row.playerName}
@@ -2549,7 +2584,7 @@ export const TournamentCategoryPage = ({
 
             const created = await createPlayer({
               name,
-              current_category_id: categoryId,
+              base_category_id: categoryId,
               gender,
             });
             await loadPlayers({
@@ -2607,19 +2642,19 @@ const ScheduleSection = ({
     <section>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
-        {dayTabs.map((item) => (
-          <button
-            key={item}
-            onClick={() => setDay(item)}
-            className={`rounded-full px-3 py-1.5 text-sm ${
-              day === item
-                ? "bg-slate-900 text-white"
-                : "border border-slate-300 text-slate-700"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
+          {dayTabs.map((item) => (
+            <button
+              key={item}
+              onClick={() => setDay(item)}
+              className={`rounded-full px-3 py-1.5 text-sm ${
+                day === item
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-300 text-slate-700"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -2637,7 +2672,7 @@ const ScheduleSection = ({
                 ))}
               </tr>
             </thead>
-              <tbody>
+            <tbody>
               {timeSlots.map((time, rowIndex) => (
                 <tr
                   key={time}
@@ -2653,9 +2688,7 @@ const ScheduleSection = ({
                     return (
                       <td key={`${time}-${court}`} className="py-2 px-1">
                         {match ? (
-                          <div
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left"
-                          >
+                          <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left">
                             <p className="text-xs font-medium text-slate-800 leading-tight">
                               {match.team1}
                             </p>
@@ -2667,9 +2700,7 @@ const ScheduleSection = ({
                             </p>
                           </div>
                         ) : (
-                          <div
-                            className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400"
-                          >
+                          <div className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
                             -
                           </div>
                         )}

@@ -20,7 +20,9 @@ export const PlayersPage = () => {
   const [rows, setRows] = useState<PlayerListRow[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingPlayer, setEditingPlayer] = useState<PlayerListRow | null>(null);
+  const [editingPlayer, setEditingPlayer] = useState<PlayerListRow | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
@@ -31,23 +33,44 @@ export const PlayersPage = () => {
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
     const filtered = rows.filter((row) => {
-      const matchesName = !normalizedQuery || row.name.toLocaleLowerCase().includes(normalizedQuery);
-      const matchesCategory = selectedCategoryId === "all" || row.categoryId === selectedCategoryId;
-      const matchesGender = selectedGender === "all" || row.gender === selectedGender;
+      const matchesName =
+        !normalizedQuery ||
+        row.name.toLocaleLowerCase().includes(normalizedQuery);
+      const matchesCategory =
+        selectedCategoryId === "all" || row.categoryId === selectedCategoryId;
+      const matchesGender =
+        selectedGender === "all" || row.gender === selectedGender;
       return matchesName && matchesCategory && matchesGender;
     });
     const sorted = [...filtered].sort((left, right) => {
       const leftValue =
-        sortField === "name" ? left.name : sortField === "category" ? left.category : left.gender ?? "";
+        sortField === "name"
+          ? left.name
+          : sortField === "category"
+          ? left.category
+          : left.gender ?? "";
       const rightValue =
-        sortField === "name" ? right.name : sortField === "category" ? right.category : right.gender ?? "";
+        sortField === "name"
+          ? right.name
+          : sortField === "category"
+          ? right.category
+          : right.gender ?? "";
       const result = leftValue.localeCompare(rightValue);
       return sortDirection === "asc" ? result : result * -1;
     });
     return sorted;
-  }, [rows, query, selectedCategoryId, selectedGender, sortDirection, sortField]);
+  }, [
+    rows,
+    query,
+    selectedCategoryId,
+    selectedGender,
+    sortDirection,
+    sortField,
+  ]);
   const categoryOptions = useMemo(() => {
-    const usedCategoryIds = new Set(rows.map((row) => row.categoryId).filter(Boolean));
+    const usedCategoryIds = new Set(
+      rows.map((row) => row.categoryId).filter(Boolean)
+    );
     return categories.filter((category) => usedCategoryIds.has(category.id));
   }, [categories, rows]);
 
@@ -77,19 +100,21 @@ export const PlayersPage = () => {
       }));
       setCategories(nextCategories);
 
-      const categoryById = new Map(nextCategories.map((category) => [category.id, category]));
+      const categoryById = new Map(
+        nextCategories.map((category) => [category.id, category])
+      );
       const mappedRows: PlayerListRow[] = playersResponse
         .filter((player) => Boolean(player.id) && Boolean(player.name?.trim()))
         .map((player) => {
-          const mappedCategory = player.current_category_id
-            ? categoryById.get(player.current_category_id)
+          const mappedCategory = player.base_category_id
+            ? categoryById.get(player.base_category_id)
             : null;
 
           return {
             id: player.id,
             name: player.name.trim(),
             category: mappedCategory?.name ?? "Sin categoría",
-            categoryId: player.current_category_id,
+            categoryId: player.base_category_id,
             categoryLevel: mappedCategory?.level ?? null,
             gender: getGenderShortLabel(player.gender),
           };
@@ -98,7 +123,11 @@ export const PlayersPage = () => {
 
       setRows(mappedRows);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar jugadores");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No se pudo cargar jugadores"
+      );
     } finally {
       setLoading(false);
     }
@@ -123,7 +152,9 @@ export const PlayersPage = () => {
   const sortIndicator = (field: SortField) =>
     sortField === field ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
   const hasActiveFilters =
-    query.trim().length > 0 || selectedCategoryId !== "all" || selectedGender !== "all";
+    query.trim().length > 0 ||
+    selectedCategoryId !== "all" ||
+    selectedGender !== "all";
 
   return (
     <section className="grid gap-4">
@@ -198,17 +229,29 @@ export const PlayersPage = () => {
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-2">
-                    <button type="button" className="font-medium" onClick={() => setSort("name")}>
+                    <button
+                      type="button"
+                      className="font-medium"
+                      onClick={() => setSort("name")}
+                    >
                       Nombre {sortIndicator("name")}
                     </button>
                   </th>
                   <th className="py-2">
-                    <button type="button" className="font-medium" onClick={() => setSort("category")}>
+                    <button
+                      type="button"
+                      className="font-medium"
+                      onClick={() => setSort("category")}
+                    >
                       Categoría {sortIndicator("category")}
                     </button>
                   </th>
                   <th className="py-2">
-                    <button type="button" className="font-medium" onClick={() => setSort("gender")}>
+                    <button
+                      type="button"
+                      className="font-medium"
+                      onClick={() => setSort("gender")}
+                    >
                       Género {sortIndicator("gender")}
                     </button>
                   </th>
@@ -219,11 +262,15 @@ export const PlayersPage = () => {
                 {filteredRows.map((player, rowIndex) => (
                   <tr
                     key={player.id}
-                    className={`border-b border-slate-100 last:border-none ${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"}`}
+                    className={`border-b border-slate-100 last:border-none ${
+                      rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
+                    }`}
                   >
                     <td className="py-2 text-slate-700">{player.name}</td>
                     <td className="py-2 text-slate-700">{player.category}</td>
-                    <td className="py-2 text-slate-700">{player.gender ?? "-"}</td>
+                    <td className="py-2 text-slate-700">
+                      {player.gender ?? "-"}
+                    </td>
                     <td className="py-2">
                       <div className="flex justify-end gap-2">
                         <button
@@ -239,7 +286,7 @@ export const PlayersPage = () => {
                           onClick={() =>
                             void (async () => {
                               const confirmed = window.confirm(
-                                `¿Eliminar a ${player.name}? Esta acción no se puede deshacer.`,
+                                `¿Eliminar a ${player.name}? Esta acción no se puede deshacer.`
                               );
                               if (!confirmed) return;
 
@@ -250,7 +297,7 @@ export const PlayersPage = () => {
                                 setError(
                                   deleteError instanceof Error
                                     ? deleteError.message
-                                    : "No se pudo eliminar el jugador.",
+                                    : "No se pudo eliminar el jugador."
                                 );
                               }
                             })()
@@ -289,7 +336,7 @@ export const PlayersPage = () => {
           const duplicatedPlayer = rows.find(
             (item) =>
               item.name.toLocaleLowerCase() === name.toLocaleLowerCase() &&
-              item.id !== editingPlayer?.id,
+              item.id !== editingPlayer?.id
           );
           if (duplicatedPlayer) {
             throw new Error("Ya existe un jugador con ese nombre.");
@@ -298,13 +345,13 @@ export const PlayersPage = () => {
           if (editingPlayer) {
             await updatePlayer(editingPlayer.id, {
               name,
-              current_category_id: categoryId,
+              base_category_id: categoryId,
               gender,
             });
           } else {
             await createPlayer({
               name,
-              current_category_id: categoryId,
+              base_category_id: categoryId,
               gender,
             });
           }

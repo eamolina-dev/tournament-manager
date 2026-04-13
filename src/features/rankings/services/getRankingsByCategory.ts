@@ -42,7 +42,7 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
     }
 
     const rows = players
-      .filter((player) => player.current_category_id === categoryId)
+      .filter((player) => player.base_category_id === categoryId)
       .map((player) => ({
         playerId: player.id,
         playerName: player.name,

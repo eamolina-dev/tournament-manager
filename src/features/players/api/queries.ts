@@ -13,7 +13,7 @@ export const getPlayers = async (options?: {
   let query = supabase.from("players").select("*")
 
   if (options?.categoryId) {
-    query = query.eq("current_category_id", options.categoryId)
+    query = query.eq("base_category_id", options.categoryId)
   }
 
   const { data, error } = await query
