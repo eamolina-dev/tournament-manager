@@ -862,7 +862,7 @@ export type Database = {
           name: string | null
           slug: string | null
           start_date: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["tournament_status"]
           sum_limit: number | null
           type: string | null
         }
@@ -875,7 +875,7 @@ export type Database = {
           name?: string | null
           slug?: string | null
           start_date?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["tournament_status"]
           sum_limit?: number | null
           type?: string | null
         }
@@ -888,7 +888,7 @@ export type Database = {
           name?: string | null
           slug?: string | null
           start_date?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["tournament_status"]
           sum_limit?: number | null
           type?: string | null
         }
@@ -1392,6 +1392,7 @@ export type Database = {
         | "round_of_32"
         | "round_of_16"
         | "round_of_8"
+      tournament_status: "draft" | "started" | "finished"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1528,6 +1529,7 @@ export const Constants = {
         "round_of_16",
         "round_of_8",
       ],
+      tournament_status: ["draft", "started", "finished"],
     },
   },
 } as const
