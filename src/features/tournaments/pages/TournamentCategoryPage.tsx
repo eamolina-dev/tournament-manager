@@ -1374,6 +1374,32 @@ export const TournamentCategoryPage = ({
     }
   };
 
+  const handleSaveMatchSchedule = async ({
+    matchId,
+    scheduledAt,
+  }: {
+    matchId: string;
+    scheduledAt: string | null;
+  }) => {
+    try {
+      await updateMatch(matchId, { scheduled_at: scheduledAt });
+      await load();
+      setActionNotice({
+        type: "success",
+        message: "Horario del partido actualizado.",
+      });
+    } catch (error) {
+      setActionNotice({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo actualizar el horario del partido.",
+      });
+      throw error;
+    }
+  };
+
   if (loading)
     return (
       <p className="rounded-xl bg-white p-4 text-sm text-slate-600">
@@ -2224,6 +2250,8 @@ export const TournamentCategoryPage = ({
                           match={match}
                           isEditable
                           hideSaveButton
+                          isScheduleEditable
+                          onSaveSchedule={handleSaveMatchSchedule}
                           isModified={Boolean(
                             zoneEditedResults[activeZone.id]?.[match.id]
                           )}
@@ -2283,6 +2311,8 @@ export const TournamentCategoryPage = ({
                     match={match}
                     isEditable
                     hideSaveButton
+                    isScheduleEditable
+                    onSaveSchedule={handleSaveMatchSchedule}
                     isModified={Boolean(bracketEditedResults[match.id])}
                     externalError={bracketMatchErrors[match.id]}
                     onEditStateChange={handleBracketEditStateChange}

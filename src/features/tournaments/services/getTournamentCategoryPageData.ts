@@ -47,6 +47,7 @@ export type TournamentCategoryPageData = {
       team2Id?: string | null
       score?: string
       sets?: { team1: number; team2: number }[]
+      scheduledAt?: string | null
       day: string
       time: string
     court?: string
@@ -62,6 +63,7 @@ export type TournamentCategoryPageData = {
     team2: string
     stageOrder?: number | null
     score?: string
+    scheduledAt?: string | null
     day: string
     time: string
     court?: string
@@ -88,6 +90,7 @@ export type TournamentCategoryPageData = {
     stageOrder?: number | null
     team1Id: string | null
     team2Id: string | null
+    scheduledAt?: string | null
     day: string
     time: string
     court?: string
@@ -265,6 +268,7 @@ export const getTournamentCategoryPageData = async (
       team1: set.team1_games ?? 0,
       team2: set.team2_games ?? 0,
     })),
+    scheduledAt: match.scheduled_at,
     day: toDay(match.scheduled_at),
     time: toTime(match.scheduled_at),
     court: match.court ?? undefined,
@@ -431,6 +435,7 @@ export const getTournamentCategoryPageData = async (
       stageOrder: match.round_order,
       team1Id: match.team1_id,
       team2Id: match.team2_id,
+      scheduledAt: match.scheduled_at,
       day: toDay(match.scheduled_at),
       time: toTime(match.scheduled_at),
       court: match.court ?? undefined,

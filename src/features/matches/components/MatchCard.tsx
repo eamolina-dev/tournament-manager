@@ -8,6 +8,7 @@ export type MatchCardProps = {
     Match,
     "id" | "team1" | "team2" | "score" | "day" | "time" | "court" | "stage" | "stageOrder"
   > & {
+    scheduledAt?: string | null;
     team1Id?: string | null;
     team2Id?: string | null;
     sets?: { team1: number; team2: number }[];
@@ -26,6 +27,11 @@ export type MatchCardProps = {
   isModified?: boolean;
   externalError?: string;
   hideSaveButton?: boolean;
+  isScheduleEditable?: boolean;
+  onSaveSchedule?: (input: {
+    matchId: string;
+    scheduledAt: string | null;
+  }) => Promise<void>;
 };
 
 const EMPTY_SETS = [
@@ -122,10 +128,15 @@ export const MatchCard = ({
   isModified = false,
   externalError,
   hideSaveButton = false,
+  isScheduleEditable = false,
+  onSaveSchedule,
 }: MatchCardProps) => {
   const [sets, setSets] = useState(buildInitialSets(match));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [scheduleInput, setScheduleInput] = useState("");
+  const [scheduleError, setScheduleError] = useState("");
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
   const eliminationMatchLabel = useMemo(() => getEliminationMatchLabel(match), [match]);
   const onEditStateChangeRef = useRef(onEditStateChange);
@@ -148,6 +159,18 @@ export const MatchCard = ({
   useEffect(() => {
     setSets(initialSets);
   }, [initialSets]);
+
+  useEffect(() => {
+    const source = match.scheduledAt ?? "";
+    if (!source) {
+      setScheduleInput("");
+      return;
+    }
+    const localValueMatch = source.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    setScheduleInput(
+      localValueMatch ? `${localValueMatch[1]}T${localValueMatch[2]}` : ""
+    );
+  }, [match.scheduledAt]);
 
   useEffect(() => {
     onEditStateChangeRef.current = onEditStateChange;
@@ -204,6 +227,24 @@ export const MatchCard = ({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!onSaveSchedule) return;
+    setScheduleError("");
+    setSavingSchedule(true);
+    try {
+      await onSaveSchedule({
+        matchId: match.id,
+        scheduledAt: scheduleInput ? `${scheduleInput}:00` : null,
+      });
+    } catch (saveError) {
+      setScheduleError(
+        saveError instanceof Error ? saveError.message : "Error al guardar horario."
+      );
+    } finally {
+      setSavingSchedule(false);
     }
   };
 
@@ -290,6 +331,31 @@ export const MatchCard = ({
         {match.court ? ` · ${match.court}` : ""}
         {eliminationMatchLabel ? ` · ${eliminationMatchLabel}` : ""}
       </p>
+
+      {isScheduleEditable && (
+        <div className="mt-2 space-y-2 border-t border-[var(--tm-border)] pt-2">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--tm-muted)]">
+            Horario
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="datetime-local"
+              value={scheduleInput}
+              onChange={(event) => setScheduleInput(event.target.value)}
+              className="w-full rounded border border-[var(--tm-border)] px-2 py-1 text-xs text-[var(--tm-text)]"
+            />
+            <button
+              type="button"
+              onClick={() => void handleSaveSchedule()}
+              disabled={savingSchedule}
+              className="whitespace-nowrap rounded border border-[var(--tm-border)] px-2 py-1 text-xs text-[var(--tm-text)] disabled:opacity-60"
+            >
+              {savingSchedule ? "Guardando..." : "Guardar hora"}
+            </button>
+          </div>
+          {scheduleError && <p className="text-xs text-red-600">{scheduleError}</p>}
+        </div>
+      )}
 
       {isEditable && (
         <div className="mt-3 space-y-2 border-t border-[var(--tm-border)] pt-3">
