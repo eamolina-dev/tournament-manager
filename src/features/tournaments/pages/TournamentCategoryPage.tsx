@@ -1440,11 +1440,7 @@ export const TournamentCategoryPage = ({
             <button
               disabled={!isTournamentEditable}
               onClick={() =>
-                navigate(
-                  eventId
-                    ? `${tenantBasePath}/admin/tournaments/${eventId}/edit`
-                    : `${tenantBasePath}/admin/tournaments/new`
-                )
+                navigate(`${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`)
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
@@ -2279,12 +2275,12 @@ export const TournamentCategoryPage = ({
             {generationSuccess && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="text-xs text-emerald-700">{generationSuccess}</p>
-                {isAdmin && navigate && eventId ? (
+                {isAdmin && navigate ? (
                   <button
                     type="button"
                     onClick={() =>
                       navigate(
-                        `${tenantBasePath}/admin/tournaments/${eventId}/categories/${data.tournamentCategoryId}`
+                        `${tenantBasePath}/admin/tournaments/${data.tournamentId}/categories/${data.tournamentCategoryId}`
                       )
                     }
                     className="rounded-full border border-emerald-300 px-3 py-1 text-xs text-emerald-700"

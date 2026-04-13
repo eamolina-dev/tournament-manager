@@ -11,6 +11,7 @@ import { computeGroupStandings } from "../utils/computeGroupStandings"
 import { formatWinningSourceLabel } from "../utils/matchSourceLabel"
 
 export type TournamentCategoryPageData = {
+  tournamentId: string
   tournamentCategoryId: string
   categoryId: string | null
   gender: string | null
@@ -393,6 +394,7 @@ export const getTournamentCategoryPageData = async (
     })
 
   return {
+    tournamentId: tournament.id,
     tournamentCategoryId,
     categoryId: category.category_id ?? null,
     gender: category.gender ?? null,
