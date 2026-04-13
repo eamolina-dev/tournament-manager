@@ -585,6 +585,7 @@ export type Database = {
         Row: {
           base_category_id: string | null
           created_at: string
+          dni: number | null
           email: string | null
           gender: string | null
           id: string
@@ -594,6 +595,7 @@ export type Database = {
         Insert: {
           base_category_id?: string | null
           created_at?: string
+          dni?: number | null
           email?: string | null
           gender?: string | null
           id?: string
@@ -603,6 +605,7 @@ export type Database = {
         Update: {
           base_category_id?: string | null
           created_at?: string
+          dni?: number | null
           email?: string | null
           gender?: string | null
           id?: string
@@ -647,6 +650,50 @@ export type Database = {
             columns: ["circuit_id"]
             isOneToOne: false
             referencedRelation: "circuits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registrations: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: number
+          player1_dni: number | null
+          player1_name: string | null
+          player1_phone: number | null
+          player2_dni: number | null
+          player2_name: string | null
+          tournament_category_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: number
+          player1_dni?: number | null
+          player1_name?: string | null
+          player1_phone?: number | null
+          player2_dni?: number | null
+          player2_name?: string | null
+          tournament_category_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: number
+          player1_dni?: number | null
+          player1_name?: string | null
+          player1_phone?: number | null
+          player2_dni?: number | null
+          player2_name?: string | null
+          tournament_category_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
