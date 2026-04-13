@@ -25,6 +25,10 @@ export type Player = TableRow<"players">
 export type PlayerInsert = TableInsert<"players">
 export type PlayerUpdate = TableUpdate<"players">
 
+export type Registration = TableRow<"registrations">
+export type RegistrationInsert = TableInsert<"registrations">
+export type RegistrationUpdate = TableUpdate<"registrations">
+
 export type Group = TableRow<"groups">
 export type GroupInsert = TableInsert<"groups">
 export type GroupUpdate = TableUpdate<"groups">

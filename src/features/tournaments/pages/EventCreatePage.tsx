@@ -317,12 +317,25 @@ export const TournamentCreatePage = ({
           <h1 className="text-2xl font-bold text-slate-900">
             {isEditMode ? "Editar torneo" : "Crear torneo"}
           </h1>
-          <button
-            onClick={() => navigate(getBackPath())}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            Volver al Inicio
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {isAdminMode && currentTournamentId ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`${tenantBasePath}/admin/tournaments/${currentTournamentId}/registrations`)
+                }
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                Gestionar inscriptos
+              </button>
+            ) : null}
+            <button
+              onClick={() => navigate(getBackPath())}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              Volver al Inicio
+            </button>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-2 md:grid-cols-4">

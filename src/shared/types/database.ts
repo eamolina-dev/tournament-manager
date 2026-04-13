@@ -665,6 +665,7 @@ export type Database = {
           player2_dni: number | null
           player2_name: string | null
           tournament_category_id: string | null
+          status: string | null
         }
         Insert: {
           client_id?: string | null
@@ -676,6 +677,7 @@ export type Database = {
           player2_dni?: number | null
           player2_name?: string | null
           tournament_category_id?: string | null
+          status?: string | null
         }
         Update: {
           client_id?: string | null
@@ -687,6 +689,7 @@ export type Database = {
           player2_dni?: number | null
           player2_name?: string | null
           tournament_category_id?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -1380,6 +1383,7 @@ export type Database = {
           player2: string | null
           team_name: string | null
           tournament_category_id: string | null
+          status: string | null
         }
         Relationships: [
           {

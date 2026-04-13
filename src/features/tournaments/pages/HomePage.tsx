@@ -262,6 +262,17 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                 </button>
               ))}
             </div>
+            {!isAdminMode ? (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
+                  className="tm-btn-primary px-3 py-2 text-sm"
+                >
+                  Inscribirme
+                </button>
+              </div>
+            ) : null}
           </article>
         ))}
         {!visibleTournaments.length && !loading ? (
