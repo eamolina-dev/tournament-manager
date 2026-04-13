@@ -177,16 +177,7 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
               {isAdminMode ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      const firstCategory = tournament.categories[0];
-                      if (firstCategory?.tournamentCategoryId) {
-                        navigate(
-                          `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${firstCategory.tournamentCategoryId}/setup`
-                        );
-                        return;
-                      }
-                      navigate(`${tenantBasePath}/admin/tournaments/${tournament.id}/edit`);
-                    }}
+                    onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${tournament.id}/edit`)}
                     className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
                   >
                     Editar
