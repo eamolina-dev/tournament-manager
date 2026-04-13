@@ -84,10 +84,8 @@ export const createTeam = async (input: TeamInsert): Promise<Team> => {
   if (!input.player1_id) {
     throw new Error("Falta player1_id para crear el equipo.")
   }
-  if (!input.player2_id) {
-    throw new Error("Falta player2_id para crear el equipo.")
-  }
 
+  assertTeamHasAtLeastOnePlayer(input.player1_id, input.player2_id)
   assertNoDuplicatedPlayersInTeam(input.player1_id, input.player2_id)
 
   await assertPlayersNotAssignedInCategory({

@@ -16,7 +16,11 @@ import {
 import { createPlayer } from "../../../features/players/api/mutations";
 import { getPlayers } from "../../../features/players/api/queries";
 import { recalculateProgressiveTeamResults } from "../../../features/rankings/api/mutations";
-import { createTeam, deleteTeam } from "../../../features/teams/api/mutations";
+import {
+  createTeam,
+  deleteTeam,
+  updateTeam,
+} from "../../../features/teams/api/mutations";
 import {
   getAllCategories,
   getTournamentById,
@@ -126,6 +130,7 @@ export const TournamentCategoryPage = ({
     player2Id: "",
   });
   const [draftTeams, setDraftTeams] = useState<DraftTeam[]>([]);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [savingDraftTeams, setSavingDraftTeams] = useState(false);
   const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
   const [resultsQuery, setResultsQuery] = useState("");
@@ -528,11 +533,12 @@ export const TournamentCategoryPage = ({
   const savedPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     data?.teams.forEach((team) => {
+      if (editingTeamId && team.id === editingTeamId) return;
       if (team.player1Id) ids.add(team.player1Id);
       if (team.player2Id) ids.add(team.player2Id);
     });
     return ids;
-  }, [data?.teams]);
+  }, [data?.teams, editingTeamId]);
   const draftPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     draftTeams.forEach((team) => {
@@ -548,11 +554,12 @@ export const TournamentCategoryPage = ({
   const savedTeamKeys = useMemo(() => {
     const keys = new Set<string>();
     data?.teams.forEach((team) => {
-      if (!team.player1Id || !team.player2Id) return;
-      keys.add(buildTeamKey(team.player1Id, team.player2Id));
+      if (!team.player1Id) return;
+      if (editingTeamId && team.id === editingTeamId) return;
+      keys.add(buildTeamKey(team.player1Id, team.player2Id ?? null));
     });
     return keys;
-  }, [data?.teams]);
+  }, [data?.teams, editingTeamId]);
 
   const canPlayerEnterByCategory = (playerId: string): boolean => {
     const player = playersByIdWithCategory.get(playerId);
@@ -699,6 +706,15 @@ export const TournamentCategoryPage = ({
   };
 
   const handleGenerateZonesAutomatically = () => {
+    const hasIncompleteTeams = (data?.teams ?? []).some((team) => !team.player2Id);
+    if (hasIncompleteTeams) {
+      const message =
+        "No podés generar zonas: todas las parejas deben tener 2 jugadores.";
+      window.alert(message);
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
+      return;
+    }
     const nextZones = buildAutomaticZones();
     if (!nextZones.length) {
       const message = "Primero necesitás equipos para generar zonas.";
@@ -1600,7 +1616,7 @@ export const TournamentCategoryPage = ({
             </div>
 
             <button
-              disabled={!isTournamentEditable}
+              disabled={!isTournamentEditable || Boolean(editingTeamId)}
               onClick={() =>
                 void (async () => {
                   if (!data) return;
@@ -1617,19 +1633,21 @@ export const TournamentCategoryPage = ({
                     });
                     const player2Id = await resolvePlayerId({
                       selectedId: teamForm.player2Id,
-                      required: true,
+                      required: false,
                     });
-                    const pairValidationError = validateTeamPair(
-                      player1Id ?? "",
-                      player2Id ?? ""
-                    );
-                    if (pairValidationError) {
-                      setTeamDraftError(pairValidationError);
-                      return;
+                    if (player2Id) {
+                      const pairValidationError = validateTeamPair(
+                        player1Id ?? "",
+                        player2Id
+                      );
+                      if (pairValidationError) {
+                        setTeamDraftError(pairValidationError);
+                        return;
+                      }
                     }
                     if (
                       blockedPlayerIds.has(player1Id) ||
-                      blockedPlayerIds.has(player2Id)
+                      (player2Id ? blockedPlayerIds.has(player2Id) : false)
                     ) {
                       setTeamDraftError(
                         "Uno de los jugadores ya está asignado en otro equipo."
@@ -1638,7 +1656,7 @@ export const TournamentCategoryPage = ({
                     }
                     if (
                       !canPlayerEnterByCategory(player1Id) ||
-                      !canPlayerEnterByCategory(player2Id)
+                      (player2Id ? !canPlayerEnterByCategory(player2Id) : false)
                     ) {
                       setTeamDraftError(
                         "Hay jugadores fuera de la categoría permitida para este torneo."
@@ -1646,6 +1664,12 @@ export const TournamentCategoryPage = ({
                       return;
                     }
                     if (data.isSuma && data.sumaValue != null) {
+                      if (!player2Id) {
+                        setTeamDraftError(
+                          "En torneos suma necesitás completar ambos integrantes para validar la pareja."
+                        );
+                        return;
+                      }
                       const player1Level =
                         playersByIdWithCategory.get(player1Id)?.categoryLevel;
                       const player2Level =
@@ -1667,9 +1691,11 @@ export const TournamentCategoryPage = ({
                     const player1Name =
                       playersById.get(player1Id) ?? "Jugador/a 1";
                     const player2Name =
-                      playersById.get(player2Id) ?? "Jugador/a 2";
+                      player2Id
+                        ? playersById.get(player2Id) ?? "Jugador/a 2"
+                        : "Sin compañero";
                     const teamName = [player1Name, player2Name].join(" / ");
-                    const teamKey = buildTeamKey(player1Id, player2Id);
+                    const teamKey = buildTeamKey(player1Id, player2Id ?? null);
 
                     if (draftTeams.some((team) => team.key === teamKey)) {
                       setTeamDraftError(
@@ -1692,7 +1718,7 @@ export const TournamentCategoryPage = ({
                         key: teamKey,
                         name: teamName,
                         player1Id,
-                        player2Id,
+                        player2Id: player2Id ?? "",
                       },
                     ]);
                     setTeamForm({
@@ -1714,18 +1740,83 @@ export const TournamentCategoryPage = ({
             >
               Agregar al borrador
             </button>
+            {editingTeamId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTeamId(null);
+                  setTeamForm({ player1Id: "", player2Id: "" });
+                  setTeamDraftError(null);
+                }}
+                className="ml-2 mt-4 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+              >
+                Cancelar edición
+              </button>
+            )}
 
             <button
               disabled={
-                !isTournamentEditable || !draftTeams.length || savingDraftTeams
+                !isTournamentEditable ||
+                savingDraftTeams ||
+                (!editingTeamId && !draftTeams.length)
               }
               onClick={() =>
                 void (async () => {
-                  if (!data || !draftTeams.length) return;
+                  if (!data) return;
                   if (!isTournamentEditable) {
                     setTeamDraftError(structuralLockMessage);
                     return;
                   }
+                  if (editingTeamId) {
+                    setSavingDraftTeams(true);
+                    setTeamDraftError(null);
+                    try {
+                      const player1Id = await resolvePlayerId({
+                        selectedId: teamForm.player1Id,
+                        required: true,
+                      });
+                      const player2Id = await resolvePlayerId({
+                        selectedId: teamForm.player2Id,
+                        required: false,
+                      });
+                      if (player2Id) {
+                        const pairValidationError = validateTeamPair(
+                          player1Id ?? "",
+                          player2Id
+                        );
+                        if (pairValidationError) {
+                          setTeamDraftError(pairValidationError);
+                          return;
+                        }
+                      }
+                      if (
+                        blockedPlayerIds.has(player1Id) ||
+                        (player2Id ? blockedPlayerIds.has(player2Id) : false)
+                      ) {
+                        setTeamDraftError(
+                          "Uno de los jugadores ya está asignado en otro equipo."
+                        );
+                        return;
+                      }
+                      await updateTeam(editingTeamId, {
+                        player1_id: player1Id,
+                        player2_id: player2Id,
+                      });
+                      setEditingTeamId(null);
+                      setTeamForm({ player1Id: "", player2Id: "" });
+                      await load();
+                    } catch (error) {
+                      setTeamDraftError(
+                        error instanceof Error
+                          ? error.message
+                          : "No se pudo actualizar el equipo."
+                      );
+                    } finally {
+                      setSavingDraftTeams(false);
+                    }
+                    return;
+                  }
+                  if (!draftTeams.length) return;
                   setSavingDraftTeams(true);
                   setTeamDraftError(null);
                   try {
@@ -1734,7 +1825,7 @@ export const TournamentCategoryPage = ({
                         createTeam({
                           tournament_category_id: data.tournamentCategoryId,
                           player1_id: team.player1Id,
-                          player2_id: team.player2Id,
+                          player2_id: team.player2Id || null,
                         })
                       )
                     );
@@ -1753,7 +1844,13 @@ export const TournamentCategoryPage = ({
               }
               className="mt-3 rounded-lg border border-slate-400 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              {savingDraftTeams ? "Guardando equipos..." : "Guardar equipos"}
+              {savingDraftTeams
+                ? editingTeamId
+                  ? "Actualizando equipo..."
+                  : "Guardando equipos..."
+                : editingTeamId
+                ? "Actualizar equipo"
+                : "Guardar equipos"}
             </button>
 
             {teamDraftError && (
@@ -1766,27 +1863,62 @@ export const TournamentCategoryPage = ({
               </p>
               {data.teams.length ? (
                 <div className="max-h-48 space-y-2 overflow-auto">
-                  {data.teams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm"
-                    >
-                      <span>{team.name}</span>
-                      <button
-                        onClick={() => {
-                          if (!isTournamentEditable) {
-                            setTeamDraftError(structuralLockMessage);
-                            return;
-                          }
-                          void deleteTeam(team.id).then(load);
-                        }}
-                        disabled={!isTournamentEditable}
-                        className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
+                  {data.teams.map((team) => {
+                    const player1Name = team.player1Id
+                      ? playersById.get(team.player1Id) ?? "Jugador/a 1"
+                      : "Jugador/a 1";
+                    const player2Name = team.player2Id
+                      ? playersById.get(team.player2Id) ?? "Jugador/a 2"
+                      : "Pendiente";
+                    return (
+                      <div
+                        key={team.id}
+                        className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm"
                       >
-                        Eliminar
-                      </button>
+                        <span className="flex items-center gap-2">
+                          {player1Name} / {player2Name}
+                          {!team.player2Id && (
+                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                              Sin compañero
+                            </span>
+                          )}
+                        </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            if (!isTournamentEditable) {
+                              setTeamDraftError(structuralLockMessage);
+                              return;
+                            }
+                            setEditingTeamId(team.id);
+                            setTeamForm({
+                              player1Id: team.player1Id ?? "",
+                              player2Id: team.player2Id ?? "",
+                            });
+                            setTeamDraftError(null);
+                          }}
+                          disabled={!isTournamentEditable}
+                          className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!isTournamentEditable) {
+                              setTeamDraftError(structuralLockMessage);
+                              return;
+                            }
+                            void deleteTeam(team.id).then(load);
+                          }}
+                          disabled={!isTournamentEditable}
+                          className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="space-y-2">
