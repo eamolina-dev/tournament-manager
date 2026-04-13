@@ -1,56 +1,36 @@
 type FooterProps = {
-  title?: string;
-  subtitle?: string;
-  email?: string;
-  whatsappUrl?: string;
-  websiteUrl?: string;
-  ctaText?: string;
   className?: string;
 };
 
-export const Footer = ({
-  title = "Moli Devs: productos y servicios tecnológicos.",
-  subtitle = "¿Te gustaría tener tu propio organizador de torneos?",
-  email = "eamolina.dev@gmail.com",
-  whatsappUrl = "https://wa.me/5493584382061",
-  // websiteUrl = "https://moli-devs.com",
-  ctaText = "Hace tu consulta ...",
-  className = "",
-}: FooterProps) => {
+export const Footer = ({ className = "" }: FooterProps) => {
   return (
     <footer
-      className={`w-full border-t border-white/10 bg-black/25 px-4 py-8 text-sm text-white/85 ${className}`}
+      className={`w-full border-t border-white/10 bg-black/40 px-4 py-6 text-sm text-white/80 ${className}`}
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <p className="font-semibold text-white">{title}</p>
-          <p className="text-white/70">{subtitle}</p>
-          <p className="text-white/80">{ctaText}</p>
-        </div>
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
+        {/* Marca */}
+        <p className="text-center sm:text-left">
+          Desarrollado por{" "}
+          <span className="font-medium text-white">Moli Devs</span>
+        </p>
 
-        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        {/* Contacto */}
+        <div className="flex items-center gap-3">
           <a
-            href={`mailto:${email}`}
-            className="rounded-md border border-white/25 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition hover:bg-white hover:text-zinc-900"
+            href="mailto:eamolina.dev@gmail.com"
+            className="transition hover:text-white"
           >
             Email
           </a>
+          <span className="opacity-40">|</span>
           <a
-            href={whatsappUrl}
+            href="https://wa.me/5493584382061"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-md border border-white/25 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition hover:bg-white hover:text-zinc-900"
+            className="transition hover:text-white"
           >
             WhatsApp
           </a>
-          {/* <a
-            href={websiteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-white/25 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition hover:bg-white hover:text-zinc-900"
-          >
-            Web
-          </a> */}
         </div>
       </div>
     </footer>
