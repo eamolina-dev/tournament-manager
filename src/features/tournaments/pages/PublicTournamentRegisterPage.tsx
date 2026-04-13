@@ -40,7 +40,6 @@ export const PublicTournamentRegisterPage = ({
   const [tournamentCategoryId, setTournamentCategoryId] = useState("")
   const [player1Name, setPlayer1Name] = useState("")
   const [player1Dni, setPlayer1Dni] = useState("")
-  const [player1Phone, setPlayer1Phone] = useState("")
   const [player2Name, setPlayer2Name] = useState("")
   const [player2Dni, setPlayer2Dni] = useState("")
 
@@ -103,14 +102,12 @@ export const PublicTournamentRegisterPage = ({
       !tournamentCategoryId ||
       !player1Name.trim() ||
       !player1Dni.trim() ||
-      !player1Phone.trim() ||
       !clientId,
     [
       clientId,
       loading,
       player1Dni,
       player1Name,
-      player1Phone,
       saving,
       tournamentCategoryId,
     ],
@@ -121,15 +118,21 @@ export const PublicTournamentRegisterPage = ({
     setSuccess(null)
 
     const player1DniNumber = parseNumericInput(player1Dni)
-    const player1PhoneNumber = parseNumericInput(player1Phone)
     const player2DniNumber = parseNumericInput(player2Dni)
+    const hasPlayer2Name = Boolean(player2Name.trim())
+    const hasPlayer2Dni = Boolean(player2Dni.trim())
 
-    if (!player1DniNumber || !player1PhoneNumber) {
-      setError("Completá DNI y teléfono de Jugador 1 con valores numéricos válidos.")
+    if (!player1DniNumber) {
+      setError("Completá DNI de Jugador 1 con un valor numérico válido.")
       return
     }
 
-    if (player2Dni.trim() && !player2DniNumber) {
+    if (hasPlayer2Name !== hasPlayer2Dni) {
+      setError("Si completás datos de Jugador 2, tenés que ingresar nombre y DNI.")
+      return
+    }
+
+    if (hasPlayer2Dni && !player2DniNumber) {
       setError("Si informás DNI del Jugador 2, debe ser numérico.")
       return
     }
@@ -141,16 +144,15 @@ export const PublicTournamentRegisterPage = ({
         tournament_category_id: tournamentCategoryId,
         player1_name: player1Name.trim(),
         player1_dni: player1DniNumber,
-        player1_phone: player1PhoneNumber,
+        player1_phone: null,
         player2_name: player2Name.trim() || null,
-        player2_dni: player2DniNumber,
+        player2_dni: hasPlayer2Dni ? player2DniNumber : null,
         status: "pending",
       })
 
       setSuccess("Solicitud enviada. Queda pendiente de aprobación del administrador.")
       setPlayer1Name("")
       setPlayer1Dni("")
-      setPlayer1Phone("")
       setPlayer2Name("")
       setPlayer2Dni("")
     } catch (submitError) {
@@ -210,15 +212,6 @@ export const PublicTournamentRegisterPage = ({
               <input
                 value={player1Dni}
                 onChange={(event) => setPlayer1Dni(event.target.value)}
-                className="w-full rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-[var(--tm-muted)]">Jugador 1 - Teléfono *</span>
-              <input
-                value={player1Phone}
-                onChange={(event) => setPlayer1Phone(event.target.value)}
                 className="w-full rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm"
               />
             </label>
