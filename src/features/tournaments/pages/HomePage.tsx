@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMatchesByCategory } from "../../../features/matches/api/queries";
+import { getPhotoCountsByTournament } from "../../../features/photos/api/queries";
 import { deleteTournament } from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
@@ -20,6 +21,7 @@ type TournamentCard = {
   name: string;
   start_date: string | null;
   end_date: string | null;
+  photoCount: number;
   categories: {
     id: string;
     name: string;
@@ -58,6 +60,7 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
       const categoriesPerTournament = await Promise.all(
         rawTournaments.map((tournament) => getTournamentCategories(tournament.id))
       );
+      const photoCounts = await getPhotoCountsByTournament(rawTournaments.map((tournament) => tournament.id));
 
       const categoriesMap = new Map(allCategories.map((cat) => [cat.id, cat]));
       const merged: TournamentCard[] = rawTournaments.map((tournament, index) => ({
@@ -66,6 +69,7 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
         name: tournament.name ?? "Torneo",
         start_date: tournament.start_date,
         end_date: tournament.end_date,
+        photoCount: photoCounts[tournament.id] ?? 0,
         categories: categoriesPerTournament[index]
           .map((row) => {
             const category = categoriesMap.get(row.category_id ?? "");
@@ -207,13 +211,23 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
-                  className="tm-btn-primary px-3 py-2 text-sm"
-                >
-                  Inscribirme
-                </button>
+                isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/photos`)}
+                    className="tm-btn-primary px-3 py-2 text-sm"
+                  >
+                    📸 Ver fotos
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
+                    className="tm-btn-primary px-3 py-2 text-sm"
+                  >
+                    Inscribirme
+                  </button>
+                )
               )}
             </div>
 

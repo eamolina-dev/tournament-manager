@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { deleteTournamentPhoto, uploadTournamentPhoto } from "../../photos/api/mutations";
+import { getPhotosByTournament } from "../../photos/api/queries";
 import {
   createCategory,
   createTournament,
@@ -17,6 +19,7 @@ import {
   validateCategorySelection,
   validateTournamentForm,
 } from "../../../shared/lib/ui-validations";
+import type { Database } from "../../../shared/types/database";
 
 type TournamentCreatePageProps = {
   navigate: (path: string) => void;
@@ -40,6 +43,8 @@ type CategoryDraftItem = {
   suma_value: number | null;
   gender: TournamentCategoryGender;
 };
+
+type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
 
 const genderOptions: { value: TournamentCategoryGender; label: string }[] = [
   { value: "M", label: "Masculino" },
@@ -83,6 +88,9 @@ export const TournamentCreatePage = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoRow[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     slug?: string;
@@ -157,6 +165,26 @@ export const TournamentCreatePage = ({
       }
     })();
   }, [currentTournamentId, isEditMode]);
+
+  const loadPhotos = async (tournamentId: string) => {
+    setPhotosLoading(true);
+    try {
+      const tournamentPhotos = await getPhotosByTournament(tournamentId);
+      setPhotos(tournamentPhotos);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar las fotos.");
+    } finally {
+      setPhotosLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentTournamentId) {
+      setPhotos([]);
+      return;
+    }
+    void loadPhotos(currentTournamentId);
+  }, [currentTournamentId]);
 
   const getBackPath = () => (isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`);
 
@@ -307,6 +335,24 @@ export const TournamentCreatePage = ({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!currentTournamentId || !files?.length) return;
+
+    setUploadingPhotos(true);
+    setError(null);
+    try {
+      await Promise.all(Array.from(files).map((file) => uploadTournamentPhoto(currentTournamentId, file)));
+      await loadPhotos(currentTournamentId);
+      setSuccessMessage("Fotos subidas correctamente.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "No se pudieron subir las fotos.");
+    } finally {
+      event.target.value = "";
+      setUploadingPhotos(false);
     }
   };
 
@@ -599,6 +645,55 @@ export const TournamentCreatePage = ({
         {successMessage && <p className="mt-2 text-sm text-emerald-700">{successMessage}</p>}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
+
+      {isEditMode && currentTournamentId ? (
+        <article className="tm-card">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">Fotos del torneo</h2>
+            <label className="rounded-lg border border-slate-300 px-3 py-2 text-sm cursor-pointer">
+              {uploadingPhotos ? "Subiendo..." : "Subir fotos"}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(event) => void handlePhotoUpload(event)}
+                className="hidden"
+                disabled={uploadingPhotos}
+              />
+            </label>
+          </div>
+
+          {photosLoading ? <p className="mt-2 text-sm text-slate-500">Cargando fotos...</p> : null}
+
+          {photos.length ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {photos.map((photo) => (
+                <div key={photo.id} className="rounded-xl border border-slate-200 p-2">
+                  <img
+                    src={photo.url ?? ""}
+                    alt="Foto del torneo"
+                    className="aspect-square w-full rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void (async () => {
+                        await deleteTournamentPhoto(photo.id);
+                        await loadPhotos(currentTournamentId);
+                      })()
+                    }
+                    className="mt-2 w-full rounded-lg border border-red-400/60 px-2 py-1 text-xs text-red-400"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !photosLoading ? <p className="mt-2 text-sm text-slate-500">Aún no hay fotos en este torneo.</p> : null
+          )}
+        </article>
+      ) : null}
     </section>
   );
 };

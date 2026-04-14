@@ -11,6 +11,7 @@ import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
 import { PublicTournamentRegisterPage } from "./features/tournaments/pages/PublicTournamentRegisterPage";
 import { AdminTournamentRegistrationsPage } from "./features/tournaments/pages/AdminTournamentRegistrationsPage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
+import { PublicTournamentPhotosPage } from "./features/photos/pages/PublicTournamentPhotosPage";
 import { useTenantAuth } from "./shared/context/TenantAuthContext";
 import { supabase } from "./shared/lib/supabase";
 
@@ -54,6 +55,12 @@ export default function App() {
     nestedSegments.length === 3 &&
     nestedSegments[0] === "tournaments" &&
     nestedSegments[2] === "register";
+  const isPublicTournamentPhotosRoute =
+    isTenantScopedPath &&
+    !isAdminPath &&
+    nestedSegments.length === 3 &&
+    nestedSegments[0] === "tournaments" &&
+    nestedSegments[2] === "photos";
   const isAdminTournamentsRoute = isAdminPath && adminSegments.length === 1 && adminSegments[0] === "tournaments";
   const isAdminPlayersRoute = isAdminPath && adminSegments.length === 1 && adminSegments[0] === "players";
   const isAdminTournamentNewRoute =
@@ -78,7 +85,8 @@ export default function App() {
     isPublicTournamentsRoute ||
     isPublicRankingsRoute ||
     isPublicTournamentRoute ||
-    isPublicTournamentRegisterRoute;
+    isPublicTournamentRegisterRoute ||
+    isPublicTournamentPhotosRoute;
   const isKnownAdminRoute =
     isAdminLoginRoute ||
     isAdminTournamentsRoute ||
@@ -170,6 +178,14 @@ export default function App() {
 
       {isPublicTournamentRegisterRoute && tenantSlug && (
         <PublicTournamentRegisterPage
+          tenantSlug={tenantSlug}
+          tournamentId={nestedSegments[1]}
+          navigate={navigate}
+        />
+      )}
+
+      {isPublicTournamentPhotosRoute && tenantSlug && (
+        <PublicTournamentPhotosPage
           tenantSlug={tenantSlug}
           tournamentId={nestedSegments[1]}
           navigate={navigate}
