@@ -581,6 +581,42 @@ export type Database = {
           },
         ]
       }
+      photos: {
+        Row: {
+          created_at: string
+          id: string
+          tournament_id: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          tournament_id?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tournament_id?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "home_tournaments_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           base_category_id: string | null
@@ -664,8 +700,8 @@ export type Database = {
           player1_phone: number | null
           player2_dni: number | null
           player2_name: string | null
+          status: Database["public"]["Enums"]["registration_status"] | null
           tournament_category_id: string | null
-          status: string | null
         }
         Insert: {
           client_id?: string | null
@@ -676,8 +712,8 @@ export type Database = {
           player1_phone?: number | null
           player2_dni?: number | null
           player2_name?: string | null
+          status?: Database["public"]["Enums"]["registration_status"] | null
           tournament_category_id?: string | null
-          status?: string | null
         }
         Update: {
           client_id?: string | null
@@ -688,8 +724,8 @@ export type Database = {
           player1_phone?: number | null
           player2_dni?: number | null
           player2_name?: string | null
+          status?: Database["public"]["Enums"]["registration_status"] | null
           tournament_category_id?: string | null
-          status?: string | null
         }
         Relationships: [
           {
@@ -697,6 +733,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_tournament_category_id_fkey"
+            columns: ["tournament_category_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -1383,7 +1426,6 @@ export type Database = {
           player2: string | null
           team_name: string | null
           tournament_category_id: string | null
-          status: string | null
         }
         Relationships: [
           {
@@ -1435,6 +1477,7 @@ export type Database = {
       }
     }
     Enums: {
+      inscription_status: "pending" | "confirmed" | "cancelled"
       match_stage:
         | "group"
         | "quarter"
@@ -1443,6 +1486,7 @@ export type Database = {
         | "round_of_32"
         | "round_of_16"
         | "round_of_8"
+      registration_status: "pending" | "confirmed" | "cancelled"
       tournament_status: "draft" | "started" | "finished"
     }
     CompositeTypes: {
@@ -1571,6 +1615,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      inscription_status: ["pending", "confirmed", "cancelled"],
       match_stage: [
         "group",
         "quarter",
@@ -1580,6 +1625,7 @@ export const Constants = {
         "round_of_16",
         "round_of_8",
       ],
+      registration_status: ["pending", "confirmed", "cancelled"],
       tournament_status: ["draft", "started", "finished"],
     },
   },
