@@ -8,7 +8,8 @@ import { getCurrentCircuitId } from "../../../shared/lib/current-circuit"
 export const createPlayer = async (input: PlayerInsert): Promise<Player> => {
   assertNonEmptyString(input.name, "Falta el nombre del jugador.")
 
-  const circuitId = input.circuit_id?.trim() || getCurrentCircuitId()
+  // const circuitId = input.circuit_id?.trim() || getCurrentCircuitId()
+  const circuitId = getCurrentCircuitId()
 
   const { data: circuit, error: circuitError } = await supabase
     .from("circuits")
@@ -23,7 +24,7 @@ export const createPlayer = async (input: PlayerInsert): Promise<Player> => {
 
   const normalizedInput: PlayerInsert = {
     ...input,
-    circuit_id: circuitId,
+    // circuit_id: circuitId,
     name: input.name.trim(),
     gender: toDatabaseGender(input.gender ?? null),
   }
