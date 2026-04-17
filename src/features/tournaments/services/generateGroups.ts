@@ -100,8 +100,8 @@ export const generateGroups = (teams: TeamRef[]): PlannedGroup[] => {
     const fourTeamGroups = remainder === 0 ? 0 : remainder === 1 ? 1 : totalTeams >= 8 ? 2 : 0
     const threeTeamGroups = Math.floor((totalTeams - fourTeamGroups * 4) / 3)
 
-    for (let index = 0; index < threeTeamGroups; index += 1) groupSizes.push(3)
     for (let index = 0; index < fourTeamGroups; index += 1) groupSizes.push(4)
+    for (let index = 0; index < threeTeamGroups; index += 1) groupSizes.push(3)
   }
 
   const assignedTeams = groupSizes.reduce((sum, size) => sum + size, 0)
