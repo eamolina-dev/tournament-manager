@@ -2697,42 +2697,6 @@ export const TournamentCategoryPage = ({
                 </section>
               )}
 
-              {publicCrossesView === "bracket" && orderedBracketMatches.length ? (
-                <div className="space-y-2">
-                  <div className={matchCardsGridClass}>
-                    {orderedBracketMatches.map((match) => (
-                      <MatchCardFull
-                        key={match.id}
-                        match={match}
-                        isEditable={isOwner}
-                        hideSaveButton={isOwner}
-                        isModified={Boolean(bracketEditedResults[match.id])}
-                        externalError={bracketMatchErrors[match.id]}
-                        onEditStateChange={
-                          isOwner ? handleBracketEditStateChange : undefined
-                        }
-                      />
-                    ))}
-                  </div>
-                  {isOwner && (
-                    <div className="mt-2 flex items-center gap-3">
-                      <button
-                        onClick={() => void saveBracketResultsBatch()}
-                        disabled={
-                          savingBracket ||
-                          !Object.keys(bracketEditedResults).length
-                        }
-                        className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {savingBracket ? "Guardando..." : "Guardar resultados"}
-                      </button>
-                      <span className="text-xs text-slate-500">
-                        Editados: {Object.keys(bracketEditedResults).length}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ) : null}
             </section>
           )}
           {activeTab === "Posiciones" && (
