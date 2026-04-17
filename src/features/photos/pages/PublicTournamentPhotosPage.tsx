@@ -24,6 +24,7 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
   const [dateRange, setDateRange] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -72,6 +73,8 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
     }
   }
 
+  const activePhoto = activePhotoIndex != null ? photos[activePhotoIndex] : null
+
   return (
     <section className="grid gap-4">
       <article className="tm-card">
@@ -104,7 +107,9 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
                 className="mb-3 w-full break-inside-avoid rounded-xl border border-[var(--tm-border)] bg-[#0c2033]"
                 loading="lazy"
                 onClick={() => {
-                  void sharePhoto(photo)
+                  const index = photos.findIndex((item) => item.id === photo.id)
+                  if (index < 0) return
+                  setActivePhotoIndex(index)
                 }}
               />
             ))}
@@ -112,6 +117,74 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
         ) : (
           <p className="tm-card text-sm text-[var(--tm-muted)]">Este torneo todavía no tiene fotos publicadas.</p>
         )
+      ) : null}
+
+      {activePhoto ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setActivePhotoIndex(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setActivePhotoIndex(null)}
+              className="absolute right-2 top-2 z-10 rounded-lg border border-[var(--tm-border)] bg-[#0c2033] px-3 py-1 text-sm text-[var(--tm-surface)]"
+            >
+              X
+            </button>
+
+            <img
+              src={activePhoto.url ?? ""}
+              alt="Foto del torneo en visor"
+              className="w-full rounded-xl border border-[var(--tm-border)] bg-[#0c2033]"
+            />
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {photos.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActivePhotoIndex((prev) => {
+                      if (prev == null) return prev
+                      return (prev - 1 + photos.length) % photos.length
+                    })
+                  }
+                  className="rounded-lg border border-[var(--tm-border)] bg-[#0c2033] px-3 py-2 text-sm text-[var(--tm-surface)]"
+                >
+                  Anterior
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => {
+                  void sharePhoto(activePhoto)
+                }}
+                className="tm-btn-primary px-4 py-2 text-sm"
+              >
+                Compartir
+              </button>
+
+              {photos.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActivePhotoIndex((prev) => {
+                      if (prev == null) return prev
+                      return (prev + 1) % photos.length
+                    })
+                  }
+                  className="rounded-lg border border-[var(--tm-border)] bg-[#0c2033] px-3 py-2 text-sm text-[var(--tm-surface)]"
+                >
+                  Siguiente
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   )
