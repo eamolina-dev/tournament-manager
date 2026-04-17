@@ -87,6 +87,22 @@ import {
 } from "../../../shared/lib/category-display";
 import { validateTeamPair } from "../../../shared/lib/ui-validations";
 
+const extractZoneLabelPrefix = (zoneName: string) => {
+  const normalized = zoneName
+    .trim()
+    .replace(/^zona\s+/i, "")
+    .split(/\s+/)[0]
+    ?.replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+  return normalized || null;
+};
+
+const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
+  const prefix = extractZoneLabelPrefix(zoneName);
+  if (!prefix) return null;
+  return `${prefix}${matchIndex + 1}`;
+};
+
 export const TournamentCategoryPage = ({
   tenantSlug = "",
   slug,
@@ -311,6 +327,25 @@ export const TournamentCategoryPage = ({
       storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
       tabs: adminBracketStages,
     });
+  const [publicCrossesView, setPublicCrossesView] = usePersistentTab<
+    "bracket" | "zone"
+  >({
+    storageKey: `tournament:${slug}:${category}:public-crosses-view`,
+    tabs: ["bracket", "zone"],
+    defaultTab: "bracket",
+  });
+  const publicBracketStages = useMemo(
+    () =>
+      eliminationStageOrder.filter((stage) =>
+        orderedBracketMatches.some((match) => match.stage === stage)
+      ),
+    [orderedBracketMatches]
+  );
+  const [activePublicBracketStage, setActivePublicBracketStage] =
+    usePersistentTab<string>({
+      storageKey: `tournament:${slug}:${category}:public-bracket-stage`,
+      tabs: publicBracketStages,
+    });
   const adminVisibleBracketMatches = useMemo(
     () =>
       orderedBracketMatches.filter(
@@ -318,6 +353,14 @@ export const TournamentCategoryPage = ({
           !activeAdminBracketStage || match.stage === activeAdminBracketStage
       ),
     [orderedBracketMatches, activeAdminBracketStage]
+  );
+  const publicVisibleBracketMatches = useMemo(
+    () =>
+      orderedBracketMatches.filter(
+        (match) =>
+          !activePublicBracketStage || match.stage === activePublicBracketStage
+      ),
+    [activePublicBracketStage, orderedBracketMatches]
   );
   const orderedZoneMatches = useMemo(
     () =>
@@ -2372,10 +2415,14 @@ export const TournamentCategoryPage = ({
                 {orderedZoneMatches.length ? (
                   <>
                     <div className={matchCardsGridClass}>
-                      {orderedZoneMatches.map((match) => (
+                      {orderedZoneMatches.map((match, index) => (
                         <MatchCardFull
                           key={match.id}
                           match={match}
+                          extraInfoLabel={buildZoneMatchLabel(
+                            activeZone.name,
+                            index
+                          )}
                           isEditable
                           hideSaveButton
                           isScheduleEditable
@@ -2535,10 +2582,14 @@ export const TournamentCategoryPage = ({
                       Partidos
                     </p>
                     <div className={matchCardsGridClass}>
-                      {orderedZoneMatches.map((match) => (
+                      {orderedZoneMatches.map((match, index) => (
                         <MatchCardFull
                           key={match.id}
                           match={match}
+                          extraInfoLabel={buildZoneMatchLabel(
+                            activeZone.name,
+                            index
+                          )}
                           isEditable={isOwner}
                           hideSaveButton={isOwner}
                           isModified={Boolean(
@@ -2588,13 +2639,66 @@ export const TournamentCategoryPage = ({
           )}
           {activeTab === "Cruces" && (
             <section className="space-y-4">
-              <TournamentBracket matches={orderedBracketMatches} />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPublicCrossesView("bracket")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                    publicCrossesView === "bracket"
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  Vista de llave
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPublicCrossesView("zone")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                    publicCrossesView === "zone"
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  Vista de zona
+                </button>
+              </div>
 
-              {orderedBracketMatches.length ? (
+              {publicCrossesView === "bracket" ? (
+                <TournamentBracket matches={orderedBracketMatches} />
+              ) : (
+                <section className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {publicBracketStages.map((stage) => (
+                      <button
+                        key={stage}
+                        type="button"
+                        onClick={() => setActivePublicBracketStage(stage)}
+                        className={`rounded-full px-3 py-1 text-sm ${
+                          stage === activePublicBracketStage
+                            ? "bg-slate-900 text-white"
+                            : "border border-slate-300 text-slate-700"
+                        }`}
+                      >
+                        {eliminationStageLabel[stage]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={matchCardsGridClass}>
+                    {publicVisibleBracketMatches.map((match) => (
+                      <MatchCardFull key={match.id} match={match} />
+                    ))}
+                  </div>
+                  {!publicVisibleBracketMatches.length && (
+                    <p className="text-sm text-slate-500">
+                      No hay cruces para esta instancia.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {publicCrossesView === "bracket" && orderedBracketMatches.length ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Edición de cruces
-                  </p>
                   <div className={matchCardsGridClass}>
                     {orderedBracketMatches.map((match) => (
                       <MatchCardFull

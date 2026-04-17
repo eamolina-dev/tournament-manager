@@ -32,6 +32,7 @@ export type MatchCardProps = {
     matchId: string;
     scheduledAt: string | null;
   }) => Promise<void>;
+  extraInfoLabel?: string | null;
 };
 
 const EMPTY_SETS = [
@@ -130,6 +131,7 @@ export const MatchCard = ({
   hideSaveButton = false,
   isScheduleEditable = false,
   onSaveSchedule,
+  extraInfoLabel = null,
 }: MatchCardProps) => {
   const [sets, setSets] = useState(buildInitialSets(match));
   const [error, setError] = useState("");
@@ -140,6 +142,13 @@ export const MatchCard = ({
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
   const eliminationMatchLabel = useMemo(() => getEliminationMatchLabel(match), [match]);
   const onEditStateChangeRef = useRef(onEditStateChange);
+  const cardInfoItems = useMemo(() => {
+    const items = [match.day, match.time];
+    if (match.court) items.push(match.court);
+    if (eliminationMatchLabel) items.push(eliminationMatchLabel);
+    if (extraInfoLabel) items.push(extraInfoLabel);
+    return items;
+  }, [eliminationMatchLabel, extraInfoLabel, match.court, match.day, match.time]);
 
   const setGridData = useMemo(
     () =>
@@ -327,9 +336,7 @@ export const MatchCard = ({
       </div>
 
       <p className="mt-1 text-[11px] text-[var(--tm-muted)]">
-        {match.day} · {match.time}
-        {match.court ? ` · ${match.court}` : ""}
-        {eliminationMatchLabel ? ` · ${eliminationMatchLabel}` : ""}
+        {cardInfoItems.join(" · ")}
       </p>
 
       {isScheduleEditable && (
