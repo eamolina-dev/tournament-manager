@@ -327,13 +327,9 @@ export const TournamentCategoryPage = ({
       storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
       tabs: adminBracketStages,
     });
-  const [publicCrossesView, setPublicCrossesView] = usePersistentTab<
-    "bracket" | "zone"
-  >({
-    storageKey: `tournament:${slug}:${category}:public-crosses-view`,
-    tabs: ["bracket", "zone"],
-    defaultTab: "bracket",
-  });
+  const [publicCrossesView, setPublicCrossesView] = useState<"bracket" | "zone">(
+    "bracket"
+  );
   const publicBracketStages = useMemo(
     () =>
       eliminationStageOrder.filter((stage) =>

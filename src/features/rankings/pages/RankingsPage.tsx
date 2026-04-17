@@ -4,13 +4,14 @@ import { getRankingsByCategory } from "../../../features/rankings/services/getRa
 import {
   createEmptyCategoryRankingMap,
   rankingGenderCodes,
-  rankingCategories,
   type CategoryCode,
   type RankingGenderCode,
 } from "../../../shared/types/ranking"
 import { SearchInput } from "../../../shared/components/SearchInput"
 import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
 import { TableLayout } from "../../../shared/components/TableLayout"
+
+const visibleRankingCategories: CategoryCode[] = ["6ta", "7ma", "8va"]
 
 export const RankingsPage = () => {
   const [selected, setSelected] = useState<CategoryCode>("6ta")
@@ -50,7 +51,7 @@ export const RankingsPage = () => {
         controls={
           <>
             <div className="flex flex-wrap gap-2">
-              {rankingCategories.map((category) => (
+              {visibleRankingCategories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelected(category)}

@@ -22,12 +22,22 @@ export const formatMatchSourceLabel = (
   const isWinnerReference = normalizedUpperSource.startsWith("W-");
   const isLoserReference = normalizedUpperSource.startsWith("L-");
   if (!isWinnerReference && !isLoserReference) return source;
+  const sourcePrefixLabel = isLoserReference ? "Perdedor" : "Ganador";
+
+  const [, sourceOrder, sourceRound] = normalizedUpperSource.split("-");
+  const isGroupRoundToken =
+    Boolean(sourceOrder) &&
+    Boolean(sourceRound) &&
+    /^\d+$/.test(sourceOrder) &&
+    /^[A-Z]$/.test(sourceRound);
+  if (isGroupRoundToken) {
+    return `${sourcePrefixLabel} ${sourceRound}${sourceOrder}`;
+  }
 
   const stageLabel = context?.stage ? STAGE_LABELS[context.stage] : undefined;
   if (!stageLabel) return source;
 
   const matchOrder = context?.order ?? context?.round_order;
-  const sourcePrefixLabel = isLoserReference ? "Perdedor" : "Ganador";
   if (!matchOrder || matchOrder <= 0) {
     return `${sourcePrefixLabel} ${stageLabel}`;
   }
