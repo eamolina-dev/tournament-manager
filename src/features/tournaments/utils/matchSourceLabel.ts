@@ -36,6 +36,16 @@ export const formatMatchSourceLabel = (
     return `${sourcePrefixLabel} ${sourceOrder}${sourceRound}`;
   }
 
+  const normalizedGroupKey = context?.groupKey?.trim().toUpperCase();
+  const canBuildGroupLabelFromContext =
+    context?.stage === "group" &&
+    Boolean(normalizedGroupKey) &&
+    /^\d+$/.test(sourceOrder ?? "") &&
+    /^[A-Z]$/.test(normalizedGroupKey ?? "");
+  if (canBuildGroupLabelFromContext) {
+    return `${sourcePrefixLabel} ${sourceOrder}${normalizedGroupKey}`;
+  }
+
   const stageLabel = context?.stage ? STAGE_LABELS[context.stage] : undefined;
   if (!stageLabel) return source;
 

@@ -242,6 +242,7 @@ export const getTournamentCategoryPageData = async (
     const context = {
       stage: match.stage,
       order: match.round_order,
+      groupKey: groupKeyById.get(match.group_id ?? "") ?? null,
     }
     sourceMatchContextByToken.set(
       buildScopedToken(`W-${tokenOrder}-${tokenRound}`, match.group_id),
