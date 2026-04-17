@@ -742,7 +742,7 @@ export const TournamentCategoryPage = ({
     const orderedZones = [...zoneBoardColumns].sort((left, right) => {
       const leftIsFour = left.teamIds.length === 4;
       const rightIsFour = right.teamIds.length === 4;
-      if (leftIsFour !== rightIsFour) return leftIsFour ? 1 : -1;
+      if (leftIsFour !== rightIsFour) return leftIsFour ? -1 : 1;
       const leftPoints = left.teamIds.reduce(
         (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
         0
