@@ -1,49 +1,49 @@
-import { useEffect, useMemo, useState } from "react"
-import { RankingTable } from "../components/RankingTable"
-import { getRankingsByCategory } from "../../../features/rankings/services/getRankingsByCategory"
+import { useEffect, useMemo, useState } from "react";
+import { RankingTable } from "../components/RankingTable";
+import { getRankingsByCategory } from "../../../features/rankings/services/getRankingsByCategory";
 import {
   createEmptyCategoryRankingMap,
   rankingGenderCodes,
   type CategoryCode,
   type RankingGenderCode,
-} from "../../../shared/types/ranking"
-import { SearchInput } from "../../../shared/components/SearchInput"
-import { useSearchFilter } from "../../../shared/hooks/useSearchFilter"
-import { TableLayout } from "../../../shared/components/TableLayout"
+} from "../../../shared/types/ranking";
+import { SearchInput } from "../../../shared/components/SearchInput";
+import { useSearchFilter } from "../../../shared/hooks/useSearchFilter";
+import { TableLayout } from "../../../shared/components/TableLayout";
 
-const visibleRankingCategories: CategoryCode[] = ["6ta", "7ma", "8va"]
+const visibleRankingCategories: CategoryCode[] = ["6ta", "7ma", "8va"];
 
 export const RankingsPage = () => {
-  const [selected, setSelected] = useState<CategoryCode>("6ta")
-  const [selectedGender, setSelectedGender] = useState<RankingGenderCode>("M")
-  const [rankings, setRankings] = useState(createEmptyCategoryRankingMap)
-  const [query, setQuery] = useState("")
+  const [selected, setSelected] = useState<CategoryCode>("6ta");
+  const [selectedGender, setSelectedGender] = useState<RankingGenderCode>("M");
+  const [rankings, setRankings] = useState(createEmptyCategoryRankingMap);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const load = async () => {
-      const data = await getRankingsByCategory()
-      const mapped = createEmptyCategoryRankingMap()
+      const data = await getRankingsByCategory();
+      const mapped = createEmptyCategoryRankingMap();
 
       for (const categoryData of data) {
-        mapped[categoryData.category] = categoryData.rowsByGender
+        mapped[categoryData.category] = categoryData.rowsByGender;
       }
 
-      setRankings(mapped)
-    }
+      setRankings(mapped);
+    };
 
-    void load()
-  }, [])
+    void load();
+  }, []);
 
   const rows = useMemo(
     () => rankings[selected][selectedGender],
-    [rankings, selected, selectedGender],
-  )
+    [rankings, selected, selectedGender]
+  );
   const rowsWithPoints = useMemo(
     () => rows.filter((row) => row.points >= 1),
-    [rows],
-  )
-  const filteredRows = useSearchFilter(rowsWithPoints, query)
-  const hasRankingAvailable = rowsWithPoints.length > 0
+    [rows]
+  );
+  const filteredRows = useSearchFilter(rowsWithPoints, query);
+  const hasRankingAvailable = rowsWithPoints.length > 0;
 
   return (
     <section className="flex flex-col gap-3">
@@ -95,10 +95,10 @@ export const RankingsPage = () => {
           <p className="text-sm text-slate-500">No se encontraron jugadores.</p>
         ) : (
           <p className="text-sm text-slate-500">
-            Ranking no disponible por el momento. Próximamente.
+            Ranking disponible próximamente.
           </p>
         )}
       </TableLayout>
     </section>
-  )
-}
+  );
+};
