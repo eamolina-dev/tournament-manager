@@ -144,11 +144,10 @@ export const MatchCard = ({
   const onEditStateChangeRef = useRef(onEditStateChange);
   const cardInfoItems = useMemo(() => {
     const items = [match.day, match.time];
-    if (match.court) items.push(match.court);
     if (eliminationMatchLabel) items.push(eliminationMatchLabel);
     if (extraInfoLabel) items.push(extraInfoLabel);
     return items;
-  }, [eliminationMatchLabel, extraInfoLabel, match.court, match.day, match.time]);
+  }, [eliminationMatchLabel, extraInfoLabel, match.day, match.time]);
 
   const setGridData = useMemo(
     () =>

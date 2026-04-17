@@ -210,25 +210,7 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                     Eliminar
                   </button>
                 </div>
-              ) : (
-                isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/photos`)}
-                    className="tm-btn-primary px-3 py-2 text-sm"
-                  >
-                    📸 Ver fotos
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
-                    className="tm-btn-primary px-3 py-2 text-sm"
-                  >
-                    Inscribirme
-                  </button>
-                )
-              )}
+              ) : null}
             </div>
 
             <div className="mt-3 flex flex-wrap flex-start gap-2">

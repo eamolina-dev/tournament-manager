@@ -97,17 +97,18 @@ export const PublicHomePage = ({ navigate, tenantSlug }: PublicHomePageProps) =>
             Sobre el complejo
           </h2>
           <p className="mt-2 text-sm text-slate-700">
-            Estamos en Av. del Deporte 2450, con canchas techadas y al aire
-            libre para entrenamientos y competencias durante toda la semana.
+            Estamos en Alejandro Roca. Contamos con canchas techadas y al aire
+            libre, ideales para entrenamientos y competencias durante todo el
+            año.
           </p>
           <div className="mt-4 grid gap-2 text-sm text-slate-100 sm:grid-cols-2">
             <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
-              <span className="font-semibold text-white">Canchas:</span> 6
-              disponibles
+              <span className="font-semibold text-white">Canchas:</span> hay 4
+              canchas
             </p>
             <p className="rounded-lg border border-[var(--tm-border)] bg-[#112941] px-3 py-2">
-              <span className="font-semibold text-white">Horario:</span> Lunes a
-              domingo, 8:00 a 23:00
+              <span className="font-semibold text-white">Horario:</span> abierto
+              toda la semana
             </p>
           </div>
         </article>

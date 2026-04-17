@@ -37,24 +37,12 @@ export const RankingsPage = () => {
     () => rankings[selected][selectedGender],
     [rankings, selected, selectedGender],
   )
-  const availableCategories = useMemo(
-    () =>
-      rankingCategories.filter((category) =>
-        rankingGenderCodes.some(
-          (gender) => rankings[category][gender].length > 0,
-        ),
-      ),
-    [rankings],
+  const rowsWithPoints = useMemo(
+    () => rows.filter((row) => row.points >= 1),
+    [rows],
   )
-
-  useEffect(() => {
-    if (!availableCategories.length) return
-    if (!availableCategories.includes(selected)) {
-      setSelected(availableCategories[0])
-    }
-  }, [availableCategories, selected])
-
-  const filteredRows = useSearchFilter(rows, query)
+  const filteredRows = useSearchFilter(rowsWithPoints, query)
+  const hasRankingAvailable = rowsWithPoints.length > 0
 
   return (
     <section className="flex flex-col gap-3">
@@ -62,7 +50,7 @@ export const RankingsPage = () => {
         controls={
           <>
             <div className="flex flex-wrap gap-2">
-              {availableCategories.map((category) => (
+              {rankingCategories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelected(category)}
@@ -100,10 +88,14 @@ export const RankingsPage = () => {
           </>
         }
       >
-        {filteredRows.length ? (
+        {hasRankingAvailable && filteredRows.length ? (
           <RankingTable rows={filteredRows} />
-        ) : (
+        ) : hasRankingAvailable ? (
           <p className="text-sm text-slate-500">No se encontraron jugadores.</p>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Ranking no disponible por el momento. Próximamente.
+          </p>
         )}
       </TableLayout>
     </section>
