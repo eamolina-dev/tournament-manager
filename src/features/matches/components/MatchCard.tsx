@@ -68,11 +68,11 @@ const buildInitialSets = (match: MatchCardProps["match"]) => {
 };
 
 const MATCH_STAGE_LABELS: Partial<Record<NonNullable<Match["stage"]>, string>> = {
-  quarter: "4tos",
-  semi: "semi",
-  final: "final",
-  round_of_8: "8vos",
-  round_of_16: "16vos",
+  quarter: "Cuartos",
+  semi: "Semis",
+  final: "Final",
+  round_of_8: "Cuartos",
+  round_of_16: "Octavos",
 };
 
 const getEliminationMatchLabel = (match: MatchCardProps["match"]): string | null => {

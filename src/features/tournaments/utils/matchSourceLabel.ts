@@ -1,9 +1,9 @@
 const STAGE_LABELS: Record<string, string> = {
-  final: "final",
-  semi: "semi",
-  quarter: "4tos",
-  round_of_8: "8vos",
-  round_of_16: "16vos",
+  final: "Final",
+  semi: "Semis",
+  quarter: "Cuartos",
+  round_of_8: "Cuartos",
+  round_of_16: "Octavos",
 };
 
 type MatchStageContext = {

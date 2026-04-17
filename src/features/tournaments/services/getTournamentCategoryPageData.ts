@@ -228,6 +228,8 @@ export const getTournamentCategoryPageData = async (
     string,
     { stage?: string | null; order?: number | null; groupKey?: string | null }
   >()
+  const buildScopedToken = (sourceToken: string, groupId: string | null) =>
+    `${groupId ?? "elimination"}::${sourceToken.trim().toUpperCase()}`
   const groupKeyById = new Map(
     groups.map((group) => [group.id, (group.group_key ?? "").trim().toUpperCase()]),
   )
@@ -242,20 +244,27 @@ export const getTournamentCategoryPageData = async (
       order: match.round_order,
       groupKey: match.group_id ? groupKeyById.get(match.group_id) ?? null : null,
     }
-    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), sourceContext)
-    sourceMatchContextByToken.set(`L-${tokenOrder}-${tokenRound}`.toUpperCase(), sourceContext)
+    sourceMatchContextByToken.set(
+      buildScopedToken(`W-${tokenOrder}-${tokenRound}`, match.group_id),
+      sourceContext,
+    )
+    sourceMatchContextByToken.set(
+      buildScopedToken(`L-${tokenOrder}-${tokenRound}`, match.group_id),
+      sourceContext,
+    )
   })
 
   const resolveTeamName = (
     teamId: string | null,
     source: string | null,
     fallbackLabel: "Equipo 1" | "Equipo 2",
+    groupId: string | null,
   ) => {
     const mappedTeamName = teamsMap.get(teamId ?? "")
     if (mappedTeamName) return mappedTeamName
 
     if (source) {
-      const sourceContext = sourceMatchContextByToken.get(source.trim().toUpperCase())
+      const sourceContext = sourceMatchContextByToken.get(buildScopedToken(source, groupId))
       return formatWinningSourceLabel(source, sourceContext) ?? source
     }
 
@@ -265,8 +274,8 @@ export const getTournamentCategoryPageData = async (
   const allMatches = sortByMatchNumber(
     matches.map((match) => ({
     id: match.id,
-    team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1"),
-    team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
+    team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1", match.group_id),
+    team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2", match.group_id),
     team1Id: match.team1_id,
     team2Id: match.team2_id,
     stageOrder: match.round_order,
@@ -438,8 +447,8 @@ export const getTournamentCategoryPageData = async (
     teams: teamsForUi,
     editableMatches: sortByMatchNumber(matches.map((match) => ({
       id: match.id,
-      team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1"),
-      team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2"),
+      team1: resolveTeamName(match.team1_id, match.team1_source, "Equipo 1", match.group_id),
+      team2: resolveTeamName(match.team2_id, match.team2_source, "Equipo 2", match.group_id),
       stageOrder: match.round_order,
       team1Id: match.team1_id,
       team2Id: match.team2_id,

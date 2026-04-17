@@ -52,7 +52,7 @@ export const generateEliminationMatches = async ({
       quarterOverrides.map((override) => [override.order, override]),
     )
     template.forEach((match) => {
-      if (match.stage !== "quarter") return
+      if (!["quarter", "round_of_8"].includes(match.stage)) return
       const override = overrideByOrder.get(match.order)
       if (!override) return
       match.team1 = override.team1Source
