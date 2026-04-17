@@ -13,29 +13,36 @@ type MatchStageContext = {
   groupKey?: string | null;
 };
 
-export const formatWinningSourceLabel = (
+export const formatMatchSourceLabel = (
   source: string | null | undefined,
   context?: MatchStageContext | null,
 ): string | null => {
   if (!source) return null;
 
   const normalizedSource = source.trim();
-  const parsed = normalizedSource.toUpperCase().match(/^([WL])-(\d+)-(\d+)$/);
-  if (!parsed) return source;
-  const outcome = parsed[1] === "W" ? "Ganador" : "Perdedor";
+  const normalizedUpperSource = normalizedSource.toUpperCase();
+  const isWinnerReference = normalizedUpperSource.startsWith("W-");
+  const isLoserReference = normalizedUpperSource.startsWith("L-");
+  if (!isWinnerReference && !isLoserReference) return source;
+  const sourcePrefixLabel = isLoserReference ? "Perdedor" : "Ganador";
 
-  const matchOrder = context?.order ?? context?.round_order;
-  const groupKey = context?.groupKey?.trim().toUpperCase();
-
-  if (context?.stage === "group") {
-    if (!groupKey) return source;
-    if (!matchOrder || matchOrder <= 0) return `${outcome} ${groupKey}`;
-    return `${outcome} ${groupKey} ${matchOrder}`;
+  const [, sourceOrder, sourceRound] = normalizedUpperSource.split("-");
+  const isGroupRoundToken =
+    Boolean(sourceOrder) &&
+    Boolean(sourceRound) &&
+    /^\d+$/.test(sourceOrder) &&
+    /^[A-Z]$/.test(sourceRound);
+  if (isGroupRoundToken) {
+    return `${sourcePrefixLabel} ${sourceRound}${sourceOrder}`;
   }
 
   const stageLabel = context?.stage ? STAGE_LABELS[context.stage] : undefined;
   if (!stageLabel) return source;
-  if (!matchOrder || matchOrder <= 0) return `${outcome} ${stageLabel}`;
 
-  return `${outcome} ${stageLabel} ${matchOrder}`;
+  const matchOrder = context?.order ?? context?.round_order;
+  if (!matchOrder || matchOrder <= 0) {
+    return `${sourcePrefixLabel} ${stageLabel}`;
+  }
+
+  return `${sourcePrefixLabel} ${stageLabel} ${matchOrder}`;
 };

@@ -8,7 +8,7 @@ import {
   getTournamentCategoryBySlugs,
 } from "../api/queries"
 import { computeGroupStandings } from "../utils/computeGroupStandings"
-import { formatWinningSourceLabel } from "../utils/matchSourceLabel"
+import { formatMatchSourceLabel } from "../utils/matchSourceLabel"
 
 export type TournamentCategoryPageData = {
   tournamentId: string
@@ -239,19 +239,12 @@ export const getTournamentCategoryPageData = async (
     const tokenRound = match.round
     if (!tokenOrder || !tokenRound) return
 
-    const sourceContext = {
+    const context = {
       stage: match.stage,
       order: match.round_order,
-      groupKey: match.group_id ? groupKeyById.get(match.group_id) ?? null : null,
     }
-    sourceMatchContextByToken.set(
-      buildScopedToken(`W-${tokenOrder}-${tokenRound}`, match.group_id),
-      sourceContext,
-    )
-    sourceMatchContextByToken.set(
-      buildScopedToken(`L-${tokenOrder}-${tokenRound}`, match.group_id),
-      sourceContext,
-    )
+    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), context)
+    sourceMatchContextByToken.set(`L-${tokenOrder}-${tokenRound}`.toUpperCase(), context)
   })
 
   const resolveTeamName = (
@@ -265,7 +258,7 @@ export const getTournamentCategoryPageData = async (
 
     if (source) {
       const sourceContext = sourceMatchContextByToken.get(buildScopedToken(source, groupId))
-      return formatWinningSourceLabel(source, sourceContext) ?? source
+      return formatMatchSourceLabel(source, sourceContext) ?? source
     }
 
     return fallbackLabel
