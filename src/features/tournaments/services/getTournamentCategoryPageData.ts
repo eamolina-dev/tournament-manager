@@ -226,18 +226,24 @@ export const getTournamentCategoryPageData = async (
 
   const sourceMatchContextByToken = new Map<
     string,
-    { stage?: string | null; order?: number | null }
+    { stage?: string | null; order?: number | null; groupKey?: string | null }
   >()
+  const groupKeyById = new Map(
+    groups.map((group) => [group.id, (group.group_key ?? "").trim().toUpperCase()]),
+  )
 
   matches.forEach((match) => {
     const tokenOrder = match.round_order
     const tokenRound = match.round
     if (!tokenOrder || !tokenRound) return
 
-    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), {
+    const sourceContext = {
       stage: match.stage,
       order: match.round_order,
-    })
+      groupKey: match.group_id ? groupKeyById.get(match.group_id) ?? null : null,
+    }
+    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), sourceContext)
+    sourceMatchContextByToken.set(`L-${tokenOrder}-${tokenRound}`.toUpperCase(), sourceContext)
   })
 
   const resolveTeamName = (

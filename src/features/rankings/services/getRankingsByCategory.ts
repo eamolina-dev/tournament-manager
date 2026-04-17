@@ -49,6 +49,7 @@ export const getRankingsByCategory = async (): Promise<CategoryRankingDTO[]> => 
         points: pointsByPlayerId.get(player.id) ?? 0,
         gender: getGenderShortLabel(player.gender),
       }))
+      .filter((row) => row.points > 0)
       .sort((a, b) => b.points - a.points || a.playerName.localeCompare(b.playerName))
 
     playerPointsByCategory.set(category, {

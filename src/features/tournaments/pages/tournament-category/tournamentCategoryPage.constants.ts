@@ -14,12 +14,12 @@ export const eliminationStageLabel: Record<
   (typeof eliminationStageOrder)[number],
   string
 > = {
-  round_of_32: "32avos",
-  round_of_16: "Octavos",
-  round_of_8: "Ronda de 8",
-  quarter: "Cuartos",
-  semi: "Semifinal",
-  final: "Final",
+  round_of_32: "32vos",
+  round_of_16: "16vos",
+  round_of_8: "8vos",
+  quarter: "4tos",
+  semi: "semi",
+  final: "final",
 };
 export const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 export const defaultScheduleStartTime = "09:00";
