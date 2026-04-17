@@ -243,8 +243,14 @@ export const getTournamentCategoryPageData = async (
       stage: match.stage,
       order: match.round_order,
     }
-    sourceMatchContextByToken.set(`W-${tokenOrder}-${tokenRound}`.toUpperCase(), context)
-    sourceMatchContextByToken.set(`L-${tokenOrder}-${tokenRound}`.toUpperCase(), context)
+    sourceMatchContextByToken.set(
+      buildScopedToken(`W-${tokenOrder}-${tokenRound}`, match.group_id),
+      context,
+    )
+    sourceMatchContextByToken.set(
+      buildScopedToken(`L-${tokenOrder}-${tokenRound}`, match.group_id),
+      context,
+    )
   })
 
   const resolveTeamName = (
@@ -257,7 +263,9 @@ export const getTournamentCategoryPageData = async (
     if (mappedTeamName) return mappedTeamName
 
     if (source) {
-      const sourceContext = sourceMatchContextByToken.get(buildScopedToken(source, groupId))
+      const sourceContext =
+        sourceMatchContextByToken.get(buildScopedToken(source, groupId)) ??
+        sourceMatchContextByToken.get(buildScopedToken(source, null))
       return formatMatchSourceLabel(source, sourceContext) ?? source
     }
 

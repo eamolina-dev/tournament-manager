@@ -33,7 +33,7 @@ export const formatMatchSourceLabel = (
     /^\d+$/.test(sourceOrder) &&
     /^[A-Z]$/.test(sourceRound);
   if (isGroupRoundToken) {
-    return `${sourcePrefixLabel} ${sourceRound}${sourceOrder}`;
+    return `${sourcePrefixLabel} ${sourceOrder}${sourceRound}`;
   }
 
   const stageLabel = context?.stage ? STAGE_LABELS[context.stage] : undefined;
