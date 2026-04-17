@@ -143,30 +143,6 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
 
   const visibleTournaments = isAdminMode ? tournaments : publicTournaments;
 
-  const shareTournament = async (tournament: TournamentCard) => {
-    const shareUrl = `${window.location.origin}${tenantBasePath}/tournaments/${tournament.id}/photos`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: tournament.name,
-          text: `Mirá este torneo: ${tournament.name}`,
-          url: shareUrl,
-        });
-      } catch {
-        // El usuario puede cancelar el diálogo de compartir.
-      }
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      window.alert("Link copiado al portapapeles.");
-    } catch {
-      window.alert("No se pudo compartir este torneo desde tu navegador.");
-    }
-  };
-
   return (
     <section className="grid gap-4">
       <article className="tm-card">
@@ -234,6 +210,13 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                     Eliminar
                   </button>
                 </div>
+              ) : tournament.photoCount > 0 ? (
+                <button
+                  onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/photos`)}
+                  className="tm-btn-primary px-4 py-2 text-sm"
+                >
+                  Ver fotos
+                </button>
               ) : null}
             </div>
 
@@ -291,35 +274,13 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
               ))}
             </div>
 
-            {!isAdminMode ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {false ? (
-                  <button
-                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
-                    className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
-                  >
-                    Inscribirse
-                  </button>
-                ) : null}
-
-                {tournament.photoCount > 0 ? (
-                  <button
-                    onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/photos`)}
-                    className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
-                  >
-                    Ver fotos
-                  </button>
-                ) : null}
-
-                <button
-                  onClick={() => {
-                    void shareTournament(tournament);
-                  }}
-                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
-                >
-                  Compartir
-                </button>
-              </div>
+            {!isAdminMode && false ? (
+              <button
+                onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
+                className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
+              >
+                Inscribirse
+              </button>
             ) : null}
           </article>
         ))}

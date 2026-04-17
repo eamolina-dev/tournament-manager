@@ -48,6 +48,30 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
     })()
   }, [tournamentId])
 
+  const sharePhoto = async (photo: PhotoRow) => {
+    if (!photo.url) return
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Foto · ${title}`,
+          text: `Mirá esta foto del torneo ${title}`,
+          url: photo.url,
+        })
+      } catch {
+        // El usuario puede cancelar el diálogo de compartir.
+      }
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(photo.url)
+      window.alert("Link de la foto copiado al portapapeles.")
+    } catch {
+      window.alert("No se pudo compartir esta foto desde tu navegador.")
+    }
+  }
+
   return (
     <section className="grid gap-4">
       <article className="tm-card">
@@ -79,6 +103,9 @@ export const PublicTournamentPhotosPage = ({ tenantSlug, tournamentId, navigate 
                 alt="Foto del torneo"
                 className="mb-3 w-full break-inside-avoid rounded-xl border border-[var(--tm-border)] bg-[#0c2033]"
                 loading="lazy"
+                onClick={() => {
+                  void sharePhoto(photo)
+                }}
               />
             ))}
           </article>
