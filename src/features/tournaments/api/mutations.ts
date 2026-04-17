@@ -113,6 +113,30 @@ const resolveUniqueTournamentSlug = async ({
   return `${baseSlug}-${suffix}`
 }
 
+const assertNoDuplicateTournamentCategory = async (
+  input: Pick<TournamentCategoryInsert, "tournament_id" | "gender"> & { category_id: string },
+): Promise<void> => {
+  const normalizedGender = toDatabaseGender(input.gender ?? null)
+
+  let query = supabase
+    .from("tournament_categories")
+    .select("id")
+    .eq("tournament_id", input.tournament_id)
+    .eq("category_id", input.category_id)
+
+  query =
+    normalizedGender === null ? query.is("gender", null) : query.eq("gender", normalizedGender)
+
+  const { data, error } = await query.limit(1)
+  throwIfError(error)
+
+  if (data && data.length > 0) {
+    throw new Error(
+      "Ya existe esa combinación de categoría y género dentro del torneo. Elegí otra o editá la existente.",
+    )
+  }
+}
+
 export const createTournament = async (
   input: TournamentInsert
 ): Promise<Tournament> => {
@@ -173,6 +197,14 @@ export const createCategory = async (
   const normalizedInput: TournamentCategoryInsert = {
     ...input,
     gender: toDatabaseGender(input.gender ?? null),
+  }
+
+  if (normalizedInput.category_id) {
+    await assertNoDuplicateTournamentCategory({
+      tournament_id: normalizedInput.tournament_id,
+      category_id: normalizedInput.category_id,
+      gender: normalizedInput.gender ?? null,
+    })
   }
 
   const { data, error } = await supabase
