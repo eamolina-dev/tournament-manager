@@ -1,6 +1,5 @@
 import {
   SingleEliminationBracket,
-  SVGViewer,
 } from "@g-loot/react-tournament-brackets"
 import { useMemo } from "react"
 import type { Match } from "../types"
@@ -120,15 +119,10 @@ export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
 
   return (
     <div className="tm-card w-full overflow-x-auto">
-      <div className="flex min-h-[70vh] min-w-[960px] items-center justify-center px-4 py-6">
+      <div className="flex min-h-[58vh] min-w-[720px] items-center justify-center px-3 py-4 sm:min-h-[70vh] sm:min-w-[960px] sm:px-4 sm:py-6">
         <SingleEliminationBracket
           matches={mappedMatches}
           matchComponent={(props: any) => <BracketCard {...props} matchById={matchById} />}
-          svgWrapper={({ children, ...props }: any) => (
-            <SVGViewer width={1800} height={880} {...props}>
-              {children}
-            </SVGViewer>
-          )}
         />
       </div>
     </div>
