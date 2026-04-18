@@ -120,7 +120,7 @@ export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
 
   return (
     <div className="tm-card w-full overflow-x-auto">
-      <div className="flex min-h-[58vh] min-w-[720px] items-center justify-center px-3 py-4 sm:hidden">
+      <div className="flex min-h-[58vh] min-w-[720px] items-center justify-start px-3 py-4 sm:hidden">
         <SingleEliminationBracket
           matches={mappedMatches}
           matchComponent={(props: any) => <BracketCard {...props} matchById={matchById} />}
