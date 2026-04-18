@@ -46,7 +46,7 @@ export const PublicHomePage = ({
             startDate: tournament.start_date,
             endDate: tournament.end_date,
           }))
-          .sort((a, b) => compareByStartDate(a.startDate, b.startDate));
+          .sort((a, b) => compareByStartDate(b.startDate, a.startDate));
         setTournaments(sortedTournaments);
       } finally {
         setLoading(false);

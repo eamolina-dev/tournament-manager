@@ -40,7 +40,11 @@ const compareByStartDate = (a: string | null, b: string | null) => {
   return a.localeCompare(b);
 };
 
-export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProps) => {
+export const HomePage = ({
+  navigate,
+  tenantSlug,
+  mode = "public",
+}: HomePageProps) => {
   const tenantBasePath = `/${tenantSlug}`;
   const isAdminMode = mode === "admin";
   const [tournaments, setTournaments] = useState<TournamentCard[]>([]);
@@ -58,64 +62,75 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
       ]);
 
       const categoriesPerTournament = await Promise.all(
-        rawTournaments.map((tournament) => getTournamentCategories(tournament.id))
+        rawTournaments.map((tournament) =>
+          getTournamentCategories(tournament.id)
+        )
       );
-      const photoCounts = await getPhotoCountsByTournament(rawTournaments.map((tournament) => tournament.id));
+      const photoCounts = await getPhotoCountsByTournament(
+        rawTournaments.map((tournament) => tournament.id)
+      );
 
       const categoriesMap = new Map(allCategories.map((cat) => [cat.id, cat]));
-      const merged: TournamentCard[] = rawTournaments.map((tournament, index) => ({
-        id: tournament.id,
-        slug: tournament.slug ?? tournament.id,
-        name: tournament.name ?? "Torneo",
-        start_date: tournament.start_date,
-        end_date: tournament.end_date,
-        photoCount: photoCounts[tournament.id] ?? 0,
-        categories: categoriesPerTournament[index]
-          .map((row) => {
-            const category = categoriesMap.get(row.category_id ?? "");
-            if (!category && !row.is_suma) return null;
-            return {
-              id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
-              name:
-                formatCategoryName({
+      const merged: TournamentCard[] = rawTournaments.map(
+        (tournament, index) => ({
+          id: tournament.id,
+          slug: tournament.slug ?? tournament.id,
+          name: tournament.name ?? "Torneo",
+          start_date: tournament.start_date,
+          end_date: tournament.end_date,
+          photoCount: photoCounts[tournament.id] ?? 0,
+          categories: categoriesPerTournament[index]
+            .map((row) => {
+              const category = categoriesMap.get(row.category_id ?? "");
+              if (!category && !row.is_suma) return null;
+              return {
+                id: category?.id ?? `suma-${row.suma_value ?? row.id}`,
+                name: formatCategoryName({
                   categoryName:
                     row.is_suma && row.suma_value != null
                       ? `Suma ${row.suma_value}`
                       : category?.name ?? "Categoría",
                   gender: row.gender,
                 }),
-              slug: row.is_suma ? `suma-${row.suma_value ?? ""}` : category?.slug ?? null,
-              tournamentCategoryId: row.id,
-              isSuma: Boolean(row.is_suma),
-              sumaValue: row.suma_value ?? null,
-              hasMatches: false,
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-      }));
+                slug: row.is_suma
+                  ? `suma-${row.suma_value ?? ""}`
+                  : category?.slug ?? null,
+                tournamentCategoryId: row.id,
+                isSuma: Boolean(row.is_suma),
+                sumaValue: row.suma_value ?? null,
+                hasMatches: false,
+              };
+            })
+            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+        })
+      );
 
       const mergedWithMatchState = await Promise.all(
         merged.map(async (tournament) => ({
           ...tournament,
           categories: await Promise.all(
             tournament.categories.map(async (category) => {
-              const matches = await getMatchesByCategory(category.tournamentCategoryId);
+              const matches = await getMatchesByCategory(
+                category.tournamentCategoryId
+              );
               return {
                 ...category,
                 hasMatches: matches.length > 0,
               };
-            }),
+            })
           ),
-        })),
+        }))
       );
 
       const sortedTournaments = [...mergedWithMatchState].sort((a, b) =>
-        compareByStartDate(a.start_date, b.start_date)
+        compareByStartDate(b.start_date, a.start_date)
       );
       setTournaments(sortedTournaments);
     } catch (loadError) {
       setError(
-        loadError instanceof Error ? loadError.message : "Error cargando torneos"
+        loadError instanceof Error
+          ? loadError.message
+          : "Error cargando torneos"
       );
     } finally {
       setLoading(false);
@@ -147,12 +162,12 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
     <section className="grid gap-4">
       <article className="tm-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-[var(--tm-text)]">
-            Torneos
-          </h1>
+          <h1 className="text-2xl font-bold text-[var(--tm-text)]">Torneos</h1>
           {isAdminMode ? (
             <button
-              onClick={() => navigate(`${tenantBasePath}/admin/tournaments/new`)}
+              onClick={() =>
+                navigate(`${tenantBasePath}/admin/tournaments/new`)
+              }
               className="tm-btn-primary px-3 py-2 text-sm"
             >
               Crear torneo
@@ -175,13 +190,18 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                   {tournament.name}
                 </h2>
                 <p className="text-sm text-[var(--tm-muted)]">
-                  {formatDateAr(tournament.start_date)} / {formatDateAr(tournament.end_date)}
+                  {formatDateAr(tournament.start_date)} /{" "}
+                  {formatDateAr(tournament.end_date)}
                 </p>
               </div>
               {isAdminMode ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${tournament.id}/edit`)}
+                    onClick={() =>
+                      navigate(
+                        `${tenantBasePath}/admin/tournaments/${tournament.id}/edit`
+                      )
+                    }
                     className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
                   >
                     Editar
@@ -212,7 +232,11 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                 </div>
               ) : tournament.photoCount > 0 ? (
                 <button
-                  onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/photos`)}
+                  onClick={() =>
+                    navigate(
+                      `${tenantBasePath}/tournaments/${tournament.id}/photos`
+                    )
+                  }
                   className="tm-btn-primary px-4 py-2 text-sm"
                 >
                   Ver fotos
@@ -226,7 +250,9 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                   key={cat.tournamentCategoryId}
                   onClick={() => {
                     if (!isAdminMode && !cat.hasMatches) {
-                      window.alert("El fixture de esta categoría estará disponible próximamente.");
+                      window.alert(
+                        "El fixture de esta categoría estará disponible próximamente."
+                      );
                       return;
                     }
                     navigate(
@@ -234,7 +260,9 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
                         ? !cat.hasMatches
                           ? `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
                           : `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
-                        : `${tenantBasePath}/tournament/${tournament.slug}/${cat.slug ?? cat.id}`
+                        : `${tenantBasePath}/tournament/${tournament.slug}/${
+                            cat.slug ?? cat.id
+                          }`
                     );
                   }}
                   className={`rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-surface)] ${
@@ -276,7 +304,11 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
 
             {!isAdminMode && false ? (
               <button
-                onClick={() => navigate(`${tenantBasePath}/tournaments/${tournament.id}/register`)}
+                onClick={() =>
+                  navigate(
+                    `${tenantBasePath}/tournaments/${tournament.id}/register`
+                  )
+                }
                 className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
               >
                 Inscribirse
@@ -294,7 +326,9 @@ export const HomePage = ({ navigate, tenantSlug, mode = "public" }: HomePageProp
             {isAdminMode ? (
               <button
                 type="button"
-                onClick={() => navigate(`${tenantBasePath}/admin/tournaments/new`)}
+                onClick={() =>
+                  navigate(`${tenantBasePath}/admin/tournaments/new`)
+                }
                 className="mt-3 tm-btn-primary px-3 py-2 text-sm"
               >
                 Crear primer torneo
