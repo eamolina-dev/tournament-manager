@@ -70,6 +70,15 @@ export type MatchGenerationDraft = {
     courtsCount: number;
     phaseByDay: Record<SchedulingPhaseKey, string>;
   };
+  elimination?: {
+    firstRoundMatches: ManualEliminationMatchInput[];
+  };
+};
+
+export type ManualEliminationMatchInput = {
+  order: number;
+  team1Source: string;
+  team2Source: string;
 };
 
 export type SortableTeamCardProps = {

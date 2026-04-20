@@ -33,6 +33,8 @@ import {
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
+import { getQualifiedTeamSources } from "../../../features/tournaments/services/generateGroups";
+import { getEliminationTemplate } from "../../../features/tournaments/services/generateEliminationMatches";
 import {
   getScheduleDays,
   type ScheduleDayOption,
@@ -74,6 +76,7 @@ import type {
   TeamFormState,
   TournamentCategoryGender,
   TournamentCategoryPageProps,
+  ManualEliminationMatchInput,
   ZoneBoardColumn,
   ZoneValidationResult,
 } from "./tournament-category/tournamentCategoryPage.types";
@@ -104,6 +107,8 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
   return `${prefix}${matchIndex + 1}`;
 };
 
+const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
+
 export const TournamentCategoryPage = ({
   tenantSlug = "",
   slug,
@@ -129,7 +134,7 @@ export const TournamentCategoryPage = ({
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
   const lastLoadedCacheKeyRef = useRef<string | null>(null);
   const orderedZones = useMemo(
-    () => [...(data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    () => data?.zones ?? [],
     [data?.zones]
   );
   const zoneTabs = useMemo(
@@ -202,6 +207,12 @@ export const TournamentCategoryPage = ({
   );
   const [zoneDayById, setZoneDayById] = useState<Record<string, string>>({});
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [manualCrossings, setManualCrossings] = useState<
+    ManualEliminationMatchInput[]
+  >([]);
+  const [manualCrossingsError, setManualCrossingsError] = useState<string | null>(
+    null
+  );
   const [lastGenerationDraft, setLastGenerationDraft] =
     useState<MatchGenerationDraft | null>(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
@@ -210,6 +221,9 @@ export const TournamentCategoryPage = ({
     : "";
   const teamsDraftStorageKey = data
     ? `tm:teams-draft:${data.tournamentCategoryId}`
+    : "";
+  const manualCrossingsStorageKey = data
+    ? `tm:manual-crossings:${data.tournamentCategoryId}`
     : "";
   const categoryCacheKey = useMemo(() => {
     if (eventId && categoryId) {
@@ -623,6 +637,30 @@ export const TournamentCategoryPage = ({
         // no-op: ignore malformed local stage labels cache
       }
     }
+
+    const storedManualCrossingsRaw = localStorage.getItem(
+      `tm:manual-crossings:${data.tournamentCategoryId}`
+    );
+    if (storedManualCrossingsRaw) {
+      try {
+        const storedManualCrossings = JSON.parse(
+          storedManualCrossingsRaw
+        ) as ManualEliminationMatchInput[];
+        if (Array.isArray(storedManualCrossings)) {
+          setManualCrossings(
+            storedManualCrossings
+              .filter((item) => Number.isFinite(item?.order))
+              .map((item) => ({
+                order: item.order,
+                team1Source: String(item.team1Source ?? ""),
+                team2Source: String(item.team2Source ?? ""),
+              }))
+          );
+        }
+      } catch {
+        // no-op: ignore malformed local manual crossings cache
+      }
+    }
   }, [data, scheduleDays]);
 
   useEffect(() => {
@@ -717,6 +755,13 @@ export const TournamentCategoryPage = ({
       JSON.stringify(stageLabelOverrides)
     );
   }, [stageLabelsStorageKey, stageLabelOverrides]);
+  useEffect(() => {
+    if (!manualCrossingsStorageKey) return;
+    localStorage.setItem(
+      manualCrossingsStorageKey,
+      JSON.stringify(manualCrossings)
+    );
+  }, [manualCrossingsStorageKey, manualCrossings]);
   const filteredResults = (data?.results ?? []).filter((row) =>
     row.playerName
       .toLocaleLowerCase()
@@ -887,10 +932,7 @@ export const TournamentCategoryPage = ({
     if (!teamsForZoneBoard.length) {
       return [];
     }
-    const zoneCount = Math.max(
-      2,
-      Math.min(4, Math.ceil(teamsForZoneBoard.length / 4))
-    );
+    const zoneCount = Math.max(2, Math.ceil(teamsForZoneBoard.length / 4));
     const nextZones: ZoneBoardColumn[] = Array.from(
       { length: zoneCount },
       (_, index) => ({
@@ -941,38 +983,37 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
-    const orderedZones = [...zoneBoardColumns].sort((left, right) => {
-      const leftIsFour = left.teamIds.length === 4;
-      const rightIsFour = right.teamIds.length === 4;
-      if (leftIsFour !== rightIsFour) return leftIsFour ? -1 : 1;
-      const leftPoints = left.teamIds.reduce(
-        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0
-      );
-      const rightPoints = right.teamIds.reduce(
-        (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-        0
-      );
-      return rightPoints - leftPoints;
-    });
-    const relabeledZones = orderedZones.map((zone, index) => ({
+    const nextZones = zoneBoardColumns.map((zone) => ({
       ...zone,
-      name: `Zona ${String.fromCharCode(65 + index)}`,
+      name: zone.name.trim(),
     }));
+    if (unassignedTeams.length) {
+      const message = "Todos los equipos deben estar asignados a una zona.";
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
+      return;
+    }
+    const normalizedNames = nextZones.map((zone) => zone.name.toLocaleLowerCase());
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      const message = "No puede haber zonas con el mismo nombre.";
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
+      return;
+    }
     try {
       setSaving(true);
       await saveZonesForCategory(
         data.tournamentCategoryId,
-        relabeledZones.map((zone) => ({
+        nextZones.map((zone) => ({
           name: zone.name,
           teamIds: zone.teamIds,
         }))
       );
 
-      setManualZones(relabeledZones);
+      setManualZones(nextZones);
       localStorage.setItem(
         `tm:zones:${data.tournamentCategoryId}`,
-        JSON.stringify(relabeledZones)
+        JSON.stringify(nextZones)
       );
       setManualZoneError(null);
       setZoneConfigSuccess(
@@ -996,6 +1037,21 @@ export const TournamentCategoryPage = ({
     }
   };
 
+  const moveZonePosition = (zoneId: string, direction: -1 | 1) => {
+    setManualZones((prev) => {
+      const source = prev.length ? prev : zoneBoardColumns;
+      const index = source.findIndex((zone) => zone.id === zoneId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= source.length) {
+        return source;
+      }
+      const next = [...source];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -1013,6 +1069,51 @@ export const TournamentCategoryPage = ({
       ),
     [normalizedZoneColumns, teamsForZoneBoard]
   );
+  const plannedGroupsForCrossings = useMemo(
+    () =>
+      normalizedZoneColumns.map((zone, index) => ({
+        name: zone.name,
+        groupKey: toGroupKeyByIndex(index),
+        teamIds: zone.teamIds,
+      })),
+    [normalizedZoneColumns]
+  );
+  const allowedCrossingSources = useMemo(() => {
+    try {
+      return getQualifiedTeamSources(plannedGroupsForCrossings);
+    } catch {
+      return [];
+    }
+  }, [plannedGroupsForCrossings]);
+  const firstRoundTemplateMatches = useMemo(() => {
+    if (!allowedCrossingSources.length) return [];
+    try {
+      const groupRanking = plannedGroupsForCrossings.map((group) => group.groupKey);
+      const template = getEliminationTemplate(allowedCrossingSources, groupRanking);
+      if (!template.length) return [];
+      const firstRound = template.reduce(
+        (minRound, match) => Math.min(minRound, match.round),
+        Number.POSITIVE_INFINITY
+      );
+      return template
+        .filter((match) => match.round === firstRound)
+        .map((match) => ({
+          order: match.order,
+          team1Source: match.team1,
+          team2Source: match.team2,
+        }));
+    } catch {
+      return [];
+    }
+  }, [allowedCrossingSources, plannedGroupsForCrossings]);
+  useEffect(() => {
+    setManualCrossings((prev) =>
+      prev.filter((item) =>
+        firstRoundTemplateMatches.some((match) => match.order === item.order)
+      )
+    );
+    setManualCrossingsError(null);
+  }, [firstRoundTemplateMatches]);
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1049,6 +1150,10 @@ export const TournamentCategoryPage = ({
     if (Object.values(zoneWarningsById).length > 0) {
       warnings.push("Hay zonas que no cumplen la regla de 3 o 4 equipos.");
     }
+    const normalizedNames = zones.map((zone) => zone.name.trim().toLocaleLowerCase());
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      warnings.push("Hay zonas con nombres repetidos.");
+    }
 
     return { warnings, zoneWarningsById };
   };
@@ -1059,6 +1164,7 @@ export const TournamentCategoryPage = ({
   const hasReadyZones =
     orderedZones.length > 0 &&
     zoneValidation.warnings.length === 0 &&
+    unassignedTeams.length === 0 &&
     !manualZoneError;
   const hasGeneratedMatches = orderedEditableMatches.length > 0;
   const isStep3Enabled = isTournamentEditable && hasReadyZones;
@@ -1132,6 +1238,52 @@ export const TournamentCategoryPage = ({
     moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
   };
 
+  const handleAutofillCrossings = () => {
+    setManualCrossings(firstRoundTemplateMatches);
+    setManualCrossingsError(null);
+  };
+
+  const validateManualCrossings = (): ManualEliminationMatchInput[] => {
+    if (!manualCrossings.length) return [];
+    if (!firstRoundTemplateMatches.length) {
+      throw new Error("No hay cruces eliminatorios disponibles para esta configuración.");
+    }
+
+    const normalizedAllowed = new Set(
+      allowedCrossingSources.map((source) => source.trim().toUpperCase())
+    );
+    const normalizedDraft = firstRoundTemplateMatches.map((templateMatch) => {
+      const draftMatch = manualCrossings.find(
+        (item) => item.order === templateMatch.order
+      );
+      if (!draftMatch) {
+        throw new Error(
+          `Falta definir el cruce ${templateMatch.order} de la primera ronda.`
+        );
+      }
+      return {
+        order: templateMatch.order,
+        team1Source: draftMatch.team1Source.trim().toUpperCase(),
+        team2Source: draftMatch.team2Source.trim().toUpperCase(),
+      };
+    });
+
+    const usedSources = new Set<string>();
+    normalizedDraft.forEach((match) => {
+      [match.team1Source, match.team2Source].forEach((source) => {
+        if (!normalizedAllowed.has(source)) {
+          throw new Error(`El source ${source} no es válido para esta categoría.`);
+        }
+        if (usedSources.has(source)) {
+          throw new Error(`El source ${source} está repetido en la primera ronda.`);
+        }
+        usedSources.add(source);
+      });
+    });
+
+    return normalizedDraft;
+  };
+
   const handleGenerateMatches = async () => {
     if (!canGenerateZones || !data) return;
     if (hasRecordedResults) {
@@ -1144,6 +1296,7 @@ export const TournamentCategoryPage = ({
     }
     setGenerationError(null);
     setGenerationSuccess(null);
+    setManualCrossingsError(null);
 
     const readyZones = zoneBoardColumns.length
       ? zoneBoardColumns
@@ -1168,6 +1321,24 @@ export const TournamentCategoryPage = ({
         phaseByDay,
       },
     };
+    let validManualCrossings: ManualEliminationMatchInput[] = [];
+    try {
+      validManualCrossings = validateManualCrossings();
+      if (validManualCrossings.length) {
+        generationDraft.elimination = {
+          firstRoundMatches: validManualCrossings,
+        };
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Los cruces manuales no son válidos.";
+      setManualCrossingsError(message);
+      setGenerationError(message);
+      setActionNotice({ type: "error", message });
+      return;
+    }
     setLastGenerationDraft(generationDraft);
 
     setSaving(true);
@@ -1176,6 +1347,9 @@ export const TournamentCategoryPage = ({
         scheduling: {
           zoneDayById,
           phaseByDay,
+        },
+        elimination: {
+          firstRoundMatches: validManualCrossings,
         },
       });
       await load();
@@ -2226,7 +2400,7 @@ export const TournamentCategoryPage = ({
               onDragEnd={handleDragEnd}
             >
               <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                {zoneColumnsWithUnassigned.map((zone) => {
+                {zoneColumnsWithUnassigned.map((zone, zoneIndex) => {
                   const zonePoints = zone.teamIds.reduce(
                     (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
                     0
@@ -2242,27 +2416,53 @@ export const TournamentCategoryPage = ({
                             {zone.name}
                           </p>
                           {zone.id !== "unassigned" && (
+                            <p className="text-xs text-slate-400">
+                              Posición: {zoneIndex + 1}
+                            </p>
+                          )}
+                          {zone.id !== "unassigned" && (
                             <p className="text-xs text-slate-500">
                               Puntos totales: {zonePoints}
                             </p>
                           )}
                         </div>
                         {zone.id !== "unassigned" ? (
-                          <input
-                            value={zone.name}
-                            onChange={(event) =>
-                              setManualZones((prev) =>
-                                (prev.length ? prev : zoneBoardColumns).map(
-                                  (item) =>
-                                    item.id === zone.id
-                                      ? { ...item, name: event.target.value }
-                                      : item
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => moveZonePosition(zone.id, -1)}
+                              disabled={!isStep2Enabled || zoneIndex === 0}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveZonePosition(zone.id, 1)}
+                              disabled={
+                                !isStep2Enabled ||
+                                zoneIndex >= normalizedZoneColumns.length - 1
+                              }
+                              className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                            >
+                              ↓
+                            </button>
+                            <input
+                              value={zone.name}
+                              onChange={(event) =>
+                                setManualZones((prev) =>
+                                  (prev.length ? prev : zoneBoardColumns).map(
+                                    (item) =>
+                                      item.id === zone.id
+                                        ? { ...item, name: event.target.value }
+                                        : item
+                                  )
                                 )
-                              )
-                            }
-                            disabled={!isStep2Enabled}
-                            className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
-                          />
+                              }
+                              disabled={!isStep2Enabled}
+                              className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
+                            />
+                          </div>
                         ) : null}
                       </div>
                       {zoneValidation.zoneWarningsById[zone.id] && (
@@ -2526,6 +2726,114 @@ export const TournamentCategoryPage = ({
                 </div>
               </div>
             )}
+            <div className="mt-3 rounded-lg border border-slate-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Configurar cruces (opcional)
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAutofillCrossings}
+                  disabled={!isStep3Enabled || !firstRoundTemplateMatches.length}
+                  className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  Autocompletar cruces
+                </button>
+              </div>
+              {firstRoundTemplateMatches.length ? (
+                <div className="mt-2 space-y-2">
+                  {firstRoundTemplateMatches.map((match) => {
+                    const manualMatch = manualCrossings.find(
+                      (item) => item.order === match.order
+                    );
+                    return (
+                      <div
+                        key={match.order}
+                        className="grid gap-2 rounded border border-slate-200 p-2 sm:grid-cols-[auto_1fr_auto_1fr]"
+                      >
+                        <p className="text-xs text-slate-600">
+                          Cruce {match.order}
+                        </p>
+                        <select
+                          value={manualMatch?.team1Source ?? ""}
+                          onChange={(event) =>
+                            setManualCrossings((prev) => {
+                              const existing = prev.find(
+                                (item) => item.order === match.order
+                              );
+                              const nextMatch = {
+                                order: match.order,
+                                team1Source: event.target.value,
+                                team2Source:
+                                  existing?.team2Source ?? match.team2Source,
+                              };
+                              return [
+                                ...prev.filter(
+                                  (item) => item.order !== match.order
+                                ),
+                                nextMatch,
+                              ].sort((a, b) => a.order - b.order);
+                            })
+                          }
+                          disabled={!isStep3Enabled}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        >
+                          <option value="">Seleccionar source</option>
+                          {allowedCrossingSources.map((source) => (
+                            <option key={`team1-${match.order}-${source}`} value={source}>
+                              {source}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="self-center text-center text-xs text-slate-500">
+                          vs
+                        </span>
+                        <select
+                          value={manualMatch?.team2Source ?? ""}
+                          onChange={(event) =>
+                            setManualCrossings((prev) => {
+                              const existing = prev.find(
+                                (item) => item.order === match.order
+                              );
+                              const nextMatch = {
+                                order: match.order,
+                                team1Source:
+                                  existing?.team1Source ?? match.team1Source,
+                                team2Source: event.target.value,
+                              };
+                              return [
+                                ...prev.filter(
+                                  (item) => item.order !== match.order
+                                ),
+                                nextMatch,
+                              ].sort((a, b) => a.order - b.order);
+                            })
+                          }
+                          disabled={!isStep3Enabled}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        >
+                          <option value="">Seleccionar source</option>
+                          {allowedCrossingSources.map((source) => (
+                            <option key={`team2-${match.order}-${source}`} value={source}>
+                              {source}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">
+                  Guardá zonas válidas para habilitar la configuración de cruces.
+                </p>
+              )}
+              {manualCrossingsError && (
+                <p className="mt-2 text-xs text-red-600">
+                  {manualCrossingsError}
+                </p>
+              )}
+            </div>
 
             <button
               disabled={!isStep3Enabled || !canGenerateZones || saving}

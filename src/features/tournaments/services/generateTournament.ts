@@ -229,6 +229,9 @@ export const generateFullTournament = async (
       zoneDayById?: Record<string, string>
       phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
     }
+    elimination?: {
+      firstRoundMatches?: Array<{ order: number; team1Source: string; team2Source: string }>
+    }
   },
 ): Promise<{
   dryRun: boolean
@@ -375,6 +378,7 @@ export const generateFullTournament = async (
       tournamentCategoryId,
       qualifiedTeamSources,
       groupRanking,
+      manualFirstRoundMatches: options?.elimination?.firstRoundMatches,
     })
 
     const remappedZoneDayById = remapZoneDaysByGeneratedGroup({

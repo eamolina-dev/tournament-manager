@@ -38,10 +38,12 @@ export const generateEliminationMatches = async ({
   tournamentCategoryId,
   qualifiedTeamSources,
   groupRanking,
+  manualFirstRoundMatches,
 }: {
   tournamentCategoryId: string
   qualifiedTeamSources: string[]
   groupRanking: string[]
+  manualFirstRoundMatches?: Array<{ order: number; team1Source: string; team2Source: string }>
 }): Promise<number> => {
   const template = getEliminationTemplate(qualifiedTeamSources, groupRanking).map((match) => ({ ...match }))
   if (!template.length) return 0
@@ -58,6 +60,47 @@ export const generateEliminationMatches = async ({
       match.team1 = override.team1Source
       match.team2 = override.team2Source
     })
+  }
+
+  if (manualFirstRoundMatches?.length) {
+    const firstRound = template.reduce(
+      (minRound, match) => Math.min(minRound, match.round),
+      Number.POSITIVE_INFINITY,
+    )
+    const firstRoundTemplate = template.filter((match) => match.round === firstRound)
+    const normalizedSources = new Set(qualifiedTeamSources.map((source) => source.trim().toUpperCase()))
+    const normalizedManual = manualFirstRoundMatches.map((match) => ({
+      order: match.order,
+      team1Source: match.team1Source.trim().toUpperCase(),
+      team2Source: match.team2Source.trim().toUpperCase(),
+    }))
+
+    if (normalizedManual.length !== firstRoundTemplate.length) {
+      throw new Error("La configuración manual de cruces no coincide con la cantidad de partidos iniciales.")
+    }
+
+    const manualByOrder = new Map(
+      normalizedManual.map((match) => [match.order, match]),
+    )
+    const usedSources = new Set<string>()
+    for (const match of firstRoundTemplate) {
+      const manual = manualByOrder.get(match.order)
+      if (!manual) {
+        throw new Error(`Falta configurar el cruce ${match.order} de la primera ronda eliminatoria.`)
+      }
+      const sources = [manual.team1Source, manual.team2Source]
+      for (const source of sources) {
+        if (!normalizedSources.has(source)) {
+          throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
+        }
+        if (usedSources.has(source)) {
+          throw new Error(`Cruce manual inválido: ${source} está repetido en la primera ronda.`)
+        }
+        usedSources.add(source)
+      }
+      match.team1 = manual.team1Source
+      match.team2 = manual.team2Source
+    }
   }
 
   const { data: existingGroupMatches, error: groupMatchesError } = await supabase

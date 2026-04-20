@@ -329,8 +329,26 @@ export const saveZonesForCategory = async (
   })
 
   const assignedTeamIds = normalizedZones.flatMap((zone) => zone.teamIds)
+  const normalizedNames = normalizedZones.map((zone) => zone.name.trim().toLocaleLowerCase())
+  if (new Set(normalizedNames).size !== normalizedNames.length) {
+    throw new Error("No puede haber zonas con el mismo nombre.")
+  }
   if (new Set(assignedTeamIds).size !== assignedTeamIds.length) {
     throw new Error("Un equipo no puede estar en más de una zona.")
+  }
+
+  const { data: categoryTeams, error: categoryTeamsError } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("tournament_category_id", tournamentCategoryId)
+  throwIfError(categoryTeamsError)
+
+  const validTeamIds = new Set((categoryTeams ?? []).map((team) => team.id))
+  if (assignedTeamIds.some((teamId) => !validTeamIds.has(teamId))) {
+    throw new Error("Las zonas incluyen equipos inválidos para esta categoría.")
+  }
+  if (new Set(assignedTeamIds).size !== validTeamIds.size) {
+    throw new Error("Todos los equipos deben quedar asignados a una zona.")
   }
 
   const { data: existingGroups, error: groupsError } = await supabase
