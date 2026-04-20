@@ -38,6 +38,7 @@ import {
   getQualifiedTeamSources,
 } from "../../../features/tournaments/services/generateGroups";
 import { getEliminationTemplate } from "../../../features/tournaments/services/generateEliminationMatches";
+import { parseSource } from "../../../features/tournaments/utils/resolveTeamSourcesForMatches";
 import {
   getScheduleDays,
   type ScheduleDayOption,
@@ -112,6 +113,12 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 6;
+const getRoundTitle = (stage: string, fallbackRound: number): string => {
+  if (stage === "final") return "Final";
+  if (stage === "semi") return "Semifinal";
+  if (stage === "quarter" || stage === "round_of_8") return "Cuartos de final";
+  return `Ronda ${fallbackRound}`;
+};
 
 export const TournamentCategoryPage = ({
   tenantSlug = "",
@@ -655,6 +662,10 @@ export const TournamentCategoryPage = ({
             storedManualCrossings
               .filter((item) => Number.isFinite(item?.order))
               .map((item) => ({
+                round:
+                  typeof item.round === "number" && Number.isFinite(item.round)
+                    ? item.round
+                    : undefined,
                 order: item.order,
                 team1Source: String(item.team1Source ?? ""),
                 team2Source: String(item.team2Source ?? ""),
@@ -1090,35 +1101,74 @@ export const TournamentCategoryPage = ({
       return [];
     }
   }, [plannedGroupsForCrossings]);
-  const firstRoundTemplateMatches = useMemo(() => {
+  const eliminationTemplateMatches = useMemo(() => {
     if (!allowedCrossingSources.length) return [];
     try {
       const groupRanking = plannedGroupsForCrossings.map((group) => group.groupKey);
-      const template = getEliminationTemplate(allowedCrossingSources, groupRanking);
-      if (!template.length) return [];
-      const firstRound = template.reduce(
-        (minRound, match) => Math.min(minRound, match.round),
-        Number.POSITIVE_INFINITY
-      );
-      return template
-        .filter((match) => match.round === firstRound)
-        .map((match) => ({
-          order: match.order,
-          team1Source: match.team1,
-          team2Source: match.team2,
-        }));
+      return getEliminationTemplate(allowedCrossingSources, groupRanking);
     } catch {
       return [];
     }
   }, [allowedCrossingSources, plannedGroupsForCrossings]);
+  const firstTemplateRound = useMemo(() => {
+    if (!eliminationTemplateMatches.length) return null;
+    return eliminationTemplateMatches.reduce(
+      (minRound, match) => Math.min(minRound, match.round),
+      Number.POSITIVE_INFINITY
+    );
+  }, [eliminationTemplateMatches]);
+  const manualCrossingsByRoundOrder = useMemo(
+    () =>
+      new Map(
+        manualCrossings.map((match) => [`${match.round ?? "first"}-${match.order}`, match])
+      ),
+    [manualCrossings]
+  );
+  const roundBlocks = useMemo(() => {
+    const grouped = new Map<number, typeof eliminationTemplateMatches>();
+    eliminationTemplateMatches.forEach((match) => {
+      const list = grouped.get(match.round) ?? [];
+      list.push(match);
+      grouped.set(match.round, list);
+    });
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([round, matches]) => ({
+        round,
+        title: getRoundTitle(matches[0]?.stage ?? "", round),
+        matches: [...matches].sort((a, b) => a.order - b.order),
+      }));
+  }, [eliminationTemplateMatches]);
+
+  const getEffectiveSource = useCallback(
+    (round: number, order: number, slot: "team1Source" | "team2Source", templateSource: string) =>
+      manualCrossingsByRoundOrder.get(`${round}-${order}`)?.[slot] ??
+      manualCrossingsByRoundOrder.get(`first-${order}`)?.[slot] ??
+      templateSource,
+    [manualCrossingsByRoundOrder]
+  );
+
+  const isEditableSourceSlot = useCallback(
+    (round: number, templateSource: string): boolean => {
+      const parsed = parseSource(templateSource);
+      if (round === firstTemplateRound) return true;
+      return parsed?.type === "group";
+    },
+    [firstTemplateRound]
+  );
   useEffect(() => {
     setManualCrossings((prev) =>
       prev.filter((item) =>
-        firstRoundTemplateMatches.some((match) => match.order === item.order)
+        eliminationTemplateMatches.some(
+          (match) =>
+            match.order === item.order &&
+            (item.round ? match.round === item.round : match.round === firstTemplateRound)
+        )
       )
     );
     setManualCrossingsError(null);
-  }, [firstRoundTemplateMatches]);
+  }, [eliminationTemplateMatches, firstTemplateRound]);
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1244,32 +1294,69 @@ export const TournamentCategoryPage = ({
   };
 
   const handleAutofillCrossings = () => {
-    setManualCrossings(firstRoundTemplateMatches);
+    const suggested = eliminationTemplateMatches
+      .flatMap((match) => {
+        const slots: ManualEliminationMatchInput = {
+          round: match.round,
+          order: match.order,
+          team1Source: match.team1,
+          team2Source: match.team2,
+        };
+        const team1Editable = isEditableSourceSlot(match.round, match.team1);
+        const team2Editable = isEditableSourceSlot(match.round, match.team2);
+        if (!team1Editable && !team2Editable) return [];
+        return [slots];
+      })
+      .sort((a, b) => (a.round ?? 0) - (b.round ?? 0) || a.order - b.order);
+    setManualCrossings(suggested);
     setManualCrossingsError(null);
   };
 
   const validateManualCrossings = (): ManualEliminationMatchInput[] => {
     if (!manualCrossings.length) return [];
-    if (!firstRoundTemplateMatches.length) {
+    if (!eliminationTemplateMatches.length) {
       throw new Error("No hay cruces eliminatorios disponibles para esta configuración.");
     }
 
     const normalizedAllowed = new Set(
       allowedCrossingSources.map((source) => source.trim().toUpperCase())
     );
-    const normalizedDraft = firstRoundTemplateMatches.map((templateMatch) => {
+    const editableTemplateMatches = eliminationTemplateMatches.filter(
+      (match) =>
+        isEditableSourceSlot(match.round, match.team1) ||
+        isEditableSourceSlot(match.round, match.team2)
+    );
+    const normalizedDraft = editableTemplateMatches.map((templateMatch) => {
       const draftMatch = manualCrossings.find(
-        (item) => item.order === templateMatch.order
+        (item) =>
+          item.order === templateMatch.order &&
+          (item.round ?? firstTemplateRound) === templateMatch.round
       );
       if (!draftMatch) {
         throw new Error(
-          `Falta definir el cruce ${templateMatch.order} de la primera ronda.`
+          `Falta definir el partido ${templateMatch.order} de ${getRoundTitle(
+            templateMatch.stage,
+            templateMatch.round
+          )}.`
         );
       }
+
+      const team1Source = draftMatch.team1Source.trim().toUpperCase();
+      const team2Source = draftMatch.team2Source.trim().toUpperCase();
+      if (!team1Source || !team2Source) {
+        throw new Error(
+          `Completá ambos equipos del partido ${templateMatch.order} (${getRoundTitle(
+            templateMatch.stage,
+            templateMatch.round
+          )}).`
+        );
+      }
+
       return {
+        round: templateMatch.round,
         order: templateMatch.order,
-        team1Source: draftMatch.team1Source.trim().toUpperCase(),
-        team2Source: draftMatch.team2Source.trim().toUpperCase(),
+        team1Source,
+        team2Source,
       };
     });
 
@@ -1285,6 +1372,9 @@ export const TournamentCategoryPage = ({
         usedSources.add(source);
       });
     });
+    if (usedSources.size !== normalizedAllowed.size) {
+      throw new Error("Debés usar todos los clasificados exactamente una vez.");
+    }
 
     return normalizedDraft;
   };
@@ -2739,94 +2829,152 @@ export const TournamentCategoryPage = ({
                 <button
                   type="button"
                   onClick={handleAutofillCrossings}
-                  disabled={!isStep3Enabled || !firstRoundTemplateMatches.length}
+                  disabled={!isStep3Enabled || !eliminationTemplateMatches.length}
                   className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                 >
-                  Autocompletar cruces
+                  Autocompletar cruces sugeridos
                 </button>
               </div>
-              {firstRoundTemplateMatches.length ? (
-                <div className="mt-2 space-y-2">
-                  {firstRoundTemplateMatches.map((match) => {
-                    const manualMatch = manualCrossings.find(
-                      (item) => item.order === match.order
-                    );
-                    return (
-                      <div
-                        key={match.order}
-                        className="grid gap-2 rounded border border-slate-200 p-2 sm:grid-cols-[auto_1fr_auto_1fr]"
-                      >
-                        <p className="text-xs text-slate-600">
-                          Cruce {match.order}
-                        </p>
-                        <select
-                          value={manualMatch?.team1Source ?? ""}
-                          onChange={(event) =>
-                            setManualCrossings((prev) => {
-                              const existing = prev.find(
-                                (item) => item.order === match.order
-                              );
-                              const nextMatch = {
-                                order: match.order,
-                                team1Source: event.target.value,
-                                team2Source:
-                                  existing?.team2Source ?? match.team2Source,
-                              };
-                              return [
-                                ...prev.filter(
-                                  (item) => item.order !== match.order
-                                ),
-                                nextMatch,
-                              ].sort((a, b) => a.order - b.order);
-                            })
-                          }
-                          disabled={!isStep3Enabled}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        >
-                          <option value="">Seleccionar source</option>
-                          {allowedCrossingSources.map((source) => (
-                            <option key={`team1-${match.order}-${source}`} value={source}>
-                              {source}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="self-center text-center text-xs text-slate-500">
-                          vs
-                        </span>
-                        <select
-                          value={manualMatch?.team2Source ?? ""}
-                          onChange={(event) =>
-                            setManualCrossings((prev) => {
-                              const existing = prev.find(
-                                (item) => item.order === match.order
-                              );
-                              const nextMatch = {
-                                order: match.order,
-                                team1Source:
-                                  existing?.team1Source ?? match.team1Source,
-                                team2Source: event.target.value,
-                              };
-                              return [
-                                ...prev.filter(
-                                  (item) => item.order !== match.order
-                                ),
-                                nextMatch,
-                              ].sort((a, b) => a.order - b.order);
-                            })
-                          }
-                          disabled={!isStep3Enabled}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs"
-                        >
-                          <option value="">Seleccionar source</option>
-                          {allowedCrossingSources.map((source) => (
-                            <option key={`team2-${match.order}-${source}`} value={source}>
-                              {source}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
+              {roundBlocks.length ? (
+                <div className="mt-2 space-y-3">
+                  {roundBlocks.map((roundBlock) => (
+                    <div key={roundBlock.round} className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {roundBlock.title}
+                      </p>
+                      {roundBlock.matches.map((match) => {
+                        const team1Current = getEffectiveSource(
+                          match.round,
+                          match.order,
+                          "team1Source",
+                          match.team1
+                        );
+                        const team2Current = getEffectiveSource(
+                          match.round,
+                          match.order,
+                          "team2Source",
+                          match.team2
+                        );
+                        const team1Editable = isEditableSourceSlot(
+                          match.round,
+                          match.team1
+                        );
+                        const team2Editable = isEditableSourceSlot(
+                          match.round,
+                          match.team2
+                        );
+
+                        const updateManualMatch = (
+                          slot: "team1Source" | "team2Source",
+                          value: string
+                        ) => {
+                          setManualCrossings((prev) => {
+                            const keyRound = match.round;
+                            const existing = prev.find(
+                              (item) =>
+                                item.order === match.order &&
+                                (item.round ?? firstTemplateRound) === keyRound
+                            );
+                            const next = {
+                              round: keyRound,
+                              order: match.order,
+                              team1Source:
+                                slot === "team1Source"
+                                  ? value
+                                  : existing?.team1Source ?? match.team1,
+                              team2Source:
+                                slot === "team2Source"
+                                  ? value
+                                  : existing?.team2Source ?? match.team2,
+                            };
+                            return [
+                              ...prev.filter(
+                                (item) =>
+                                  !(
+                                    item.order === match.order &&
+                                    (item.round ?? firstTemplateRound) ===
+                                      keyRound
+                                  )
+                              ),
+                              next,
+                            ].sort(
+                              (a, b) =>
+                                (a.round ?? 0) - (b.round ?? 0) ||
+                                a.order - b.order
+                            );
+                          });
+                        };
+
+                        return (
+                          <div
+                            key={`${match.round}-${match.order}`}
+                            className="grid gap-2 rounded border border-slate-200 p-2 sm:grid-cols-[auto_1fr_auto_1fr]"
+                          >
+                            <p className="text-xs text-slate-600">
+                              Partido {match.order}
+                            </p>
+                            {team1Editable ? (
+                              <select
+                                value={team1Current}
+                                onChange={(event) =>
+                                  updateManualMatch(
+                                    "team1Source",
+                                    event.target.value
+                                  )
+                                }
+                                disabled={!isStep3Enabled}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              >
+                                <option value="">Seleccionar source</option>
+                                {allowedCrossingSources.map((source) => (
+                                  <option
+                                    key={`team1-${match.round}-${match.order}-${source}`}
+                                    value={source}
+                                  >
+                                    {source}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+                                {team1Current}
+                              </p>
+                            )}
+                            <span className="self-center text-center text-xs text-slate-500">
+                              vs
+                            </span>
+                            {team2Editable ? (
+                              <select
+                                value={team2Current}
+                                onChange={(event) =>
+                                  updateManualMatch(
+                                    "team2Source",
+                                    event.target.value
+                                  )
+                                }
+                                disabled={!isStep3Enabled}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs"
+                              >
+                                <option value="">Seleccionar source</option>
+                                {allowedCrossingSources.map((source) => (
+                                  <option
+                                    key={`team2-${match.round}-${match.order}-${source}`}
+                                    value={source}
+                                  >
+                                    {source}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+                                {team2Current}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-slate-500">

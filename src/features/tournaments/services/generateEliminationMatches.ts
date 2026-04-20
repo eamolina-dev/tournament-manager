@@ -43,7 +43,7 @@ export const generateEliminationMatches = async ({
   tournamentCategoryId: string
   qualifiedTeamSources: string[]
   groupRanking: string[]
-  manualFirstRoundMatches?: Array<{ order: number; team1Source: string; team2Source: string }>
+  manualFirstRoundMatches?: Array<{ round?: number; order: number; team1Source: string; team2Source: string }>
 }): Promise<number> => {
   const template = getEliminationTemplate(qualifiedTeamSources, groupRanking).map((match) => ({ ...match }))
   if (!template.length) return 0
@@ -63,43 +63,81 @@ export const generateEliminationMatches = async ({
   }
 
   if (manualFirstRoundMatches?.length) {
+    const normalizedSources = new Set(qualifiedTeamSources.map((source) => source.trim().toUpperCase()))
+    const normalizedManual = manualFirstRoundMatches.map((match) => ({
+      round: match.round,
+      order: match.order,
+      team1Source: match.team1Source.trim().toUpperCase(),
+      team2Source: match.team2Source.trim().toUpperCase(),
+    }))
+    const manualByRoundOrder = new Map(
+      normalizedManual.map((match) => [`${match.round ?? "first"}-${match.order}`, match]),
+    )
     const firstRound = template.reduce(
       (minRound, match) => Math.min(minRound, match.round),
       Number.POSITIVE_INFINITY,
     )
     const firstRoundTemplate = template.filter((match) => match.round === firstRound)
-    const normalizedSources = new Set(qualifiedTeamSources.map((source) => source.trim().toUpperCase()))
-    const normalizedManual = manualFirstRoundMatches.map((match) => ({
-      order: match.order,
-      team1Source: match.team1Source.trim().toUpperCase(),
-      team2Source: match.team2Source.trim().toUpperCase(),
-    }))
+    const hasRoundAwareConfig = normalizedManual.some((match) => Number.isInteger(match.round))
 
-    if (normalizedManual.length !== firstRoundTemplate.length) {
-      throw new Error("La configuración manual de cruces no coincide con la cantidad de partidos iniciales.")
+    const usedSources = new Set<string>()
+    if (!hasRoundAwareConfig) {
+      if (normalizedManual.length !== firstRoundTemplate.length) {
+        throw new Error("La configuración manual de cruces no coincide con la cantidad de partidos iniciales.")
+      }
+      for (const match of firstRoundTemplate) {
+        const manual = manualByRoundOrder.get(`first-${match.order}`)
+        if (!manual) {
+          throw new Error(`Falta configurar el cruce ${match.order} de la primera ronda eliminatoria.`)
+        }
+        const sources = [manual.team1Source, manual.team2Source]
+        for (const source of sources) {
+          if (!normalizedSources.has(source)) {
+            throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
+          }
+          if (usedSources.has(source)) {
+            throw new Error(`Cruce manual inválido: ${source} está repetido en la primera ronda.`)
+          }
+          usedSources.add(source)
+        }
+        match.team1 = manual.team1Source
+        match.team2 = manual.team2Source
+      }
+    } else {
+      for (const manual of normalizedManual) {
+        if (!manual.round || !Number.isInteger(manual.round) || manual.round <= 0) {
+          throw new Error("La configuración manual de cruces tiene rondas inválidas.")
+        }
+        const target = template.find(
+          (match) => match.round === manual.round && match.order === manual.order,
+        )
+        if (!target) {
+          throw new Error(`Cruce manual inválido: no existe el partido R${manual.round}-M${manual.order}.`)
+        }
+        const sources = [manual.team1Source, manual.team2Source]
+        for (const source of sources) {
+          if (!normalizedSources.has(source)) {
+            throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
+          }
+          if (usedSources.has(source)) {
+            throw new Error(`Cruce manual inválido: ${source} está repetido en la configuración manual.`)
+          }
+          usedSources.add(source)
+        }
+        target.team1 = manual.team1Source
+        target.team2 = manual.team2Source
+      }
     }
 
-    const manualByOrder = new Map(
-      normalizedManual.map((match) => [match.order, match]),
-    )
-    const usedSources = new Set<string>()
-    for (const match of firstRoundTemplate) {
-      const manual = manualByOrder.get(match.order)
-      if (!manual) {
-        throw new Error(`Falta configurar el cruce ${match.order} de la primera ronda eliminatoria.`)
-      }
-      const sources = [manual.team1Source, manual.team2Source]
-      for (const source of sources) {
-        if (!normalizedSources.has(source)) {
-          throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
-        }
-        if (usedSources.has(source)) {
-          throw new Error(`Cruce manual inválido: ${source} está repetido en la primera ronda.`)
-        }
-        usedSources.add(source)
-      }
-      match.team1 = manual.team1Source
-      match.team2 = manual.team2Source
+    const groupSourcesInTemplate = template
+      .flatMap((match) => [match.team1, match.team2])
+      .map((source) => source.trim().toUpperCase())
+      .filter((source) => normalizedSources.has(source))
+    if (new Set(groupSourcesInTemplate).size !== groupSourcesInTemplate.length) {
+      throw new Error("Cruce manual inválido: hay clasificados repetidos en el cuadro.")
+    }
+    if (new Set(groupSourcesInTemplate).size !== normalizedSources.size) {
+      throw new Error("Cruce manual inválido: faltan o sobran clasificados en el cuadro.")
     }
   }
 
