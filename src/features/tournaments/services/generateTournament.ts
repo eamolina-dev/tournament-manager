@@ -14,6 +14,7 @@ import { scheduleGeneratedMatches } from "./scheduleGeneratedMatches"
 import { assertTournamentEditableByCategoryId } from "./tournamentStatusGuard"
 
 type InsertedGroup = { id: string; name: string; group_key: string }
+const MIN_TEAMS_FOR_TOURNAMENT = 6
 
 const debugGeneration = (
   enabled: boolean,
@@ -261,8 +262,8 @@ export const generateFullTournament = async (
     throwIfError(teamsError)
 
     const safeTeams = validateTeamRefs(teams)
-    if (safeTeams.length < 2) {
-      throw new Error("Se necesitan al menos 2 equipos para generar el torneo.")
+    if (safeTeams.length < MIN_TEAMS_FOR_TOURNAMENT) {
+      throw new Error("Se necesitan al menos 6 equipos para generar el torneo.")
     }
 
     debugGeneration(debugEnabled, "Inicio generación", {

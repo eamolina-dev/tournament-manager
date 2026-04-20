@@ -33,7 +33,10 @@ import {
   updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
-import { getQualifiedTeamSources } from "../../../features/tournaments/services/generateGroups";
+import {
+  generateGroups,
+  getQualifiedTeamSources,
+} from "../../../features/tournaments/services/generateGroups";
 import { getEliminationTemplate } from "../../../features/tournaments/services/generateEliminationMatches";
 import {
   getScheduleDays,
@@ -108,6 +111,7 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 };
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
+const MIN_TEAMS_FOR_ZONES = 6;
 
 export const TournamentCategoryPage = ({
   tenantSlug = "",
@@ -438,7 +442,7 @@ export const TournamentCategoryPage = ({
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
   const isTournamentEditable = data?.tournamentStatus === "draft";
-  const hasEnoughTeams = (data?.teams.length ?? 0) >= 2;
+  const hasEnoughTeams = (data?.teams.length ?? 0) >= MIN_TEAMS_FOR_ZONES;
   const isStep2Enabled = isTournamentEditable && hasEnoughTeams;
   const isPastTournamentEndDate = useMemo(() => {
     if (!data?.tournamentEndDate) return false;
@@ -673,7 +677,7 @@ export const TournamentCategoryPage = ({
     }));
   }, [scheduleDays]);
 
-  const canGenerateZones = (data?.teams.length ?? 0) >= 2;
+  const canGenerateZones = (data?.teams.length ?? 0) >= MIN_TEAMS_FOR_ZONES;
   const teamsForZoneBoard = useMemo<ZoneTeam[]>(
     () => (data?.teams ?? []).map((team) => ({ id: team.id, name: team.name })),
     [data?.teams]
@@ -932,19 +936,14 @@ export const TournamentCategoryPage = ({
     if (!teamsForZoneBoard.length) {
       return [];
     }
-    const zoneCount = Math.max(2, Math.ceil(teamsForZoneBoard.length / 4));
-    const nextZones: ZoneBoardColumn[] = Array.from(
-      { length: zoneCount },
-      (_, index) => ({
-        id: `manual-zone-${index + 1}`,
-        name: `Zona ${String.fromCharCode(65 + index)}`,
-        teamIds: [],
-      })
+    const plannedGroups = generateGroups(
+      teamsForZoneBoard.map((team) => ({ id: team.id }))
     );
-    teamsForZoneBoard.forEach((team, index) => {
-      nextZones[index % zoneCount].teamIds.push(team.id);
-    });
-    return nextZones;
+    return plannedGroups.map((group, index) => ({
+      id: `manual-zone-${index + 1}`,
+      name: group.name,
+      teamIds: group.teamIds,
+    }));
   };
 
   const handleGenerateZonesAutomatically = () => {
@@ -955,6 +954,12 @@ export const TournamentCategoryPage = ({
       const message =
         "No podés generar zonas: todas las parejas deben tener 2 jugadores.";
       window.alert(message);
+      setManualZoneError(message);
+      setActionNotice({ type: "error", message });
+      return;
+    }
+    if (!canGenerateZones) {
+      const message = `Necesitás al menos ${MIN_TEAMS_FOR_ZONES} equipos para generar zonas.`;
       setManualZoneError(message);
       setActionNotice({ type: "error", message });
       return;
@@ -2358,7 +2363,7 @@ export const TournamentCategoryPage = ({
             </p>
             {!isStep2Enabled && (
               <p className="mt-2 text-xs text-amber-700">
-                Completá el Paso 1 (al menos 2 equipos) para habilitar este
+                Completá el Paso 1 (al menos 6 equipos) para habilitar este
                 bloque.
               </p>
             )}
@@ -2849,7 +2854,7 @@ export const TournamentCategoryPage = ({
 
             {!canGenerateZones && (
               <p className="mt-2 text-xs text-amber-600">
-                Necesitás al menos 2 equipos para generar el torneo.
+                Necesitás al menos 6 equipos para generar el torneo.
               </p>
             )}
             {generationError && (
