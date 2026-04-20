@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -127,6 +127,7 @@ export const TournamentCategoryPage = ({
   const [saving, setSaving] = useState(false);
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
+  const lastLoadedCacheKeyRef = useRef<string | null>(null);
   const orderedZones = useMemo(
     () => [...(data?.zones ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
     [data?.zones]
@@ -210,6 +211,15 @@ export const TournamentCategoryPage = ({
   const teamsDraftStorageKey = data
     ? `tm:teams-draft:${data.tournamentCategoryId}`
     : "";
+  const categoryCacheKey = useMemo(() => {
+    if (eventId && categoryId) {
+      return `tm:category-cache:event:${eventId}:category:${categoryId}`;
+    }
+    if (slug && category) {
+      return `tm:category-cache:slug:${slug}:category:${category}`;
+    }
+    return "";
+  }, [eventId, categoryId, slug, category]);
 
   const loadPlayers = async ({
     categoryGender,
@@ -246,6 +256,21 @@ export const TournamentCategoryPage = ({
   };
 
   const load = async () => {
+    if (categoryCacheKey && lastLoadedCacheKeyRef.current !== categoryCacheKey) {
+      const cachedRaw = sessionStorage.getItem(categoryCacheKey);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw) as Awaited<
+            ReturnType<typeof getTournamentCategoryPageData>
+          >;
+          if (cached?.tournamentCategoryId) {
+            setData(cached);
+          }
+        } catch {
+          // no-op: ignore malformed cache
+        }
+      }
+    }
     setLoading(true);
     try {
       let tournamentSlug = slug;
@@ -293,6 +318,10 @@ export const TournamentCategoryPage = ({
         categorySlug
       );
       setData(response);
+      if (categoryCacheKey && response?.tournamentCategoryId) {
+        sessionStorage.setItem(categoryCacheKey, JSON.stringify(response));
+        lastLoadedCacheKeyRef.current = categoryCacheKey;
+      }
       if (isAdmin) {
         await loadPlayers({
           categoryGender: response?.gender ?? null,
@@ -305,7 +334,7 @@ export const TournamentCategoryPage = ({
 
   useEffect(() => {
     void load();
-  }, [slug, category, eventId, categoryId, isAdmin]);
+  }, [slug, category, eventId, categoryId, isAdmin, categoryCacheKey]);
 
   const activeZone = useMemo(() => {
     if (!orderedZones.length) return null;
@@ -395,9 +424,29 @@ export const TournamentCategoryPage = ({
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
   const isTournamentEditable = data?.tournamentStatus === "draft";
-  const isTournamentFinished = data?.tournamentStatus === "finished";
   const hasEnoughTeams = (data?.teams.length ?? 0) >= 2;
   const isStep2Enabled = isTournamentEditable && hasEnoughTeams;
+  const isPastTournamentEndDate = useMemo(() => {
+    if (!data?.tournamentEndDate) return false;
+    const parsed = new Date(`${data.tournamentEndDate}T23:59:59`);
+    if (Number.isNaN(parsed.getTime())) return false;
+    return Date.now() > parsed.getTime();
+  }, [data?.tournamentEndDate]);
+  const finalMatchCompleted = useMemo(() => {
+    const finalMatch = orderedBracketMatches.find((match) => match.stage === "final");
+    if (!finalMatch) return false;
+    return Boolean(finalMatch.score);
+  }, [orderedBracketMatches]);
+  const allMatchesCompleted = useMemo(
+    () =>
+      orderedEditableMatches.length > 0 &&
+      orderedEditableMatches.every(
+        (match) => Boolean(match.score) || (match.sets?.length ?? 0) > 0
+      ),
+    [orderedEditableMatches]
+  );
+  const shouldHideCompetitionStatus =
+    isPastTournamentEndDate && (finalMatchCompleted || allMatchesCompleted);
   const structuralLockMessage =
     "El torneo ya comenzó: solo podés cargar resultados.";
 
@@ -2902,7 +2951,7 @@ export const TournamentCategoryPage = ({
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2">Jugador</th>
-                      {!isTournamentFinished && (
+                      {!shouldHideCompetitionStatus && (
                         <th className="py-2 text-center">Estado</th>
                       )}
                       <th className="py-2 text-right">Puntos</th>
@@ -2920,7 +2969,7 @@ export const TournamentCategoryPage = ({
                           <td className="py-2 text-slate-700">
                             {row.playerName}
                           </td>
-                          {!isTournamentFinished && (
+                          {!shouldHideCompetitionStatus && (
                             <td className="py-2 text-center">
                               {row.isInCompetition ? (
                                 <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
@@ -2946,7 +2995,7 @@ export const TournamentCategoryPage = ({
                     ) : (
                       <tr>
                         <td
-                          colSpan={isTournamentFinished ? 2 : 3}
+                          colSpan={shouldHideCompetitionStatus ? 2 : 3}
                           className="py-4 text-center text-slate-500"
                         >
                           No se encontraron jugadores.
@@ -2983,7 +3032,7 @@ export const TournamentCategoryPage = ({
               ? ["F"]
               : ["M", "F"]
           }
-          onSubmit={async ({ name, categoryId, gender }) => {
+          onSubmit={async ({ name, categoryId, gender, dni }) => {
             const existingPlayer = players.find(
               (player) =>
                 player.name.toLocaleLowerCase() === name.toLocaleLowerCase()
@@ -3001,6 +3050,7 @@ export const TournamentCategoryPage = ({
               name,
               base_category_id: categoryId,
               gender,
+              dni,
             });
             await loadPlayers({
               categoryGender: data.gender,

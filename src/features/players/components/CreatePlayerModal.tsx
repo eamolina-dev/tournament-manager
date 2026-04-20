@@ -15,13 +15,19 @@ type CreatePlayerModalProps = {
   submitLabel?: string;
   initialName?: string;
   initialCategoryId?: string;
+  initialDni?: number | null;
   initialGender?: PlayerGenderOption;
   allowedGenders?: PlayerGenderOption[];
   categories: CategoryOption[];
   tournamentCategoryLevel?: number | null;
   isSumaTournament?: boolean;
   onClose: () => void;
-  onSubmit: (input: { name: string; categoryId: string; gender: PlayerGenderOption }) => Promise<void>;
+  onSubmit: (input: {
+    name: string;
+    categoryId: string;
+    gender: PlayerGenderOption;
+    dni: number | null;
+  }) => Promise<void>;
 };
 
 export const CreatePlayerModal = ({
@@ -30,6 +36,7 @@ export const CreatePlayerModal = ({
   submitLabel = "Guardar jugador",
   initialName = "",
   initialCategoryId = "",
+  initialDni = null,
   initialGender = "M",
   allowedGenders = ["M", "F"],
   categories,
@@ -40,6 +47,7 @@ export const CreatePlayerModal = ({
 }: CreatePlayerModalProps) => {
   const [name, setName] = useState(initialName);
   const [categoryId, setCategoryId] = useState(initialCategoryId);
+  const [dni, setDni] = useState(initialDni != null ? String(initialDni) : "");
   const [gender, setGender] = useState<PlayerGenderOption>(initialGender);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +58,13 @@ export const CreatePlayerModal = ({
     if (!open) return;
     setName(initialName);
     setCategoryId(initialCategoryId);
+    setDni(initialDni != null ? String(initialDni) : "");
     setGender(initialGender);
     setSaving(false);
     setError(null);
     setNameTouched(false);
     setCategoryTouched(false);
-  }, [open, initialName, initialCategoryId, initialGender]);
+  }, [open, initialName, initialCategoryId, initialDni, initialGender]);
 
   const categoryById = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
@@ -70,7 +79,12 @@ export const CreatePlayerModal = ({
     !categoryId || !categoryById.has(categoryId)
       ? "Seleccioná una categoría válida."
       : null;
-  const hasValidationErrors = Boolean(nameError || categoryError);
+  const dniValue = dni.trim();
+  const dniError =
+    dniValue.length > 0 && !/^\d{7,10}$/.test(dniValue)
+      ? "Ingresá un DNI válido (solo números, entre 7 y 10 dígitos)."
+      : null;
+  const hasValidationErrors = Boolean(nameError || categoryError || dniError);
   const showCompatibilityWarning =
     !isSumaTournament &&
     isCategoryHigherThanTournament({
@@ -130,6 +144,22 @@ export const CreatePlayerModal = ({
             <p className="text-xs text-red-600">{categoryError}</p>
           )}
           <label className="block space-y-1">
+            <span className="text-xs font-medium text-slate-600">DNI</span>
+            <input
+              value={dni}
+              onChange={(event) => {
+                setDni(event.target.value);
+                setError(null);
+              }}
+              inputMode="numeric"
+              placeholder="Solo números"
+              className={`w-full rounded-lg px-3 py-2 text-sm ${
+                dniError ? "border border-red-400" : "border border-slate-300"
+              }`}
+            />
+          </label>
+          {dniError && <p className="text-xs text-red-600">{dniError}</p>}
+          <label className="block space-y-1">
             <span className="text-xs font-medium text-slate-600">Género</span>
           <select
             value={gender}
@@ -170,7 +200,12 @@ export const CreatePlayerModal = ({
                 setNameTouched(true);
                 setCategoryTouched(true);
 
-                if (!trimmedName || !categoryId || !categoryById.has(categoryId)) {
+                if (
+                  !trimmedName ||
+                  !categoryId ||
+                  !categoryById.has(categoryId) ||
+                  Boolean(dniError)
+                ) {
                   return;
                 }
 
@@ -181,6 +216,7 @@ export const CreatePlayerModal = ({
                     name: trimmedName,
                     categoryId,
                     gender,
+                    dni: dniValue ? Number(dniValue) : null,
                   });
                 } catch (submitError) {
                   setSaving(false);

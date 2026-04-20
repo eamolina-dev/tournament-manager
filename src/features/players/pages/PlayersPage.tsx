@@ -117,6 +117,7 @@ export const PlayersPage = () => {
             categoryId: player.base_category_id,
             categoryLevel: mappedCategory?.level ?? null,
             gender: getGenderShortLabel(player.gender),
+            dni: player.dni ?? null,
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -229,6 +230,9 @@ export const PlayersPage = () => {
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-2">
+                    <span className="font-medium">DNI</span>
+                  </th>
+                  <th className="py-2">
                     <button
                       type="button"
                       className="font-medium"
@@ -266,6 +270,9 @@ export const PlayersPage = () => {
                       rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
                     }`}
                   >
+                    <td className="py-2 text-slate-700">
+                      {player.dni ?? "-"}
+                    </td>
                     <td className="py-2 text-slate-700">{player.name}</td>
                     <td className="py-2 text-slate-700">{player.category}</td>
                     <td className="py-2 text-slate-700">
@@ -312,7 +319,7 @@ export const PlayersPage = () => {
                 ))}
                 {!filteredRows.length && (
                   <tr>
-                    <td colSpan={4} className="py-4 text-center text-slate-500">
+                    <td colSpan={5} className="py-4 text-center text-slate-500">
                       No se encontraron jugadores con esos filtros.
                     </td>
                   </tr>
@@ -330,9 +337,10 @@ export const PlayersPage = () => {
         categories={categories}
         initialName={editingPlayer?.name ?? ""}
         initialCategoryId={editingPlayer?.categoryId ?? categories[0]?.id ?? ""}
+        initialDni={editingPlayer?.dni ?? null}
         initialGender={editingPlayer?.gender ?? "M"}
         onClose={closeModal}
-        onSubmit={async ({ name, categoryId, gender }) => {
+        onSubmit={async ({ name, categoryId, gender, dni }) => {
           const duplicatedPlayer = rows.find(
             (item) =>
               item.name.toLocaleLowerCase() === name.toLocaleLowerCase() &&
@@ -347,12 +355,14 @@ export const PlayersPage = () => {
               name,
               base_category_id: categoryId,
               gender,
+              dni,
             });
           } else {
             await createPlayer({
               name,
               base_category_id: categoryId,
               gender,
+              dni,
             });
           }
           await load();
