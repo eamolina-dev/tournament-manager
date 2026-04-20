@@ -327,9 +327,9 @@ export const TournamentCategoryPage = ({
       storageKey: `tournament:${slug}:${category}:admin-bracket-stage`,
       tabs: adminBracketStages,
     });
-  const [publicCrossesView, setPublicCrossesView] = useState<"bracket" | "zone">(
-    "bracket"
-  );
+  const [publicCrossesView, setPublicCrossesView] = useState<
+    "bracket" | "zone"
+  >("bracket");
   const publicBracketStages = useMemo(
     () =>
       eliminationStageOrder.filter((stage) =>
@@ -745,7 +745,9 @@ export const TournamentCategoryPage = ({
   };
 
   const handleGenerateZonesAutomatically = () => {
-    const hasIncompleteTeams = (data?.teams ?? []).some((team) => !team.player2Id);
+    const hasIncompleteTeams = (data?.teams ?? []).some(
+      (team) => !team.player2Id
+    );
     if (hasIncompleteTeams) {
       const message =
         "No podés generar zonas: todas las parejas deben tener 2 jugadores.";
@@ -1479,7 +1481,9 @@ export const TournamentCategoryPage = ({
             <button
               disabled={!isTournamentEditable}
               onClick={() =>
-                navigate(`${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`)
+                navigate(
+                  `${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`
+                )
               }
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
@@ -1531,9 +1535,9 @@ export const TournamentCategoryPage = ({
 
         {data.champion && (
           <div className="mt-3 space-y-1 text-sm text-slate-700">
-            <p>🥇 Champion: {data.champion}</p>
-            <p>🥈 Finalist: {data.finalist}</p>
-            <p>🥉 Semifinalists: {data.semifinalists?.join(" · ")}</p>
+            <p>🥇 Campeones: {data.champion}</p>
+            <p>🥈 Finalistas: {data.finalist}</p>
+            <p>🥉 Semifinalistas: {data.semifinalists?.join(" · ")}</p>
           </div>
         )}
         {actionNotice && (
@@ -1725,10 +1729,9 @@ export const TournamentCategoryPage = ({
 
                     const player1Name =
                       playersById.get(player1Id) ?? "Jugador/a 1";
-                    const player2Name =
-                      player2Id
-                        ? playersById.get(player2Id) ?? "Jugador/a 2"
-                        : "Sin compañero";
+                    const player2Name = player2Id
+                      ? playersById.get(player2Id) ?? "Jugador/a 2"
+                      : "Sin compañero";
                     const teamName = [player1Name, player2Name].join(" / ");
                     const teamKey = buildTeamKey(player1Id, player2Id ?? null);
 
@@ -1918,40 +1921,40 @@ export const TournamentCategoryPage = ({
                             </span>
                           )}
                         </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            if (!isTournamentEditable) {
-                              setTeamDraftError(structuralLockMessage);
-                              return;
-                            }
-                            setEditingTeamId(team.id);
-                            setTeamForm({
-                              player1Id: team.player1Id ?? "",
-                              player2Id: team.player2Id ?? "",
-                            });
-                            setTeamDraftError(null);
-                          }}
-                          disabled={!isTournamentEditable}
-                          className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (!isTournamentEditable) {
-                              setTeamDraftError(structuralLockMessage);
-                              return;
-                            }
-                            void deleteTeam(team.id).then(load);
-                          }}
-                          disabled={!isTournamentEditable}
-                          className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
-                        >
-                          Eliminar
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (!isTournamentEditable) {
+                                setTeamDraftError(structuralLockMessage);
+                                return;
+                              }
+                              setEditingTeamId(team.id);
+                              setTeamForm({
+                                player1Id: team.player1Id ?? "",
+                                player2Id: team.player2Id ?? "",
+                              });
+                              setTeamDraftError(null);
+                            }}
+                            disabled={!isTournamentEditable}
+                            className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!isTournamentEditable) {
+                                setTeamDraftError(structuralLockMessage);
+                                return;
+                              }
+                              void deleteTeam(team.id).then(load);
+                            }}
+                            disabled={!isTournamentEditable}
+                            className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
@@ -2692,7 +2695,6 @@ export const TournamentCategoryPage = ({
                   )}
                 </section>
               )}
-
             </section>
           )}
           {activeTab === "Posiciones" && (
