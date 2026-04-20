@@ -119,6 +119,13 @@ const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "quarter" || stage === "round_of_8") return "Cuartos de final";
   return `Ronda ${fallbackRound}`;
 };
+const getSourceOptionLabel = (source: string): string => {
+  const parsed = parseSource(source);
+  if (!parsed) return source;
+  if (parsed.type === "group") return source;
+  if (parsed.outcome === "W") return `Ganador P${parsed.order} (R${parsed.round})`;
+  return `Perdedor P${parsed.order} (R${parsed.round})`;
+};
 
 export const TournamentCategoryPage = ({
   tenantSlug = "",
@@ -1140,6 +1147,31 @@ export const TournamentCategoryPage = ({
         matches: [...matches].sort((a, b) => a.order - b.order),
       }));
   }, [eliminationTemplateMatches]);
+  const configurableRoundNumbers = useMemo(() => {
+    if (!roundBlocks.length || firstTemplateRound == null) return [] as number[];
+    const firstRound = firstTemplateRound;
+    const secondRound = firstRound + 1;
+    const secondRoundMatches = eliminationTemplateMatches.filter(
+      (match) => match.round === secondRound
+    );
+    const hasGroupSourcesInSecondRound = secondRoundMatches.some((match) => {
+      const team1 = parseSource(match.team1);
+      const team2 = parseSource(match.team2);
+      return team1?.type === "group" || team2?.type === "group";
+    });
+
+    if (hasGroupSourcesInSecondRound) {
+      return [firstRound, secondRound];
+    }
+    return [firstRound];
+  }, [eliminationTemplateMatches, firstTemplateRound, roundBlocks.length]);
+  const visibleRoundBlocks = useMemo(
+    () =>
+      roundBlocks.filter((roundBlock) =>
+        configurableRoundNumbers.includes(roundBlock.round)
+      ),
+    [roundBlocks, configurableRoundNumbers]
+  );
 
   const getEffectiveSource = useCallback(
     (round: number, order: number, slot: "team1Source" | "team2Source", templateSource: string) =>
@@ -1152,10 +1184,11 @@ export const TournamentCategoryPage = ({
   const isEditableSourceSlot = useCallback(
     (round: number, templateSource: string): boolean => {
       const parsed = parseSource(templateSource);
+      if (!configurableRoundNumbers.includes(round)) return false;
       if (round === firstTemplateRound) return true;
       return parsed?.type === "group";
     },
-    [firstTemplateRound]
+    [configurableRoundNumbers, firstTemplateRound]
   );
   useEffect(() => {
     setManualCrossings((prev) =>
@@ -1163,12 +1196,14 @@ export const TournamentCategoryPage = ({
         eliminationTemplateMatches.some(
           (match) =>
             match.order === item.order &&
-            (item.round ? match.round === item.round : match.round === firstTemplateRound)
+            (item.round ? match.round === item.round : match.round === firstTemplateRound) &&
+            (isEditableSourceSlot(match.round, match.team1) ||
+              isEditableSourceSlot(match.round, match.team2))
         )
       )
     );
     setManualCrossingsError(null);
-  }, [eliminationTemplateMatches, firstTemplateRound]);
+  }, [eliminationTemplateMatches, firstTemplateRound, isEditableSourceSlot]);
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1367,7 +1402,7 @@ export const TournamentCategoryPage = ({
           throw new Error(`El source ${source} no es válido para esta categoría.`);
         }
         if (usedSources.has(source)) {
-          throw new Error(`El source ${source} está repetido en la primera ronda.`);
+          throw new Error(`El source ${source} está repetido en la configuración manual.`);
         }
         usedSources.add(source);
       });
@@ -2835,9 +2870,9 @@ export const TournamentCategoryPage = ({
                   Autocompletar cruces sugeridos
                 </button>
               </div>
-              {roundBlocks.length ? (
+              {visibleRoundBlocks.length ? (
                 <div className="mt-2 space-y-3">
-                  {roundBlocks.map((roundBlock) => (
+                  {visibleRoundBlocks.map((roundBlock) => (
                     <div key={roundBlock.round} className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {roundBlock.title}
@@ -2927,17 +2962,17 @@ export const TournamentCategoryPage = ({
                               >
                                 <option value="">Seleccionar source</option>
                                 {allowedCrossingSources.map((source) => (
-                                  <option
+                                <option
                                     key={`team1-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {source}
+                                    {getSourceOptionLabel(source)}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {team1Current}
+                                {getSourceOptionLabel(team1Current)}
                               </p>
                             )}
                             <span className="self-center text-center text-xs text-slate-500">
@@ -2957,17 +2992,17 @@ export const TournamentCategoryPage = ({
                               >
                                 <option value="">Seleccionar source</option>
                                 {allowedCrossingSources.map((source) => (
-                                  <option
+                                <option
                                     key={`team2-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {source}
+                                    {getSourceOptionLabel(source)}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {team2Current}
+                                {getSourceOptionLabel(team2Current)}
                               </p>
                             )}
                           </div>
