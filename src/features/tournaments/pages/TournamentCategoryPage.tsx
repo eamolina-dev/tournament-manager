@@ -47,11 +47,12 @@ import {
   defaultCourtsCount,
   defaultMatchIntervalMinutes,
   defaultScheduleStartTime,
-  eliminationStageLabel,
   eliminationStageOrder,
+  getEliminationStageLabel,
   matchCardsGridClass,
   schedulingPhaseLabels,
   sectionTabs,
+  type EliminationStageKey,
 } from "./tournament-category/tournamentCategoryPage.constants";
 import {
   DroppableZone,
@@ -190,6 +191,9 @@ export const TournamentCategoryPage = ({
   const [scheduleConfigSuccess, setScheduleConfigSuccess] = useState<
     string | null
   >(null);
+  const [stageLabelOverrides, setStageLabelOverrides] = useState<
+    Partial<Record<EliminationStageKey, string>>
+  >({});
   const [manualZones, setManualZones] = useState<ZoneBoardColumn[]>([]);
   const [manualZoneError, setManualZoneError] = useState<string | null>(null);
   const [zoneConfigSuccess, setZoneConfigSuccess] = useState<string | null>(
@@ -200,6 +204,12 @@ export const TournamentCategoryPage = ({
   const [lastGenerationDraft, setLastGenerationDraft] =
     useState<MatchGenerationDraft | null>(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
+  const stageLabelsStorageKey = data
+    ? `tm:stage-labels:${data.tournamentCategoryId}`
+    : "";
+  const teamsDraftStorageKey = data
+    ? `tm:teams-draft:${data.tournamentCategoryId}`
+    : "";
 
   const loadPlayers = async ({
     categoryGender,
@@ -337,6 +347,13 @@ export const TournamentCategoryPage = ({
       ),
     [orderedBracketMatches]
   );
+  const activeEliminationStages = useMemo(
+    () =>
+      eliminationStageOrder.filter((stage) =>
+        orderedBracketMatches.some((match) => match.stage === stage)
+      ),
+    [orderedBracketMatches]
+  );
   const [activePublicBracketStage, setActivePublicBracketStage] =
     usePersistentTab<string>({
       storageKey: `tournament:${slug}:${category}:public-bracket-stage`,
@@ -358,6 +375,11 @@ export const TournamentCategoryPage = ({
       ),
     [activePublicBracketStage, orderedBracketMatches]
   );
+  const stageLabelFor = useCallback(
+    (stage: EliminationStageKey) =>
+      getEliminationStageLabel(stage, stageLabelOverrides),
+    [stageLabelOverrides]
+  );
   const orderedZoneMatches = useMemo(
     () =>
       [...(activeZone?.matches ?? [])].sort(
@@ -373,6 +395,9 @@ export const TournamentCategoryPage = ({
     return "matches_ready";
   }, [data, orderedZones.length, orderedEditableMatches.length]);
   const isTournamentEditable = data?.tournamentStatus === "draft";
+  const isTournamentFinished = data?.tournamentStatus === "finished";
+  const hasEnoughTeams = (data?.teams.length ?? 0) >= 2;
+  const isStep2Enabled = isTournamentEditable && hasEnoughTeams;
   const structuralLockMessage =
     "El torneo ya comenzó: solo podés cargar resultados.";
 
@@ -459,6 +484,9 @@ export const TournamentCategoryPage = ({
         const stored = JSON.parse(storedRaw) as {
           phaseByDay?: Partial<Record<SchedulingPhaseKey, string>>;
           zoneDayById?: Record<string, string>;
+          startTimesByDay?: Record<string, unknown>;
+          matchIntervalMinutes?: number;
+          courtsCount?: number;
         };
         if (stored.phaseByDay) {
           setPhaseByDay((prev) => ({
@@ -469,11 +497,81 @@ export const TournamentCategoryPage = ({
             finals: stored.phaseByDay?.finals ?? prev.finals,
           }));
         }
+        if (
+          stored.startTimesByDay &&
+          typeof stored.startTimesByDay === "object" &&
+          !Array.isArray(stored.startTimesByDay)
+        ) {
+          setScheduleStartTimesInput((prev) => ({
+            ...prev,
+            ...parseScheduleStartTimes(stored.startTimesByDay),
+          }));
+        }
+        if (typeof stored.matchIntervalMinutes === "number") {
+          setMatchIntervalMinutesInput(stored.matchIntervalMinutes);
+        }
+        if (typeof stored.courtsCount === "number") {
+          setCourtsCountInput(stored.courtsCount);
+        }
         if (stored.zoneDayById) {
           setZoneDayById(stored.zoneDayById);
         }
       } catch {
         // no-op: ignore malformed local scheduling cache
+      }
+    }
+
+    const storedTeamDraftRaw = localStorage.getItem(
+      `tm:teams-draft:${data.tournamentCategoryId}`
+    );
+    if (storedTeamDraftRaw) {
+      try {
+        const storedDraft = JSON.parse(storedTeamDraftRaw) as {
+          teamForm?: TeamFormState;
+          draftTeams?: DraftTeam[];
+        };
+        if (storedDraft.teamForm) {
+          setTeamForm({
+            player1Id: storedDraft.teamForm.player1Id ?? "",
+            player2Id: storedDraft.teamForm.player2Id ?? "",
+          });
+        }
+        if (Array.isArray(storedDraft.draftTeams)) {
+          setDraftTeams(
+            storedDraft.draftTeams.filter(
+              (team) =>
+                Boolean(team?.id) &&
+                Boolean(team?.key) &&
+                Boolean(team?.name) &&
+                Boolean(team?.player1Id)
+            )
+          );
+        }
+      } catch {
+        // no-op: ignore malformed local teams draft cache
+      }
+    }
+
+    const storedStageLabelsRaw = localStorage.getItem(
+      `tm:stage-labels:${data.tournamentCategoryId}`
+    );
+    if (storedStageLabelsRaw) {
+      try {
+        const storedStageLabels = JSON.parse(storedStageLabelsRaw) as Partial<
+          Record<EliminationStageKey, string>
+        >;
+        const safeLabels = eliminationStageOrder.reduce<
+          Partial<Record<EliminationStageKey, string>>
+        >((acc, stage) => {
+          const value = storedStageLabels?.[stage];
+          if (typeof value === "string" && value.trim().length) {
+            acc[stage] = value.trim();
+          }
+          return acc;
+        }, {});
+        setStageLabelOverrides(safeLabels);
+      } catch {
+        // no-op: ignore malformed local stage labels cache
       }
     }
   }, [data, scheduleDays]);
@@ -556,6 +654,20 @@ export const TournamentCategoryPage = ({
   useEffect(() => {
     setZoneConfigSuccess(null);
   }, [manualZones]);
+  useEffect(() => {
+    if (!teamsDraftStorageKey) return;
+    localStorage.setItem(
+      teamsDraftStorageKey,
+      JSON.stringify({ teamForm, draftTeams })
+    );
+  }, [teamsDraftStorageKey, teamForm, draftTeams]);
+  useEffect(() => {
+    if (!stageLabelsStorageKey) return;
+    localStorage.setItem(
+      stageLabelsStorageKey,
+      JSON.stringify(stageLabelOverrides)
+    );
+  }, [stageLabelsStorageKey, stageLabelOverrides]);
   const filteredResults = (data?.results ?? []).filter((row) =>
     row.playerName
       .toLocaleLowerCase()
@@ -895,6 +1007,13 @@ export const TournamentCategoryPage = ({
     () => validateZones(normalizedZoneColumns),
     [normalizedZoneColumns]
   );
+  const hasReadyZones =
+    orderedZones.length > 0 &&
+    zoneValidation.warnings.length === 0 &&
+    !manualZoneError;
+  const hasGeneratedMatches = orderedEditableMatches.length > 0;
+  const isStep3Enabled = isTournamentEditable && hasReadyZones;
+  const isStep4Enabled = isTournamentEditable && hasGeneratedMatches;
 
   const moveTeam = ({
     activeTeamId,
@@ -955,6 +1074,7 @@ export const TournamentCategoryPage = ({
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (!isStep2Enabled) return;
     const activeId = String(event.active.id);
     const overId = event.over?.id ? String(event.over.id) : null;
     if (!overId) return;
@@ -2003,17 +2123,27 @@ export const TournamentCategoryPage = ({
             </div>
           </article>
 
-          <article className="tm-setup-step-card rounded-xl border border-slate-200 p-4">
+          <article
+            className={`tm-setup-step-card rounded-xl border border-slate-200 p-4 ${
+              isStep2Enabled ? "" : "opacity-70"
+            }`}
+          >
             <h3 className="font-semibold text-slate-900">2. Zonas</h3>
             <p className="mt-1 text-xs text-slate-500">
               Armá zonas manualmente o generá una distribución balanceada
               automática.
             </p>
+            {!isStep2Enabled && (
+              <p className="mt-2 text-xs text-amber-700">
+                Completá el Paso 1 (al menos 2 equipos) para habilitar este
+                bloque.
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleGenerateZonesAutomatically}
-                disabled={!isTournamentEditable || !teamsForZoneBoard.length}
+                disabled={!isStep2Enabled || !teamsForZoneBoard.length}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
               >
                 Generar zonas automáticamente
@@ -2021,7 +2151,7 @@ export const TournamentCategoryPage = ({
               <button
                 type="button"
                 onClick={() => void handleSaveZones()}
-                disabled={!isTournamentEditable || saving}
+                disabled={!isStep2Enabled || saving}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
               >
                 Guardar zonas
@@ -2081,6 +2211,7 @@ export const TournamentCategoryPage = ({
                                 )
                               )
                             }
+                            disabled={!isStep2Enabled}
                             className="w-32 rounded border border-slate-300 px-2 py-1 text-xs"
                           />
                         ) : null}
@@ -2119,13 +2250,23 @@ export const TournamentCategoryPage = ({
             </DndContext>
           </article>
 
-          <article className="tm-setup-step-card order-4 rounded-xl border border-slate-200 p-4">
+          <article
+            className={`tm-setup-step-card order-4 rounded-xl border border-slate-200 p-4 ${
+              isStep4Enabled ? "" : "opacity-70"
+            }`}
+          >
             <h3 className="font-semibold text-slate-900">
-              4. Horarios (independiente)
+              4. Horarios
             </h3>
             <p className="mt-1 text-xs text-slate-500">
               Guardá y aplicá horarios sin regenerar partidos.
             </p>
+            {!isStep4Enabled && (
+              <p className="mt-2 text-xs text-amber-700">
+                Generá partidos en el Paso 3 para habilitar la carga de
+                horarios.
+              </p>
+            )}
 
             <div className="mt-3 space-y-3">
               <div className="rounded-lg border border-slate-200 p-3">
@@ -2146,6 +2287,7 @@ export const TournamentCategoryPage = ({
                             [zone.id]: event.target.value,
                           }))
                         }
+                        disabled={!isStep4Enabled}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       >
                         <option value="">Seleccionar día</option>
@@ -2178,6 +2320,7 @@ export const TournamentCategoryPage = ({
                             [phase.key]: event.target.value,
                           }))
                         }
+                        disabled={!isStep4Enabled}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       >
                         <option value="">Seleccionar día</option>
@@ -2218,6 +2361,7 @@ export const TournamentCategoryPage = ({
                               [day.key]: event.target.value,
                             }))
                           }
+                          disabled={!isStep4Enabled}
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                         />
                       </label>
@@ -2241,6 +2385,7 @@ export const TournamentCategoryPage = ({
                         Number(event.target.value) || 0
                       )
                     }
+                    disabled={!isStep4Enabled}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   />
                 </label>
@@ -2259,6 +2404,7 @@ export const TournamentCategoryPage = ({
                     onChange={(event) =>
                       setCourtsCountInput(Number(event.target.value) || 0)
                     }
+                    disabled={!isStep4Enabled}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   />
                 </label>
@@ -2267,7 +2413,7 @@ export const TournamentCategoryPage = ({
 
             <button
               onClick={() => void saveScheduleConfig()}
-              disabled={!isTournamentEditable || saving}
+              disabled={!isStep4Enabled || saving}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
               Aplicar / actualizar horarios
@@ -2287,15 +2433,53 @@ export const TournamentCategoryPage = ({
             )}
           </article>
 
-          <article className="tm-setup-step-card order-3 rounded-xl border border-slate-200 p-4">
+          <article
+            className={`tm-setup-step-card order-3 rounded-xl border border-slate-200 p-4 ${
+              isStep3Enabled ? "" : "opacity-70"
+            }`}
+          >
             <h3 className="font-semibold text-slate-900">3. Partidos</h3>
             <p className="mt-1 text-xs text-slate-500">
               Regenerá grupos + cruces sólo cuando cambie la composición del
               torneo.
             </p>
+            {!isStep3Enabled && (
+              <p className="mt-2 text-xs text-amber-700">
+                Guardá zonas válidas en el Paso 2 para habilitar la generación
+                de partidos.
+              </p>
+            )}
+            {!!activeEliminationStages.length && (
+              <div className="mt-3 rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Etiquetas de fases
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {activeEliminationStages.map((stage) => (
+                    <label key={stage} className="space-y-1">
+                      <span className="text-xs text-slate-600">
+                        {getEliminationStageLabel(stage)}
+                      </span>
+                      <input
+                        type="text"
+                        value={stageLabelFor(stage)}
+                        onChange={(event) =>
+                          setStageLabelOverrides((prev) => ({
+                            ...prev,
+                            [stage]: event.target.value,
+                          }))
+                        }
+                        disabled={!isStep3Enabled}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
-              disabled={!canGenerateZones || saving}
+              disabled={!isStep3Enabled || !canGenerateZones || saving}
               onClick={() => void handleGenerateMatches()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
@@ -2474,7 +2658,7 @@ export const TournamentCategoryPage = ({
                         : "border border-slate-300 text-slate-700"
                     }`}
                   >
-                    {eliminationStageLabel[stage]}
+                    {stageLabelFor(stage)}
                   </button>
                 ))}
               </div>
@@ -2664,7 +2848,10 @@ export const TournamentCategoryPage = ({
               </div>
 
               {publicCrossesView === "bracket" ? (
-                <TournamentBracket matches={orderedBracketMatches} />
+                <TournamentBracket
+                  matches={orderedBracketMatches}
+                  stageLabels={stageLabelOverrides}
+                />
               ) : (
                 <section className="space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -2679,7 +2866,7 @@ export const TournamentCategoryPage = ({
                             : "border border-slate-300 text-slate-700"
                         }`}
                       >
-                        {eliminationStageLabel[stage]}
+                        {stageLabelFor(stage)}
                       </button>
                     ))}
                   </div>
@@ -2715,7 +2902,9 @@ export const TournamentCategoryPage = ({
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
                       <th className="py-2">Jugador</th>
-                      <th className="py-2 text-center">Estado</th>
+                      {!isTournamentFinished && (
+                        <th className="py-2 text-center">Estado</th>
+                      )}
                       <th className="py-2 text-right">Puntos</th>
                     </tr>
                   </thead>
@@ -2731,22 +2920,24 @@ export const TournamentCategoryPage = ({
                           <td className="py-2 text-slate-700">
                             {row.playerName}
                           </td>
-                          <td className="py-2 text-center">
-                            {row.isInCompetition ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                                <span
-                                  className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
-                                  title="En competencia"
-                                />
-                                En competencia
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                                <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
-                                Eliminado
-                              </span>
-                            )}
-                          </td>
+                          {!isTournamentFinished && (
+                            <td className="py-2 text-center">
+                              {row.isInCompetition ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                                  <span
+                                    className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
+                                    title="En competencia"
+                                  />
+                                  En competencia
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
+                                  Eliminado
+                                </span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-2 text-right font-semibold text-slate-900">
                             {row.points}
                           </td>
@@ -2755,7 +2946,7 @@ export const TournamentCategoryPage = ({
                     ) : (
                       <tr>
                         <td
-                          colSpan={3}
+                          colSpan={isTournamentFinished ? 2 : 3}
                           className="py-4 text-center text-slate-500"
                         >
                           No se encontraron jugadores.

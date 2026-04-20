@@ -5,6 +5,10 @@ import {
 import { useMemo } from "react"
 import type { Match } from "../types"
 import { MatchCardFull } from "../../matches/components/MatchCard"
+import {
+  getEliminationStageLabel,
+  type EliminationStageKey,
+} from "../pages/tournament-category/tournamentCategoryPage.constants"
 
 const stageOrder = {
   round_of_32: 1,
@@ -42,7 +46,10 @@ const getWinner = (score?: string) => {
   return team1 > team2 ? 1 : 2
 }
 
-const mapMatches = (matches: Match[]): BracketMatch[] => {
+const mapMatches = (
+  matches: Match[],
+  stageLabels?: Partial<Record<EliminationStageKey, string>>,
+): BracketMatch[] => {
   const sorted = [...matches].sort(
     (a, b) =>
       (a.matchNumber ?? Number.MAX_SAFE_INTEGER) - (b.matchNumber ?? Number.MAX_SAFE_INTEGER) ||
@@ -54,7 +61,9 @@ const mapMatches = (matches: Match[]): BracketMatch[] => {
 
     return {
       id: item.id,
-      name: item.stage?.toUpperCase() ?? "FINAL",
+      name: item.stage
+        ? getEliminationStageLabel(item.stage as EliminationStageKey, stageLabels)
+        : "Final",
       nextMatchId: item.nextMatchId ?? null,
       tournamentRoundText: item.stage ?? "final",
       state: "DONE" as const,
@@ -107,12 +116,21 @@ const BracketCard = ({
   )
 }
 
-export const TournamentBracket = ({ matches }: { matches: Match[] }) => {
+export const TournamentBracket = ({
+  matches,
+  stageLabels,
+}: {
+  matches: Match[]
+  stageLabels?: Partial<Record<EliminationStageKey, string>>
+}) => {
   if (!matches.length) {
     return <p className="text-sm text-[var(--tm-muted)]">Sin cruces cargados.</p>
   }
 
-  const mappedMatches = useMemo(() => mapMatches(matches), [matches])
+  const mappedMatches = useMemo(
+    () => mapMatches(matches, stageLabels),
+    [matches, stageLabels],
+  )
   const matchById = useMemo(
     () => new Map(matches.map((match) => [match.id, match])),
     [matches],

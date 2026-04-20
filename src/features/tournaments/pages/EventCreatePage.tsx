@@ -43,6 +43,16 @@ type CategoryDraftItem = {
   suma_value: number | null;
   gender: TournamentCategoryGender;
 };
+type TournamentSetupDraft = {
+  name: string;
+  startDate: string;
+  endDate: string;
+  categoryMode: "normal" | "suma";
+  categorySelection: string;
+  sumSelection: number;
+  genderSelection: TournamentCategoryGender;
+  draftCategories: CategoryDraftItem[];
+};
 
 type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
 
@@ -97,10 +107,70 @@ export const TournamentCreatePage = ({
     dates?: string;
     category?: string;
   }>({});
+  const setupDraftStorageKey = `tm:tournament-setup:${tenantSlug}`;
 
   useEffect(() => {
     setCurrentTournamentId(tournamentId);
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const storedRaw = localStorage.getItem(setupDraftStorageKey);
+    if (!storedRaw) return;
+    try {
+      const stored = JSON.parse(storedRaw) as Partial<TournamentSetupDraft>;
+      if (typeof stored.name === "string") setName(stored.name);
+      if (typeof stored.startDate === "string") setStartDate(stored.startDate);
+      if (typeof stored.endDate === "string") setEndDate(stored.endDate);
+      if (stored.categoryMode === "normal" || stored.categoryMode === "suma") {
+        setCategoryMode(stored.categoryMode);
+      }
+      if (typeof stored.categorySelection === "string") {
+        setCategorySelection(stored.categorySelection);
+      }
+      if (typeof stored.sumSelection === "number") {
+        setSumSelection(stored.sumSelection);
+      }
+      if (
+        stored.genderSelection === "M" ||
+        stored.genderSelection === "F" ||
+        stored.genderSelection === "X"
+      ) {
+        setGenderSelection(stored.genderSelection);
+      }
+      if (Array.isArray(stored.draftCategories)) {
+        setDraftCategories(stored.draftCategories);
+      }
+    } catch {
+      // no-op: ignore malformed setup draft cache
+    }
+  }, [isEditMode, setupDraftStorageKey]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const payload: TournamentSetupDraft = {
+      name,
+      startDate,
+      endDate,
+      categoryMode,
+      categorySelection,
+      sumSelection,
+      genderSelection,
+      draftCategories,
+    };
+    localStorage.setItem(setupDraftStorageKey, JSON.stringify(payload));
+  }, [
+    isEditMode,
+    setupDraftStorageKey,
+    name,
+    startDate,
+    endDate,
+    categoryMode,
+    categorySelection,
+    sumSelection,
+    genderSelection,
+    draftCategories,
+  ]);
 
   useEffect(() => {
     void (async () => {
@@ -328,6 +398,7 @@ export const TournamentCreatePage = ({
         }))
       );
       setDraftCategories([]);
+      localStorage.removeItem(setupDraftStorageKey);
       setSuccessMessage("Torneo creado. Se recargó la vista para seguir configurando categorías.");
     } catch (submitError) {
       setError(

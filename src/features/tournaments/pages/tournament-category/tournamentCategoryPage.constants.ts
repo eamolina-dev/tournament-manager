@@ -21,6 +21,15 @@ export const eliminationStageLabel: Record<
   semi: "Semis",
   final: "Final",
 };
+export type EliminationStageKey = (typeof eliminationStageOrder)[number];
+export const getEliminationStageLabel = (
+  stage: EliminationStageKey,
+  overrides?: Partial<Record<EliminationStageKey, string>>
+) => {
+  const override = overrides?.[stage]?.trim();
+  if (override) return override;
+  return eliminationStageLabel[stage];
+};
 export const matchCardsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 export const defaultScheduleStartTime = "09:00";
 export const defaultMatchIntervalMinutes = 60;
