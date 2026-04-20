@@ -1190,6 +1190,67 @@ export const TournamentCategoryPage = ({
     },
     [configurableRoundNumbers, firstTemplateRound]
   );
+  const getManualMatchForRoundOrder = useCallback(
+    (round: number, order: number) =>
+      manualCrossingsByRoundOrder.get(`${round}-${order}`) ??
+      manualCrossingsByRoundOrder.get(`first-${order}`),
+    [manualCrossingsByRoundOrder]
+  );
+  const getEditableSlotValue = useCallback(
+    (round: number, order: number, slot: "team1Source" | "team2Source") =>
+      getManualMatchForRoundOrder(round, order)?.[slot] ?? "",
+    [getManualMatchForRoundOrder]
+  );
+  const getAvailableSourcesForSlot = useCallback(
+    (
+      round: number,
+      order: number,
+      slot: "team1Source" | "team2Source",
+      currentValue: string
+    ) => {
+      const used = new Set<string>();
+
+      visibleRoundBlocks.forEach((roundBlock) => {
+        roundBlock.matches.forEach((match) => {
+          const team1Editable = isEditableSourceSlot(match.round, match.team1);
+          const team2Editable = isEditableSourceSlot(match.round, match.team2);
+          if (team1Editable) {
+            const value = getEditableSlotValue(
+              match.round,
+              match.order,
+              "team1Source"
+            ).trim();
+            if (value.length) used.add(value);
+          }
+          if (team2Editable) {
+            const value = getEditableSlotValue(
+              match.round,
+              match.order,
+              "team2Source"
+            ).trim();
+            if (value.length) used.add(value);
+          }
+        });
+      });
+
+      used.delete(currentValue);
+
+      const currentSlotValue = getEditableSlotValue(round, order, slot).trim();
+      if (currentSlotValue.length) {
+        used.delete(currentSlotValue);
+      }
+
+      return allowedCrossingSources.filter(
+        (source) => source === currentValue || !used.has(source)
+      );
+    },
+    [
+      allowedCrossingSources,
+      getEditableSlotValue,
+      isEditableSourceSlot,
+      visibleRoundBlocks,
+    ]
+  );
   useEffect(() => {
     setManualCrossings((prev) =>
       prev.filter((item) =>
@@ -2878,18 +2939,6 @@ export const TournamentCategoryPage = ({
                         {roundBlock.title}
                       </p>
                       {roundBlock.matches.map((match) => {
-                        const team1Current = getEffectiveSource(
-                          match.round,
-                          match.order,
-                          "team1Source",
-                          match.team1
-                        );
-                        const team2Current = getEffectiveSource(
-                          match.round,
-                          match.order,
-                          "team2Source",
-                          match.team2
-                        );
                         const team1Editable = isEditableSourceSlot(
                           match.round,
                           match.team1
@@ -2897,6 +2946,42 @@ export const TournamentCategoryPage = ({
                         const team2Editable = isEditableSourceSlot(
                           match.round,
                           match.team2
+                        );
+                        const team1Current = team1Editable
+                          ? getEditableSlotValue(
+                              match.round,
+                              match.order,
+                              "team1Source"
+                            )
+                          : getEffectiveSource(
+                              match.round,
+                              match.order,
+                              "team1Source",
+                              match.team1
+                            );
+                        const team2Current = team2Editable
+                          ? getEditableSlotValue(
+                              match.round,
+                              match.order,
+                              "team2Source"
+                            )
+                          : getEffectiveSource(
+                              match.round,
+                              match.order,
+                              "team2Source",
+                              match.team2
+                            );
+                        const team1Options = getAvailableSourcesForSlot(
+                          match.round,
+                          match.order,
+                          "team1Source",
+                          team1Current
+                        );
+                        const team2Options = getAvailableSourcesForSlot(
+                          match.round,
+                          match.order,
+                          "team2Source",
+                          team2Current
                         );
 
                         const updateManualMatch = (
@@ -2916,11 +3001,13 @@ export const TournamentCategoryPage = ({
                               team1Source:
                                 slot === "team1Source"
                                   ? value
-                                  : existing?.team1Source ?? match.team1,
+                                  : existing?.team1Source ??
+                                    (team1Editable ? "" : match.team1),
                               team2Source:
                                 slot === "team2Source"
                                   ? value
-                                  : existing?.team2Source ?? match.team2,
+                                  : existing?.team2Source ??
+                                    (team2Editable ? "" : match.team2),
                             };
                             return [
                               ...prev.filter(
@@ -2961,7 +3048,7 @@ export const TournamentCategoryPage = ({
                                 className="rounded border border-slate-300 px-2 py-1 text-xs"
                               >
                                 <option value="">Seleccionar source</option>
-                                {allowedCrossingSources.map((source) => (
+                                {team1Options.map((source) => (
                                 <option
                                     key={`team1-${match.round}-${match.order}-${source}`}
                                     value={source}
@@ -2991,8 +3078,8 @@ export const TournamentCategoryPage = ({
                                 className="rounded border border-slate-300 px-2 py-1 text-xs"
                               >
                                 <option value="">Seleccionar source</option>
-                                {allowedCrossingSources.map((source) => (
-                                <option
+                                {team2Options.map((source) => (
+                                  <option
                                     key={`team2-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
