@@ -119,12 +119,16 @@ const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "quarter" || stage === "round_of_8") return "Cuartos de final";
   return `Ronda ${fallbackRound}`;
 };
-const getSourceOptionLabel = (source: string): string => {
+const getSourceOptionLabel = (
+  source: string,
+  roundTitleByNumber?: Map<number, string>
+): string => {
   const parsed = parseSource(source);
   if (!parsed) return source;
   if (parsed.type === "group") return source;
-  if (parsed.outcome === "W") return `Ganador P${parsed.order} (R${parsed.round})`;
-  return `Perdedor P${parsed.order} (R${parsed.round})`;
+  const roundTitle = roundTitleByNumber?.get(parsed.round) ?? `Ronda ${parsed.round}`;
+  if (parsed.outcome === "W") return `Ganador ${roundTitle} ${parsed.order}`;
+  return `Perdedor ${roundTitle} ${parsed.order}`;
 };
 
 export const TournamentCategoryPage = ({
@@ -1147,6 +1151,10 @@ export const TournamentCategoryPage = ({
         matches: [...matches].sort((a, b) => a.order - b.order),
       }));
   }, [eliminationTemplateMatches]);
+  const roundTitleByNumber = useMemo(
+    () => new Map(roundBlocks.map((roundBlock) => [roundBlock.round, roundBlock.title])),
+    [roundBlocks]
+  );
   const configurableRoundNumbers = useMemo(() => {
     if (!roundBlocks.length || firstTemplateRound == null) return [] as number[];
     const firstRound = firstTemplateRound;
@@ -1250,6 +1258,33 @@ export const TournamentCategoryPage = ({
       isEditableSourceSlot,
       visibleRoundBlocks,
     ]
+  );
+  const editableSlots = useMemo(
+    () =>
+      visibleRoundBlocks.flatMap((roundBlock) =>
+        roundBlock.matches.flatMap((match) => {
+          const slots: Array<{
+            round: number;
+            order: number;
+            slot: "team1Source" | "team2Source";
+          }> = [];
+          if (isEditableSourceSlot(match.round, match.team1)) {
+            slots.push({ round: match.round, order: match.order, slot: "team1Source" });
+          }
+          if (isEditableSourceSlot(match.round, match.team2)) {
+            slots.push({ round: match.round, order: match.order, slot: "team2Source" });
+          }
+          return slots;
+        })
+      ),
+    [isEditableSourceSlot, visibleRoundBlocks]
+  );
+  const selectedEditableSourcesCount = useMemo(
+    () =>
+      editableSlots.filter(({ round, order, slot }) =>
+        Boolean(getEditableSlotValue(round, order, slot).trim())
+      ).length,
+    [editableSlots, getEditableSlotValue]
   );
   useEffect(() => {
     setManualCrossings((prev) =>
@@ -1409,9 +1444,12 @@ export const TournamentCategoryPage = ({
   };
 
   const validateManualCrossings = (): ManualEliminationMatchInput[] => {
-    if (!manualCrossings.length) return [];
+    if (!editableSlots.length || selectedEditableSourcesCount === 0) return [];
     if (!eliminationTemplateMatches.length) {
       throw new Error("No hay cruces eliminatorios disponibles para esta configuración.");
+    }
+    if (selectedEditableSourcesCount < editableSlots.length) {
+      throw new Error("Completá todos los cruces manuales o dejalos todos vacíos para usar el modo automático.");
     }
 
     const normalizedAllowed = new Set(
@@ -1439,9 +1477,11 @@ export const TournamentCategoryPage = ({
 
       const team1Source = draftMatch.team1Source.trim().toUpperCase();
       const team2Source = draftMatch.team2Source.trim().toUpperCase();
-      if (!team1Source || !team2Source) {
+      const team1Editable = isEditableSourceSlot(templateMatch.round, templateMatch.team1);
+      const team2Editable = isEditableSourceSlot(templateMatch.round, templateMatch.team2);
+      if ((team1Editable && !team1Source) || (team2Editable && !team2Source)) {
         throw new Error(
-          `Completá ambos equipos del partido ${templateMatch.order} (${getRoundTitle(
+          `Completá los clasificados de zona del partido ${templateMatch.order} (${getRoundTitle(
             templateMatch.stage,
             templateMatch.round
           )}).`
@@ -1458,7 +1498,22 @@ export const TournamentCategoryPage = ({
 
     const usedSources = new Set<string>();
     normalizedDraft.forEach((match) => {
-      [match.team1Source, match.team2Source].forEach((source) => {
+      const templateMatch = eliminationTemplateMatches.find(
+        (item) => item.round === match.round && item.order === match.order
+      );
+      if (!templateMatch) return;
+      const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
+        {
+          source: match.team1Source,
+          editable: isEditableSourceSlot(templateMatch.round, templateMatch.team1),
+        },
+        {
+          source: match.team2Source,
+          editable: isEditableSourceSlot(templateMatch.round, templateMatch.team2),
+        },
+      ];
+      sourcesBySlot.forEach(({ source, editable }) => {
+        if (!editable) return;
         if (!normalizedAllowed.has(source)) {
           throw new Error(`El source ${source} no es válido para esta categoría.`);
         }
@@ -3047,19 +3102,19 @@ export const TournamentCategoryPage = ({
                                 disabled={!isStep3Enabled}
                                 className="rounded border border-slate-300 px-2 py-1 text-xs"
                               >
-                                <option value="">Seleccionar source</option>
+                                <option value="">Seleccionar</option>
                                 {team1Options.map((source) => (
                                 <option
                                     key={`team1-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {getSourceOptionLabel(source)}
+                                    {getSourceOptionLabel(source, roundTitleByNumber)}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(team1Current)}
+                                {getSourceOptionLabel(team1Current, roundTitleByNumber)}
                               </p>
                             )}
                             <span className="self-center text-center text-xs text-slate-500">
@@ -3077,19 +3132,19 @@ export const TournamentCategoryPage = ({
                                 disabled={!isStep3Enabled}
                                 className="rounded border border-slate-300 px-2 py-1 text-xs"
                               >
-                                <option value="">Seleccionar source</option>
+                                <option value="">Seleccionar</option>
                                 {team2Options.map((source) => (
                                   <option
                                     key={`team2-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {getSourceOptionLabel(source)}
+                                    {getSourceOptionLabel(source, roundTitleByNumber)}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(team2Current)}
+                                {getSourceOptionLabel(team2Current, roundTitleByNumber)}
                               </p>
                             )}
                           </div>

@@ -90,11 +90,17 @@ export const generateEliminationMatches = async ({
         if (!manual) {
           throw new Error(`Falta configurar el cruce ${match.order} de la primera ronda eliminatoria.`)
         }
-        const sources = [manual.team1Source, manual.team2Source]
-        for (const source of sources) {
-          if (!normalizedSources.has(source)) {
+        const slotPairs = [
+          { source: manual.team1Source, templateSource: match.team1.trim().toUpperCase() },
+          { source: manual.team2Source, templateSource: match.team2.trim().toUpperCase() },
+        ]
+        for (const { source, templateSource } of slotPairs) {
+          const isQualifiedSource = normalizedSources.has(source)
+          const isLockedPlayoffSource = source === templateSource && parseSource(templateSource)?.type === "playoff"
+          if (!isQualifiedSource && !isLockedPlayoffSource) {
             throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
           }
+          if (!isQualifiedSource) continue
           if (usedSources.has(source)) {
             throw new Error(`Cruce manual inválido: ${source} está repetido en la primera ronda.`)
           }
@@ -114,11 +120,17 @@ export const generateEliminationMatches = async ({
         if (!target) {
           throw new Error(`Cruce manual inválido: no existe el partido R${manual.round}-M${manual.order}.`)
         }
-        const sources = [manual.team1Source, manual.team2Source]
-        for (const source of sources) {
-          if (!normalizedSources.has(source)) {
+        const slotPairs = [
+          { source: manual.team1Source, templateSource: target.team1.trim().toUpperCase() },
+          { source: manual.team2Source, templateSource: target.team2.trim().toUpperCase() },
+        ]
+        for (const { source, templateSource } of slotPairs) {
+          const isQualifiedSource = normalizedSources.has(source)
+          const isLockedPlayoffSource = source === templateSource && parseSource(templateSource)?.type === "playoff"
+          if (!isQualifiedSource && !isLockedPlayoffSource) {
             throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
           }
+          if (!isQualifiedSource) continue
           if (usedSources.has(source)) {
             throw new Error(`Cruce manual inválido: ${source} está repetido en la configuración manual.`)
           }
