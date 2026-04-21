@@ -148,10 +148,20 @@ export const HomePage = ({
     return `${day}-${month}-${year}`;
   };
 
+  const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
   const isTournamentFinished = (endDate: string | null) => {
     if (!endDate) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return endDate < today;
+    return endDate < getTodayKey();
+  };
+
+  const canShowRegistration = (startDate: string | null) => {
+    if (!startDate) return false;
+    const start = new Date(`${startDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime())) return false;
+    start.setUTCDate(start.getUTCDate() - 1);
+    const registrationDeadline = start.toISOString().slice(0, 10);
+    return getTodayKey() <= registrationDeadline;
   };
 
   const publicTournaments = tournaments;
@@ -230,7 +240,7 @@ export const HomePage = ({
                     Eliminar
                   </button>
                 </div>
-              ) : tournament.photoCount > 0 ? (
+              ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
                 <button
                   onClick={() =>
                     navigate(
@@ -240,6 +250,17 @@ export const HomePage = ({
                   className="tm-btn-primary px-4 py-2 text-sm"
                 >
                   Ver fotos
+                </button>
+              ) : canShowRegistration(tournament.start_date) ? (
+                <button
+                  onClick={() =>
+                    navigate(
+                      `${tenantBasePath}/tournaments/${tournament.id}/register`
+                    )
+                  }
+                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
+                >
+                  Inscribirme
                 </button>
               ) : null}
             </div>

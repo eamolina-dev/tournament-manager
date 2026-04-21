@@ -101,12 +101,10 @@ export const PublicTournamentRegisterPage = ({
       loading ||
       !tournamentCategoryId ||
       !player1Name.trim() ||
-      !player1Dni.trim() ||
       !clientId,
     [
       clientId,
       loading,
-      player1Dni,
       player1Name,
       saving,
       tournamentCategoryId,
@@ -121,11 +119,6 @@ export const PublicTournamentRegisterPage = ({
     const player2DniNumber = parseNumericInput(player2Dni)
     const hasPlayer2Name = Boolean(player2Name.trim())
     const hasPlayer2Dni = Boolean(player2Dni.trim())
-
-    if (!player1DniNumber) {
-      setError("Completá DNI de Jugador 1 con un valor numérico válido.")
-      return
-    }
 
     if (hasPlayer2Name !== hasPlayer2Dni) {
       setError("Si completás datos de Jugador 2, tenés que ingresar nombre y DNI.")
@@ -208,7 +201,7 @@ export const PublicTournamentRegisterPage = ({
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-medium text-[var(--tm-muted)]">Jugador 1 - DNI *</span>
+              <span className="text-xs font-medium text-[var(--tm-muted)]">Jugador 1 - DNI (opcional)</span>
               <input
                 value={player1Dni}
                 onChange={(event) => setPlayer1Dni(event.target.value)}

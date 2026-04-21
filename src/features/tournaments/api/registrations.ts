@@ -6,7 +6,6 @@ import type {
   Registration,
   RegistrationInsert,
   RegistrationUpdate,
-  Team,
 } from "../../../shared/types/entities"
 
 export type PendingRegistrationRow = Registration & {
@@ -21,6 +20,8 @@ export type PendingRegistrationRow = Registration & {
   } | null
 }
 
+export type RegistrationStatusFilter = "pending" | "confirmed" | "cancelled"
+
 export const createRegistration = async (
   input: RegistrationInsert,
 ): Promise<Registration> => {
@@ -34,9 +35,13 @@ export const createRegistration = async (
   return data
 }
 
-export const getPendingRegistrationsByTournament = async (
-  tournamentId: string,
-): Promise<PendingRegistrationRow[]> => {
+export const getRegistrationsByTournament = async ({
+  tournamentId,
+  status,
+}: {
+  tournamentId: string
+  status: RegistrationStatusFilter
+}): Promise<PendingRegistrationRow[]> => {
   const { data, error } = await supabase
     .from("registrations")
     .select(`
@@ -49,12 +54,31 @@ export const getPendingRegistrationsByTournament = async (
         category:categories(name)
       )
     `)
-    .eq("status", "pending")
+    .eq("status", status)
     .eq("category.tournament_id", tournamentId)
     .order("created_at", { ascending: true })
 
   throwIfError(error)
   return (data ?? []) as PendingRegistrationRow[]
+}
+
+export const getPendingRegistrationsByTournament = async (
+  tournamentId: string,
+): Promise<PendingRegistrationRow[]> =>
+  getRegistrationsByTournament({ tournamentId, status: "pending" })
+
+export const getConfirmedRegistrationsByCategory = async (
+  tournamentCategoryId: string,
+): Promise<Registration[]> => {
+  const { data, error } = await supabase
+    .from("registrations")
+    .select("*")
+    .eq("status", "confirmed")
+    .eq("tournament_category_id", tournamentCategoryId)
+    .order("created_at", { ascending: true })
+
+  throwIfError(error)
+  return data ?? []
 }
 
 const sanitizeName = (name: string | null | undefined) => (name ?? "").trim().toLowerCase()
@@ -70,57 +94,79 @@ export const findPlayerByDni = async (dni: number): Promise<Player | null> => {
   return data
 }
 
-export const findOrCreatePlayerByDni = async ({
-  dni,
-  name,
-  phone,
-}: {
-  dni: number
-  name: string
-  phone?: number | null
-}): Promise<{ player: Player; hasNameMismatch: boolean }> => {
-  const existing = await findPlayerByDni(dni)
+export const findPlayerByName = async (name: string): Promise<Player | null> => {
+  const normalized = name.trim()
+  if (!normalized) return null
 
-  if (existing) {
-    return {
-      player: existing,
-      hasNameMismatch: sanitizeName(existing.name) !== sanitizeName(name),
-    }
-  }
-
-  const payload: PlayerInsert = {
-    dni,
-    name: name.trim(),
-    phone: phone ?? null,
-  }
-
-  const { data, error } = await supabase.from("players").insert(payload).select("*").single()
+  const { data, error } = await supabase
+    .from("players")
+    .select("*")
+    .ilike("name", normalized)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
 
   throwIfError(error)
-  return { player: data, hasNameMismatch: false }
+  return data
 }
 
-export const createTeamFromRegistration = async ({
-  tournamentCategoryId,
-  player1Id,
-  player2Id,
+const createPlayer = async ({
+  name,
+  dni,
+  phone,
 }: {
-  tournamentCategoryId: string
-  player1Id: string
-  player2Id: string | null
-}): Promise<Team> => {
+  name: string
+  dni?: number | null
+  phone?: number | null
+}): Promise<Player> => {
+  const payload: PlayerInsert = {
+    name: name.trim(),
+    dni: dni ?? null,
+    phone: phone != null ? String(phone) : null,
+  }
+
   const { data, error } = await supabase
-    .from("teams")
-    .insert({
-      tournament_category_id: tournamentCategoryId,
-      player1_id: player1Id,
-      player2_id: player2Id,
-    })
+    .from("players")
+    .insert(payload)
     .select("*")
     .single()
 
   throwIfError(error)
   return data
+}
+
+export const findOrCreatePlayerFromRegistrationInput = async ({
+  dni,
+  name,
+  phone,
+}: {
+  dni?: number | null
+  name: string
+  phone?: number | null
+}): Promise<{ player: Player; hasNameMismatch: boolean; strategy: "dni" | "name" | "created" }> => {
+  const normalizedName = name.trim()
+
+  if (dni != null) {
+    const byDni = await findPlayerByDni(dni)
+    if (byDni) {
+      return {
+        player: byDni,
+        hasNameMismatch: sanitizeName(byDni.name) !== sanitizeName(normalizedName),
+        strategy: "dni",
+      }
+    }
+
+    const created = await createPlayer({ name: normalizedName, dni, phone })
+    return { player: created, hasNameMismatch: false, strategy: "created" }
+  }
+
+  const byName = await findPlayerByName(normalizedName)
+  if (byName) {
+    return { player: byName, hasNameMismatch: false, strategy: "name" }
+  }
+
+  const created = await createPlayer({ name: normalizedName, phone })
+  return { player: created, hasNameMismatch: false, strategy: "created" }
 }
 
 export const updateRegistration = async (
