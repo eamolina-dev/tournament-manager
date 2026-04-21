@@ -126,7 +126,8 @@ const getSourceOptionLabel = (
   const parsed = parseSource(source);
   if (!parsed) return source;
   if (parsed.type === "group") return source;
-  const roundTitle = roundTitleByNumber?.get(parsed.round) ?? `Ronda ${parsed.round}`;
+  const roundTitle =
+    roundTitleByNumber?.get(parsed.round) ?? `Ronda ${parsed.round}`;
   if (parsed.outcome === "W") return `Ganador ${roundTitle} ${parsed.order}`;
   return `Perdedor ${roundTitle} ${parsed.order}`;
 };
@@ -155,10 +156,7 @@ export const TournamentCategoryPage = ({
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
   const lastLoadedCacheKeyRef = useRef<string | null>(null);
-  const orderedZones = useMemo(
-    () => data?.zones ?? [],
-    [data?.zones]
-  );
+  const orderedZones = useMemo(() => data?.zones ?? [], [data?.zones]);
   const zoneTabs = useMemo(
     () => orderedZones.map((zone) => zone.id),
     [orderedZones]
@@ -232,9 +230,9 @@ export const TournamentCategoryPage = ({
   const [manualCrossings, setManualCrossings] = useState<
     ManualEliminationMatchInput[]
   >([]);
-  const [manualCrossingsError, setManualCrossingsError] = useState<string | null>(
-    null
-  );
+  const [manualCrossingsError, setManualCrossingsError] = useState<
+    string | null
+  >(null);
   const [lastGenerationDraft, setLastGenerationDraft] =
     useState<MatchGenerationDraft | null>(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
@@ -292,7 +290,10 @@ export const TournamentCategoryPage = ({
   };
 
   const load = async () => {
-    if (categoryCacheKey && lastLoadedCacheKeyRef.current !== categoryCacheKey) {
+    if (
+      categoryCacheKey &&
+      lastLoadedCacheKeyRef.current !== categoryCacheKey
+    ) {
       const cachedRaw = sessionStorage.getItem(categoryCacheKey);
       if (cachedRaw) {
         try {
@@ -469,7 +470,9 @@ export const TournamentCategoryPage = ({
     return Date.now() > parsed.getTime();
   }, [data?.tournamentEndDate]);
   const finalMatchCompleted = useMemo(() => {
-    const finalMatch = orderedBracketMatches.find((match) => match.stage === "final");
+    const finalMatch = orderedBracketMatches.find(
+      (match) => match.stage === "final"
+    );
     if (!finalMatch) return false;
     return Boolean(finalMatch.score);
   }, [orderedBracketMatches]);
@@ -1020,7 +1023,9 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
-    const normalizedNames = nextZones.map((zone) => zone.name.toLocaleLowerCase());
+    const normalizedNames = nextZones.map((zone) =>
+      zone.name.toLocaleLowerCase()
+    );
     if (new Set(normalizedNames).size !== normalizedNames.length) {
       const message = "No puede haber zonas con el mismo nombre.";
       setManualZoneError(message);
@@ -1115,7 +1120,9 @@ export const TournamentCategoryPage = ({
   const eliminationTemplateMatches = useMemo(() => {
     if (!allowedCrossingSources.length) return [];
     try {
-      const groupRanking = plannedGroupsForCrossings.map((group) => group.groupKey);
+      const groupRanking = plannedGroupsForCrossings.map(
+        (group) => group.groupKey
+      );
       return getEliminationTemplate(allowedCrossingSources, groupRanking);
     } catch {
       return [];
@@ -1131,7 +1138,10 @@ export const TournamentCategoryPage = ({
   const manualCrossingsByRoundOrder = useMemo(
     () =>
       new Map(
-        manualCrossings.map((match) => [`${match.round ?? "first"}-${match.order}`, match])
+        manualCrossings.map((match) => [
+          `${match.round ?? "first"}-${match.order}`,
+          match,
+        ])
       ),
     [manualCrossings]
   );
@@ -1152,11 +1162,15 @@ export const TournamentCategoryPage = ({
       }));
   }, [eliminationTemplateMatches]);
   const roundTitleByNumber = useMemo(
-    () => new Map(roundBlocks.map((roundBlock) => [roundBlock.round, roundBlock.title])),
+    () =>
+      new Map(
+        roundBlocks.map((roundBlock) => [roundBlock.round, roundBlock.title])
+      ),
     [roundBlocks]
   );
   const configurableRoundNumbers = useMemo(() => {
-    if (!roundBlocks.length || firstTemplateRound == null) return [] as number[];
+    if (!roundBlocks.length || firstTemplateRound == null)
+      return [] as number[];
     const orderedRounds = Array.from(
       new Set(eliminationTemplateMatches.map((match) => match.round))
     ).sort((a, b) => b - a);
@@ -1164,7 +1178,9 @@ export const TournamentCategoryPage = ({
     const secondRound = orderedRounds[1];
     if (!firstRound) return [] as number[];
     if (!secondRound) return [firstRound];
-    const secondRoundMatches = eliminationTemplateMatches.filter((match) => match.round === secondRound);
+    const secondRoundMatches = eliminationTemplateMatches.filter(
+      (match) => match.round === secondRound
+    );
     const hasGroupSourcesInSecondRound = secondRoundMatches.some((match) => {
       const team1 = parseSource(match.team1);
       const team2 = parseSource(match.team2);
@@ -1185,7 +1201,12 @@ export const TournamentCategoryPage = ({
   );
 
   const getEffectiveSource = useCallback(
-    (round: number, order: number, slot: "team1Source" | "team2Source", templateSource: string) =>
+    (
+      round: number,
+      order: number,
+      slot: "team1Source" | "team2Source",
+      templateSource: string
+    ) =>
       manualCrossingsByRoundOrder.get(`${round}-${order}`)?.[slot] ??
       manualCrossingsByRoundOrder.get(`first-${order}`)?.[slot] ??
       templateSource,
@@ -1271,10 +1292,18 @@ export const TournamentCategoryPage = ({
             slot: "team1Source" | "team2Source";
           }> = [];
           if (isEditableSourceSlot(match.round, match.team1)) {
-            slots.push({ round: match.round, order: match.order, slot: "team1Source" });
+            slots.push({
+              round: match.round,
+              order: match.order,
+              slot: "team1Source",
+            });
           }
           if (isEditableSourceSlot(match.round, match.team2)) {
-            slots.push({ round: match.round, order: match.order, slot: "team2Source" });
+            slots.push({
+              round: match.round,
+              order: match.order,
+              slot: "team2Source",
+            });
           }
           return slots;
         })
@@ -1294,7 +1323,9 @@ export const TournamentCategoryPage = ({
         eliminationTemplateMatches.some(
           (match) =>
             match.order === item.order &&
-            (item.round ? match.round === item.round : match.round === firstTemplateRound) &&
+            (item.round
+              ? match.round === item.round
+              : match.round === firstTemplateRound) &&
             (isEditableSourceSlot(match.round, match.team1) ||
               isEditableSourceSlot(match.round, match.team2))
         )
@@ -1338,7 +1369,9 @@ export const TournamentCategoryPage = ({
     if (Object.values(zoneWarningsById).length > 0) {
       warnings.push("Hay zonas que no cumplen la regla de 3 o 4 equipos.");
     }
-    const normalizedNames = zones.map((zone) => zone.name.trim().toLocaleLowerCase());
+    const normalizedNames = zones.map((zone) =>
+      zone.name.trim().toLocaleLowerCase()
+    );
     if (new Set(normalizedNames).size !== normalizedNames.length) {
       warnings.push("Hay zonas con nombres repetidos.");
     }
@@ -1448,10 +1481,14 @@ export const TournamentCategoryPage = ({
   const validateManualCrossings = (): ManualEliminationMatchInput[] => {
     if (!editableSlots.length || selectedEditableSourcesCount === 0) return [];
     if (!eliminationTemplateMatches.length) {
-      throw new Error("No hay cruces eliminatorios disponibles para esta configuración.");
+      throw new Error(
+        "No hay cruces eliminatorios disponibles para esta configuración."
+      );
     }
     if (selectedEditableSourcesCount < editableSlots.length) {
-      throw new Error("Completá todos los cruces manuales o dejalos todos vacíos para usar el modo automático.");
+      throw new Error(
+        "Completá todos los cruces manuales o dejalos todos vacíos para usar el modo automático."
+      );
     }
 
     const normalizedAllowed = new Set(
@@ -1479,14 +1516,19 @@ export const TournamentCategoryPage = ({
 
       const team1Source = draftMatch.team1Source.trim().toUpperCase();
       const team2Source = draftMatch.team2Source.trim().toUpperCase();
-      const team1Editable = isEditableSourceSlot(templateMatch.round, templateMatch.team1);
-      const team2Editable = isEditableSourceSlot(templateMatch.round, templateMatch.team2);
+      const team1Editable = isEditableSourceSlot(
+        templateMatch.round,
+        templateMatch.team1
+      );
+      const team2Editable = isEditableSourceSlot(
+        templateMatch.round,
+        templateMatch.team2
+      );
       if ((team1Editable && !team1Source) || (team2Editable && !team2Source)) {
         throw new Error(
-          `Completá los clasificados de zona del partido ${templateMatch.order} (${getRoundTitle(
-            templateMatch.stage,
-            templateMatch.round
-          )}).`
+          `Completá los clasificados de zona del partido ${
+            templateMatch.order
+          } (${getRoundTitle(templateMatch.stage, templateMatch.round)}).`
         );
       }
 
@@ -1507,20 +1549,30 @@ export const TournamentCategoryPage = ({
       const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
         {
           source: match.team1Source,
-          editable: isEditableSourceSlot(templateMatch.round, templateMatch.team1),
+          editable: isEditableSourceSlot(
+            templateMatch.round,
+            templateMatch.team1
+          ),
         },
         {
           source: match.team2Source,
-          editable: isEditableSourceSlot(templateMatch.round, templateMatch.team2),
+          editable: isEditableSourceSlot(
+            templateMatch.round,
+            templateMatch.team2
+          ),
         },
       ];
       sourcesBySlot.forEach(({ source, editable }) => {
         if (!editable) return;
         if (!normalizedAllowed.has(source)) {
-          throw new Error(`El source ${source} no es válido para esta categoría.`);
+          throw new Error(
+            `El source ${source} no es válido para esta categoría.`
+          );
         }
         if (usedSources.has(source)) {
-          throw new Error(`El source ${source} está repetido en la configuración manual.`);
+          throw new Error(
+            `El source ${source} está repetido en la configuración manual.`
+          );
         }
         usedSources.add(source);
       });
@@ -2047,6 +2099,10 @@ export const TournamentCategoryPage = ({
       throw error;
     }
   };
+
+  const roundBlocksForDisplay = [...visibleRoundBlocks].sort(
+    (a, b) => b.round - a.round
+  );
 
   if (loading)
     return (
@@ -2752,9 +2808,7 @@ export const TournamentCategoryPage = ({
               isStep4Enabled ? "" : "opacity-70"
             }`}
           >
-            <h3 className="font-semibold text-slate-900">
-              4. Horarios
-            </h3>
+            <h3 className="font-semibold text-slate-900">4. Horarios</h3>
             <p className="mt-1 text-xs text-slate-500">
               Guardá y aplicá horarios sin regenerar partidos.
             </p>
@@ -2946,7 +3000,7 @@ export const TournamentCategoryPage = ({
                 de partidos.
               </p>
             )}
-            {!!activeEliminationStages.length && (
+            {/* {!!activeEliminationStages.length && (
               <div className="mt-3 rounded-lg border border-slate-200 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Etiquetas de fases
@@ -2973,7 +3027,7 @@ export const TournamentCategoryPage = ({
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
             <div className="mt-3 rounded-lg border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -2982,15 +3036,17 @@ export const TournamentCategoryPage = ({
                 <button
                   type="button"
                   onClick={handleAutofillCrossings}
-                  disabled={!isStep3Enabled || !eliminationTemplateMatches.length}
+                  disabled={
+                    !isStep3Enabled || !eliminationTemplateMatches.length
+                  }
                   className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                 >
                   Autocompletar cruces sugeridos
                 </button>
               </div>
-              {visibleRoundBlocks.length ? (
+              {roundBlocksForDisplay.length ? (
                 <div className="mt-2 space-y-3">
-                  {visibleRoundBlocks.map((roundBlock) => (
+                  {roundBlocksForDisplay.map((roundBlock) => (
                     <div key={roundBlock.round} className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {roundBlock.title}
@@ -3106,17 +3162,23 @@ export const TournamentCategoryPage = ({
                               >
                                 <option value="">Seleccionar</option>
                                 {team1Options.map((source) => (
-                                <option
+                                  <option
                                     key={`team1-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {getSourceOptionLabel(source, roundTitleByNumber)}
+                                    {getSourceOptionLabel(
+                                      source,
+                                      roundTitleByNumber
+                                    )}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(team1Current, roundTitleByNumber)}
+                                {getSourceOptionLabel(
+                                  team1Current,
+                                  roundTitleByNumber
+                                )}
                               </p>
                             )}
                             <span className="self-center text-center text-xs text-slate-500">
@@ -3140,13 +3202,19 @@ export const TournamentCategoryPage = ({
                                     key={`team2-${match.round}-${match.order}-${source}`}
                                     value={source}
                                   >
-                                    {getSourceOptionLabel(source, roundTitleByNumber)}
+                                    {getSourceOptionLabel(
+                                      source,
+                                      roundTitleByNumber
+                                    )}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(team2Current, roundTitleByNumber)}
+                                {getSourceOptionLabel(
+                                  team2Current,
+                                  roundTitleByNumber
+                                )}
                               </p>
                             )}
                           </div>
@@ -3157,7 +3225,8 @@ export const TournamentCategoryPage = ({
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-slate-500">
-                  Guardá zonas válidas para habilitar la configuración de cruces.
+                  Guardá zonas válidas para habilitar la configuración de
+                  cruces.
                 </p>
               )}
               {manualCrossingsError && (
