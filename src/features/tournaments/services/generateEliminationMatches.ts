@@ -74,8 +74,11 @@ export const generateEliminationMatches = async ({
       normalizedManual.map((match) => [`${match.round ?? "first"}-${match.order}`, match]),
     )
     const firstRound = template.reduce(
-      (minRound, match) => Math.min(minRound, match.round),
-      Number.POSITIVE_INFINITY,
+      (maxRound, match) => {
+        if (!Number.isFinite(maxRound)) return match.round
+        return Math.max(maxRound, match.round)
+      },
+      Number.NEGATIVE_INFINITY,
     )
     const firstRoundTemplate = template.filter((match) => match.round === firstRound)
     const hasRoundAwareConfig = normalizedManual.some((match) => Number.isInteger(match.round))

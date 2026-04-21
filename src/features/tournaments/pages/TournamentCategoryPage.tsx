@@ -1123,10 +1123,10 @@ export const TournamentCategoryPage = ({
   }, [allowedCrossingSources, plannedGroupsForCrossings]);
   const firstTemplateRound = useMemo(() => {
     if (!eliminationTemplateMatches.length) return null;
-    return eliminationTemplateMatches.reduce(
-      (minRound, match) => Math.min(minRound, match.round),
-      Number.POSITIVE_INFINITY
-    );
+    return eliminationTemplateMatches.reduce((maxRound, match) => {
+      if (!Number.isFinite(maxRound)) return match.round;
+      return Math.max(maxRound, match.round);
+    }, Number.NEGATIVE_INFINITY);
   }, [eliminationTemplateMatches]);
   const manualCrossingsByRoundOrder = useMemo(
     () =>
@@ -1157,11 +1157,14 @@ export const TournamentCategoryPage = ({
   );
   const configurableRoundNumbers = useMemo(() => {
     if (!roundBlocks.length || firstTemplateRound == null) return [] as number[];
-    const firstRound = firstTemplateRound;
-    const secondRound = firstRound + 1;
-    const secondRoundMatches = eliminationTemplateMatches.filter(
-      (match) => match.round === secondRound
-    );
+    const orderedRounds = Array.from(
+      new Set(eliminationTemplateMatches.map((match) => match.round))
+    ).sort((a, b) => b - a);
+    const firstRound = orderedRounds[0];
+    const secondRound = orderedRounds[1];
+    if (!firstRound) return [] as number[];
+    if (!secondRound) return [firstRound];
+    const secondRoundMatches = eliminationTemplateMatches.filter((match) => match.round === secondRound);
     const hasGroupSourcesInSecondRound = secondRoundMatches.some((match) => {
       const team1 = parseSource(match.team1);
       const team2 = parseSource(match.team2);
@@ -1193,10 +1196,9 @@ export const TournamentCategoryPage = ({
     (round: number, templateSource: string): boolean => {
       const parsed = parseSource(templateSource);
       if (!configurableRoundNumbers.includes(round)) return false;
-      if (round === firstTemplateRound) return true;
       return parsed?.type === "group";
     },
-    [configurableRoundNumbers, firstTemplateRound]
+    [configurableRoundNumbers]
   );
   const getManualMatchForRoundOrder = useCallback(
     (round: number, order: number) =>
