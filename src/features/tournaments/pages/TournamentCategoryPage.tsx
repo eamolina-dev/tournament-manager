@@ -1113,13 +1113,6 @@ export const TournamentCategoryPage = ({
       return [];
     }
   }, [allowedCrossingSources, plannedGroupsForCrossings]);
-  const firstTemplateRound = useMemo(() => {
-    if (!eliminationTemplateMatches.length) return null;
-    return eliminationTemplateMatches.reduce((maxRound, match) => {
-      if (!Number.isFinite(maxRound)) return match.round;
-      return Math.max(maxRound, match.round);
-    }, Number.NEGATIVE_INFINITY);
-  }, [eliminationTemplateMatches]);
   const manualCrossingsByRoundOrder = useMemo(
     () =>
       new Map(
@@ -1154,14 +1147,13 @@ export const TournamentCategoryPage = ({
     [roundBlocks]
   );
   const configurableRoundNumbers = useMemo(() => {
-    if (!roundBlocks.length || firstTemplateRound == null)
-      return [] as number[];
-    const orderedRounds = Array.from(
-      new Set(eliminationTemplateMatches.map((match) => match.round))
-    ).sort((a, b) => b - a);
+    if (!roundBlocks.length) return [] as number[];
+    const orderedRounds = [...roundBlocks]
+      .map((roundBlock) => roundBlock.round)
+      .sort((a, b) => b - a);
     const firstRound = orderedRounds[0];
     const secondRound = orderedRounds[1];
-    if (!firstRound) return [] as number[];
+    if (firstRound == null) return [] as number[];
     if (!secondRound) return [firstRound];
     const secondRoundMatches = eliminationTemplateMatches.filter(
       (match) => match.round === secondRound
@@ -1176,7 +1168,7 @@ export const TournamentCategoryPage = ({
       return [firstRound, secondRound];
     }
     return [firstRound];
-  }, [eliminationTemplateMatches, firstTemplateRound, roundBlocks.length]);
+  }, [eliminationTemplateMatches, roundBlocks]);
   const visibleRoundBlocks = useMemo(
     () =>
       roundBlocks.filter((roundBlock) =>
@@ -1184,6 +1176,11 @@ export const TournamentCategoryPage = ({
       ),
     [roundBlocks, configurableRoundNumbers]
   );
+  const manualCrossingsRoundFallback = useMemo(() => {
+    if (configurableRoundNumbers.length) return configurableRoundNumbers[0];
+    if (roundBlocks.length) return roundBlocks[0].round;
+    return null;
+  }, [configurableRoundNumbers, roundBlocks]);
 
   const getEffectiveSource = useCallback(
     (
@@ -1310,14 +1307,19 @@ export const TournamentCategoryPage = ({
             match.order === item.order &&
             (item.round
               ? match.round === item.round
-              : match.round === firstTemplateRound) &&
+              : manualCrossingsRoundFallback != null &&
+                match.round === manualCrossingsRoundFallback) &&
             (isEditableSourceSlot(match.round, match.team1) ||
               isEditableSourceSlot(match.round, match.team2))
         )
       )
     );
     setManualCrossingsError(null);
-  }, [eliminationTemplateMatches, firstTemplateRound, isEditableSourceSlot]);
+  }, [
+    eliminationTemplateMatches,
+    isEditableSourceSlot,
+    manualCrossingsRoundFallback,
+  ]);
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1486,7 +1488,7 @@ export const TournamentCategoryPage = ({
       const draftMatch = manualCrossings.find(
         (item) =>
           item.order === templateMatch.order &&
-          (item.round ?? firstTemplateRound) === templateMatch.round
+          (item.round ?? manualCrossingsRoundFallback) === templateMatch.round
       );
       if (!draftMatch) {
         throw new Error(
@@ -2981,7 +2983,8 @@ export const TournamentCategoryPage = ({
                             const existing = prev.find(
                               (item) =>
                                 item.order === match.order &&
-                                (item.round ?? firstTemplateRound) === keyRound
+                                (item.round ?? manualCrossingsRoundFallback) ===
+                                  keyRound
                             );
                             const next = {
                               round: keyRound,
@@ -3002,7 +3005,7 @@ export const TournamentCategoryPage = ({
                                 (item) =>
                                   !(
                                     item.order === match.order &&
-                                    (item.round ?? firstTemplateRound) ===
+                                    (item.round ?? manualCrossingsRoundFallback) ===
                                       keyRound
                                   )
                               ),
