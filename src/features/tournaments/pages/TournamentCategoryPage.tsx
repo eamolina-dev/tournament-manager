@@ -708,7 +708,10 @@ export const TournamentCategoryPage = ({
     return orderedZones.map((zone) => ({
       id: zone.id,
       name: zone.name,
-      teamIds: zone.standings.map((standing) => standing.teamId),
+      teamIds:
+        zone.teamIds.length > 0
+          ? zone.teamIds
+          : zone.standings.map((standing) => standing.teamId),
     }));
   }, [manualZones, orderedZones]);
   const assignedTeamIds = useMemo(

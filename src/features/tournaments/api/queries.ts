@@ -130,3 +130,22 @@ export const getGroupsWithTeamsByCategory = async (
   throwIfError(error)
   return data
 }
+
+export const getGroupTeamsByGroupIds = async (
+  groupIds: string[],
+): Promise<{ group_id: string; team_id: string; position: number | null }[]> => {
+  if (!groupIds.length) return []
+
+  const { data, error } = await supabase
+    .from("group_teams")
+    .select("group_id, team_id, position")
+    .in("group_id", groupIds)
+    .order("position", { ascending: true })
+
+  throwIfError(error)
+
+  return (data ?? []).filter(
+    (row): row is { group_id: string; team_id: string; position: number | null } =>
+      Boolean(row.group_id) && Boolean(row.team_id),
+  )
+}

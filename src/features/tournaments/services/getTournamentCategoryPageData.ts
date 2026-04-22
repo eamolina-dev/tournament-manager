@@ -3,6 +3,7 @@ import { getPlayersByIds } from "../../players/api/queries"
 import { getRankingTableByCategory } from "../../rankings/api/queries"
 import { getTeamPlayersByCategory, getTeamsByCategory } from "../../teams/api/queries"
 import {
+  getGroupTeamsByGroupIds,
   getGroupsByCategory,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
@@ -32,6 +33,7 @@ export type TournamentCategoryPageData = {
   zones: {
     id: string
     name: string
+    teamIds: string[]
     standings: {
       teamId: string
       teamName: string
@@ -190,6 +192,7 @@ export const getTournamentCategoryPageData = async (
     getGroupsByCategory(tournamentCategoryId),
     getMatchesByCategory(tournamentCategoryId),
   ])
+  const groupTeams = await getGroupTeamsByGroupIds(groups.map((group) => group.id))
 
   const uniquePlayerIds = Array.from(
     new Set(
@@ -228,6 +231,13 @@ export const getTournamentCategoryPageData = async (
     const list = setsByMatch.get(set.match_id ?? "") ?? []
     list.push(set)
     setsByMatch.set(set.match_id ?? "", list)
+  }
+
+  const teamIdsByGroupId = new Map<string, string[]>()
+  for (const row of groupTeams) {
+    const list = teamIdsByGroupId.get(row.group_id) ?? []
+    list.push(row.team_id)
+    teamIdsByGroupId.set(row.group_id, list)
   }
 
   const sourceMatchContextByToken = new Map<
@@ -309,7 +319,11 @@ export const getTournamentCategoryPageData = async (
     const groupMatches = sortByMatchNumber(
       allMatches.filter((match) => match.zoneId === group.id),
     )
-    const groupTeams = Array.from(
+    const seededTeamEntries = (teamIdsByGroupId.get(group.id) ?? []).map((teamId) => [
+      teamId,
+      teamsMap.get(teamId) ?? "Equipo",
+    ] as const)
+    const teamsFromMatches = Array.from(
       new Map(
         groupMatches.flatMap((match) => {
           const entries: [string, string][] = []
@@ -325,6 +339,9 @@ export const getTournamentCategoryPageData = async (
           return entries
         }),
       ),
+    )
+    const groupTeams = Array.from(
+      new Map<string, string>([...seededTeamEntries, ...teamsFromMatches]),
     ).map(([id, name]) => ({ id, name }))
 
     const standings = computeGroupStandings(
@@ -342,6 +359,7 @@ export const getTournamentCategoryPageData = async (
       return {
         id: group.id,
         name: group.name,
+        teamIds: teamIdsByGroupId.get(group.id) ?? [],
         standings,
         matches: groupMatches,
       }
