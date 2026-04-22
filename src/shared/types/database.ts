@@ -617,6 +617,150 @@ export type Database = {
           },
         ]
       }
+      player_participations: {
+        Row: {
+          created_at: string | null
+          id: number
+          played_category_id: string
+          played_gender: string
+          player_id: string
+          ranking_category_id: string
+          ranking_gender: string
+          rule_code: string | null
+          rule_version: number | null
+          team_id: string | null
+          tournament_category_id: string
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          played_category_id: string
+          played_gender: string
+          player_id: string
+          ranking_category_id: string
+          ranking_gender: string
+          rule_code?: string | null
+          rule_version?: number | null
+          team_id?: string | null
+          tournament_category_id: string
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          played_category_id?: string
+          played_gender?: string
+          player_id?: string
+          ranking_category_id?: string
+          ranking_gender?: string
+          rule_code?: string | null
+          rule_version?: number | null
+          team_id?: string | null
+          tournament_category_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pp_played_category"
+            columns: ["played_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_player"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_ranking_category"
+            columns: ["ranking_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_bracket"
+            referencedColumns: ["team1_id"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_bracket"
+            referencedColumns: ["team2_id"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_matches_detailed"
+            referencedColumns: ["team1"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_matches_detailed"
+            referencedColumns: ["team2"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_matches_with_teams"
+            referencedColumns: ["team1"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_matches_with_teams"
+            referencedColumns: ["team2"]
+          },
+          {
+            foreignKeyName: "fk_pp_team"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_teams_with_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_tournament"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "home_tournaments_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_tournament"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pp_tournament_category"
+            columns: ["tournament_category_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           base_category_id: string | null
@@ -889,7 +1033,7 @@ export type Database = {
           category_id: string | null
           courts_count: number | null
           created_at: string
-          gender: string | null
+          gender: string
           id: string
           is_suma: boolean | null
           match_interval_minutes: number | null
@@ -901,7 +1045,7 @@ export type Database = {
           category_id?: string | null
           courts_count?: number | null
           created_at?: string
-          gender?: string | null
+          gender: string
           id?: string
           is_suma?: boolean | null
           match_interval_minutes?: number | null
@@ -913,7 +1057,7 @@ export type Database = {
           category_id?: string | null
           courts_count?: number | null
           created_at?: string
-          gender?: string | null
+          gender?: string
           id?: string
           is_suma?: boolean | null
           match_interval_minutes?: number | null
