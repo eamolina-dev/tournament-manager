@@ -847,7 +847,10 @@ export const TournamentCategoryPage = ({
 
   const defaultPlayerCategoryId = useMemo(() => {
     if (data?.categoryId) return data.categoryId;
-    return categoriesCatalog[0]?.id ?? "";
+    const defaultEighthCategory = categoriesCatalog.find((category) =>
+      category.name.trim().toLocaleLowerCase().startsWith("8va")
+    );
+    return defaultEighthCategory?.id ?? categoriesCatalog[0]?.id ?? "";
   }, [data?.categoryId, categoriesCatalog]);
 
   const openCreatePlayerModal = () => {

@@ -73,6 +73,12 @@ export const PlayersPage = () => {
     );
     return categories.filter((category) => usedCategoryIds.has(category.id));
   }, [categories, rows]);
+  const defaultPlayerCategoryId = useMemo(() => {
+    const defaultEighthCategory = categories.find((category) =>
+      category.name.trim().toLocaleLowerCase().startsWith("8va")
+    );
+    return defaultEighthCategory?.id ?? categories[0]?.id ?? "";
+  }, [categories]);
 
   useEffect(() => {
     if (
@@ -336,7 +342,7 @@ export const PlayersPage = () => {
         submitLabel={editingPlayer ? "Guardar cambios" : "Guardar jugador"}
         categories={categories}
         initialName={editingPlayer?.name ?? ""}
-        initialCategoryId={editingPlayer?.categoryId ?? categories[0]?.id ?? ""}
+        initialCategoryId={editingPlayer?.categoryId ?? defaultPlayerCategoryId}
         initialDni={editingPlayer?.dni ?? null}
         initialGender={editingPlayer?.gender ?? "M"}
         onClose={closeModal}

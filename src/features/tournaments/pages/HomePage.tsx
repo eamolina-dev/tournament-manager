@@ -258,7 +258,7 @@ export const HomePage = ({
                       `${tenantBasePath}/tournaments/${tournament.id}/register`
                     )
                   }
-                  className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
+                  className="tm-btn-primary px-3 py-2 text-sm"
                 >
                   Inscribirme
                 </button>

@@ -25,7 +25,6 @@ type RegistrationFormState = {
   tournament_category_id: string
   player1_name: string
   player1_dni: string
-  player1_phone: string
   player2_name: string
   player2_dni: string
 }
@@ -70,7 +69,6 @@ const buildFormState = (registration: PendingRegistrationRow): RegistrationFormS
   tournament_category_id: registration.tournament_category_id ?? "",
   player1_name: registration.player1_name ?? "",
   player1_dni: registration.player1_dni != null ? String(registration.player1_dni) : "",
-  player1_phone: registration.player1_phone != null ? String(registration.player1_phone) : "",
   player2_name: registration.player2_name ?? "",
   player2_dni: registration.player2_dni != null ? String(registration.player2_dni) : "",
 })
@@ -223,7 +221,6 @@ export const AdminTournamentRegistrationsPage = ({
         tournament_category_id: form.tournament_category_id,
         player1_name: player1Name,
         player1_dni: player1Dni,
-        player1_phone: parseNumeric(form.player1_phone),
         player2_name: player2Name || null,
         player2_dni: player2Dni,
       })
@@ -298,7 +295,6 @@ export const AdminTournamentRegistrationsPage = ({
                     <td className="px-2 py-2">
                       <p>{registration.player1_name ?? "-"}</p>
                       <p className="text-xs text-[var(--tm-muted)]">DNI: {registration.player1_dni ?? "-"}</p>
-                      <p className="text-xs text-[var(--tm-muted)]">Tel: {registration.player1_phone ?? "-"}</p>
                       {conflicts?.player1 ? (
                         <p className="mt-1 text-xs text-amber-600">⚠ Posible conflicto de nombre.</p>
                       ) : null}
@@ -398,14 +394,6 @@ export const AdminTournamentRegistrationsPage = ({
               <input
                 value={form.player1_dni}
                 onChange={(event) => setForm((prev) => (prev ? { ...prev, player1_dni: event.target.value } : prev))}
-                className="w-full rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs text-[var(--tm-muted)]">Jugador 1 - Teléfono</span>
-              <input
-                value={form.player1_phone}
-                onChange={(event) => setForm((prev) => (prev ? { ...prev, player1_phone: event.target.value } : prev))}
                 className="w-full rounded-lg border border-[var(--tm-border)] px-3 py-2 text-sm"
               />
             </label>
