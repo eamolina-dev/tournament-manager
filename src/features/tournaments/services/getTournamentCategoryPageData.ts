@@ -104,6 +104,7 @@ export type TournamentCategoryPageData = {
 const weekdayFormatter = new Intl.DateTimeFormat("es-AR", { weekday: "long" })
 const datePrefixPattern = /^(\d{4})-(\d{2})-(\d{2})/
 const timePattern = /T(\d{2}):(\d{2})/
+const NO_SCHEDULE_LABEL = "Sin horario definido"
 
 const toDay = (iso?: string | null): string => {
   if (!iso) return "Sin día"
@@ -130,10 +131,10 @@ const toDay = (iso?: string | null): string => {
 }
 
 const toTime = (iso?: string | null): string => {
-  if (!iso) return "--:--"
+  if (!iso) return NO_SCHEDULE_LABEL
 
   const match = iso.match(timePattern)
-  if (!match) return "--:--"
+  if (!match) return NO_SCHEDULE_LABEL
 
   return `${match[1]}:${match[2]}`
 }

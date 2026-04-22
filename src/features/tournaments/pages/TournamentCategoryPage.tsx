@@ -3303,14 +3303,7 @@ export const TournamentCategoryPage = ({
 
             {lastGenerationDraft && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Borrador de generación (estructura inicial)
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Este bloque prepara datos para extender la lógica de
-                  generación.
-                </p>
-                <pre className="mt-2 max-h-48 overflow-auto rounded bg-white p-2 text-xs text-slate-700">
+                <pre className="max-h-48 overflow-auto rounded bg-white p-2 text-xs text-slate-700">
                   {JSON.stringify(lastGenerationDraft, null, 2)}
                 </pre>
               </div>
@@ -3912,8 +3905,13 @@ const sortCourts = (a: string, b: string) => {
 const sortTimes = (a: string, b: string) => {
   const toMinutes = (value: string) => {
     const [hours, minutes] = value.split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.POSITIVE_INFINITY;
     return hours * 60 + minutes;
   };
 
-  return toMinutes(a) - toMinutes(b);
+  const aMinutes = toMinutes(a);
+  const bMinutes = toMinutes(b);
+
+  if (aMinutes === bMinutes) return a.localeCompare(b);
+  return aMinutes - bMinutes;
 };
