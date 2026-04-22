@@ -352,7 +352,8 @@ export const TournamentCategoryPage = ({
 
       const response = await getTournamentCategoryPageData(
         tournamentSlug,
-        categorySlug
+        categorySlug,
+        categoryId
       );
       setData(response);
       if (categoryCacheKey && response?.tournamentCategoryId) {

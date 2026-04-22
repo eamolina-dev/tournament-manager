@@ -167,12 +167,17 @@ const toScoreString = (
 export const getTournamentCategoryPageData = async (
   tournamentSlug: string,
   categorySlug: string,
+  preferredTournamentCategoryId?: string,
 ): Promise<TournamentCategoryPageData | null> => {
   const tournament = await getTournamentBySlug(tournamentSlug)
 
   if (!tournament) return null
 
-  const category = await getTournamentCategoryBySlugs(tournamentSlug, categorySlug)
+  const category = await getTournamentCategoryBySlugs(
+    tournamentSlug,
+    categorySlug,
+    preferredTournamentCategoryId,
+  )
 
   if (!category) return null
 

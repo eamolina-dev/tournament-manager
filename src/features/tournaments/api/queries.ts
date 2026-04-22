@@ -65,7 +65,8 @@ export const getAllCategories = async (): Promise<
 
 export const getTournamentCategoryBySlugs = async (
   tournamentSlug: string,
-  categorySlug: string
+  categorySlug: string,
+  preferredTournamentCategoryId?: string
 ) => {
   const tournament = await getTournamentBySlug(tournamentSlug)
   if (!tournament) return null
@@ -87,13 +88,24 @@ export const getTournamentCategoryBySlugs = async (
 
   throwIfError(error)
 
-  return (
-    data.find((row) => {
+  const bySlug = data.find((row) => {
       if (row.is_suma && row.suma_value != null) {
         return `suma-${row.suma_value}` === categorySlug
       }
       return row.category?.slug === categorySlug
-    }) ?? null
+    })
+
+  if (!bySlug) return null
+  if (!preferredTournamentCategoryId) return bySlug
+
+  return (
+    data.find(
+      (row) =>
+        row.id === preferredTournamentCategoryId &&
+        ((row.is_suma && row.suma_value != null
+          ? `suma-${row.suma_value}`
+          : row.category?.slug) === categorySlug)
+    ) ?? bySlug
   )
 }
 
