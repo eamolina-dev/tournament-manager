@@ -88,6 +88,14 @@ export const getTournamentCategoryBySlugs = async (
 
   throwIfError(error)
 
+  if (preferredTournamentCategoryId) {
+    const preferred = data.find((row) => row.id === preferredTournamentCategoryId)
+    if (preferred) return preferred
+  }
+
+  const byId = data.find((row) => row.id === categorySlug)
+  if (byId) return byId
+
   const bySlug = data.find((row) => {
       if (row.is_suma && row.suma_value != null) {
         return `suma-${row.suma_value}` === categorySlug
@@ -96,17 +104,7 @@ export const getTournamentCategoryBySlugs = async (
     })
 
   if (!bySlug) return null
-  if (!preferredTournamentCategoryId) return bySlug
-
-  return (
-    data.find(
-      (row) =>
-        row.id === preferredTournamentCategoryId &&
-        ((row.is_suma && row.suma_value != null
-          ? `suma-${row.suma_value}`
-          : row.category?.slug) === categorySlug)
-    ) ?? bySlug
-  )
+  return bySlug
 }
 
 export const getGroupsByCategory = async (

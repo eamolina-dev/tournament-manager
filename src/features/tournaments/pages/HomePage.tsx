@@ -281,9 +281,7 @@ export const HomePage = ({
                         ? !cat.hasMatches
                           ? `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}/setup`
                           : `${tenantBasePath}/admin/tournaments/${tournament.id}/categories/${cat.tournamentCategoryId}`
-                        : `${tenantBasePath}/tournament/${tournament.slug}/${
-                            cat.slug ?? cat.id
-                          }`
+                        : `${tenantBasePath}/tournament/${tournament.slug}/${cat.tournamentCategoryId}`
                     );
                   }}
                   className={`rounded-full border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-surface)] ${
