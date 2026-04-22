@@ -5,6 +5,7 @@ import { getTeamPlayersByCategory, getTeamsByCategory } from "../../teams/api/qu
 import {
   getGroupTeamsByGroupIds,
   getGroupsByCategory,
+  getGroupsWithTeamsByCategory,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
 } from "../api/queries"
@@ -192,7 +193,10 @@ export const getTournamentCategoryPageData = async (
     getGroupsByCategory(tournamentCategoryId),
     getMatchesByCategory(tournamentCategoryId),
   ])
-  const groupTeams = await getGroupTeamsByGroupIds(groups.map((group) => group.id))
+  const [groupTeams, groupsWithTeams] = await Promise.all([
+    getGroupTeamsByGroupIds(groups.map((group) => group.id)).catch(() => []),
+    getGroupsWithTeamsByCategory(tournamentCategoryId).catch(() => []),
+  ])
 
   const uniquePlayerIds = Array.from(
     new Set(
@@ -238,6 +242,15 @@ export const getTournamentCategoryPageData = async (
     const list = teamIdsByGroupId.get(row.group_id) ?? []
     list.push(row.team_id)
     teamIdsByGroupId.set(row.group_id, list)
+  }
+  const teamIdsByGroupName = new Map<string, string[]>()
+  for (const row of groupsWithTeams) {
+    const groupName = row.group_name?.trim()
+    const teamId = row.team_id?.trim()
+    if (!groupName || !teamId) continue
+    const list = teamIdsByGroupName.get(groupName) ?? []
+    list.push(teamId)
+    teamIdsByGroupName.set(groupName, list)
   }
 
   const sourceMatchContextByToken = new Map<
@@ -319,7 +332,10 @@ export const getTournamentCategoryPageData = async (
     const groupMatches = sortByMatchNumber(
       allMatches.filter((match) => match.zoneId === group.id),
     )
-    const seededTeamEntries = (teamIdsByGroupId.get(group.id) ?? []).map((teamId) => [
+    const persistedTeamIds = teamIdsByGroupId.get(group.id) ??
+      teamIdsByGroupName.get(group.name.trim()) ??
+      []
+    const seededTeamEntries = persistedTeamIds.map((teamId) => [
       teamId,
       teamsMap.get(teamId) ?? "Equipo",
     ] as const)
@@ -359,7 +375,7 @@ export const getTournamentCategoryPageData = async (
       return {
         id: group.id,
         name: group.name,
-        teamIds: teamIdsByGroupId.get(group.id) ?? [],
+        teamIds: persistedTeamIds,
         standings,
         matches: groupMatches,
       }
