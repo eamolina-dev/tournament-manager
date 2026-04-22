@@ -67,6 +67,14 @@ import {
   areZoneColumnsEqual,
   parseScheduleStartTimes,
 } from "./tournament-category/tournamentCategoryPage.utils";
+import { TournamentCategoryHeader } from "./tournament-category/TournamentCategoryHeader";
+import { PublicTournamentTabs } from "./tournament-category/PublicTournamentTabs";
+import { validateZones } from "./tournament-category/tournamentCategoryZoneValidation";
+import {
+  areSetsEqual,
+  computeWinnerTeamId,
+  parseStoredSets,
+} from "./tournament-category/tournamentCategoryResults.utils";
 import type {
   ActionNotice,
   DraftTeam,
@@ -81,17 +89,11 @@ import type {
   TournamentCategoryPageProps,
   ManualEliminationMatchInput,
   ZoneBoardColumn,
-  ZoneValidationResult,
 } from "./tournament-category/tournamentCategoryPage.types";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
-import { TournamentBracket } from "../components/TournamentBracket";
-import { SearchInput } from "../../../shared/components/SearchInput";
 import { CreatePlayerModal } from "../../players/components/CreatePlayerModal";
 import { isPlayerCategoryCompatible } from "../../players/services/categoryRules";
-import {
-  formatCategoryName,
-  getGenderShortLabel,
-} from "../../../shared/lib/category-display";
+import { getGenderShortLabel } from "../../../shared/lib/category-display";
 import { validateTeamPair } from "../../../shared/lib/ui-validations";
 
 const extractZoneLabelPrefix = (zoneName: string) => {
@@ -1359,34 +1361,6 @@ export const TournamentCategoryPage = ({
     });
     return scoreMap;
   }, [orderedZones]);
-  const validateZones = (zones: ZoneBoardColumn[]): ZoneValidationResult => {
-    const warnings: string[] = [];
-    const zoneWarningsById: Record<string, string> = {};
-    const zonesWithFourTeams = zones.filter(
-      (zone) => zone.teamIds.length === 4
-    ).length;
-
-    zones.forEach((zone) => {
-      if (zone.teamIds.length < 3 || zone.teamIds.length > 4) {
-        zoneWarningsById[zone.id] = "Cada zona debe tener entre 3 y 4 equipos.";
-      }
-    });
-
-    if (zonesWithFourTeams > 2) {
-      warnings.push("Solo puede haber 2 zonas con 4 equipos como máximo.");
-    }
-    if (Object.values(zoneWarningsById).length > 0) {
-      warnings.push("Hay zonas que no cumplen la regla de 3 o 4 equipos.");
-    }
-    const normalizedNames = zones.map((zone) =>
-      zone.name.trim().toLocaleLowerCase()
-    );
-    if (new Set(normalizedNames).size !== normalizedNames.length) {
-      warnings.push("Hay zonas con nombres repetidos.");
-    }
-
-    return { warnings, zoneWarningsById };
-  };
   const zoneValidation = useMemo(
     () => validateZones(normalizedZoneColumns),
     [normalizedZoneColumns]
@@ -1723,47 +1697,6 @@ export const TournamentCategoryPage = ({
       return selectedId;
     }
     if (required) throw new Error("Debe seleccionar un Jugador/a 1.");
-    return null;
-  };
-
-  const parseStoredSets = (
-    score?: string,
-    sets?: { team1: number; team2: number }[]
-  ): MatchSetScore[] => {
-    if (sets?.length) return sets;
-    if (!score) return [];
-    return score
-      .split(" ")
-      .map((set) => {
-        const [team1, team2] = set.split("-").map(Number);
-        if (Number.isNaN(team1) || Number.isNaN(team2)) return null;
-        return { team1, team2 };
-      })
-      .filter((set): set is MatchSetScore => Boolean(set));
-  };
-
-  const areSetsEqual = (left: MatchSetScore[], right: MatchSetScore[]) =>
-    left.length === right.length &&
-    left.every(
-      (set, index) =>
-        set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2
-    );
-
-  const computeWinnerTeamId = (
-    team1Id: string | null | undefined,
-    team2Id: string | null | undefined,
-    sets: MatchSetScore[]
-  ) => {
-    let team1Won = 0;
-    let team2Won = 0;
-    sets.forEach((set) => {
-      if (set.team1 > set.team2) team1Won += 1;
-      if (set.team2 > set.team1) team2Won += 1;
-    });
-
-    if (!team1Id || !team2Id) return null;
-    if (team1Won > team2Won) return team1Id;
-    if (team2Won > team1Won) return team2Id;
     return null;
   };
 
@@ -2129,86 +2062,19 @@ export const TournamentCategoryPage = ({
 
   return (
     <section className="flex flex-col gap-4">
-      <header className="tm-card">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">
-            {data.tournamentName}
-          </h1>
-          {isAdmin && !isAdminResultsMode && navigate ? (
-            <button
-              disabled={!isTournamentEditable}
-              onClick={() =>
-                navigate(
-                  `${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`
-                )
-              }
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              Volver
-            </button>
-          ) : null}
-          {!isAdmin && navigate && (
-            <button
-              onClick={() => navigate(`${tenantBasePath}/`)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              Volver al Inicio
-            </button>
-          )}
-          {isAdmin && isAdminResultsMode && navigate && (
-            <button
-              onClick={() => navigate(`${tenantBasePath}/admin/tournaments`)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              Volver al Inicio
-            </button>
-          )}
-
-          {isAdmin && !eventId && navigate && (
-            <button
-              onClick={() =>
-                navigate(
-                  `${tenantBasePath}/tournament/${slug}/${category}?owner=1`
-                )
-              }
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              Ver vista pública
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-slate-500">
-          Categoría{" "}
-          {formatCategoryName({
-            categoryName: data.categoryName,
-            gender: data.gender,
-          })}
-        </p>
-        {!isAdmin && isOwner && (
-          <p className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-            Modo edición activo
-          </p>
-        )}
-
-        {data.champion && (
-          <div className="mt-3 space-y-1 text-sm text-slate-700">
-            <p>🥇 Campeones: {data.champion}</p>
-            <p>🥈 Finalistas: {data.finalist}</p>
-            <p>🥉 Semifinalistas: {data.semifinalists?.join(" · ")}</p>
-          </div>
-        )}
-        {actionNotice && (
-          <p
-            className={`mt-3 rounded-md border px-3 py-2 text-sm ${
-              actionNotice.type === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {actionNotice.message}
-          </p>
-        )}
-      </header>
+      <TournamentCategoryHeader
+        data={data}
+        isAdmin={isAdmin}
+        isAdminResultsMode={isAdminResultsMode}
+        isOwner={isOwner}
+        isTournamentEditable={isTournamentEditable}
+        eventId={eventId}
+        navigate={navigate}
+        tenantBasePath={tenantBasePath}
+        slug={slug}
+        category={category}
+        actionNotice={actionNotice}
+      />
 
       {isAdmin && !isAdminResultsMode && (
         <section className="tm-card flex flex-col gap-4">
@@ -3457,274 +3323,38 @@ export const TournamentCategoryPage = ({
       )}
 
       {!isAdmin && (
-        <section className="space-y-4 tm-card">
-          <div className="flex flex-wrap gap-2">
-            {sectionTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                  tab === activeTab
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-300 bg-white text-slate-700"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === "Zonas" && activeZone && (
-            <section>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {orderedZones.map((zone) => (
-                  <button
-                    key={zone.id}
-                    onClick={() => setZoneId(zone.id)}
-                    className={`rounded-full px-3 py-1 text-sm ${
-                      zone.id === activeZone.id
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
-                    }`}
-                  >
-                    {zone.name}
-                  </button>
-                ))}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="tm-zebra-table w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2">Equipo</th>
-                      <th className="py-2">PTS</th>
-                      <th className="py-2">Sets</th>
-                      <th className="py-2">Games</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeZone.standings.map((standing, rowIndex) => (
-                      <tr
-                        key={standing.teamId}
-                        className={`border-b border-slate-100 last:border-none ${
-                          rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
-                        }`}
-                      >
-                        <td className="py-2">{standing.teamName}</td>
-                        <td className="py-2">{standing.pts}</td>
-                        <td className="py-2">{standing.setsWon}</td>
-                        <td className="py-2">{standing.gamesWon}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4">
-                {orderedZoneMatches.length ? (
-                  <>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Partidos
-                    </p>
-                    <div className={matchCardsGridClass}>
-                      {orderedZoneMatches.map((match, index) => (
-                        <MatchCardFull
-                          key={match.id}
-                          match={match}
-                          extraInfoLabel={buildZoneMatchLabel(
-                            activeZone.name,
-                            index
-                          )}
-                          isEditable={isOwner}
-                          hideSaveButton={isOwner}
-                          isModified={Boolean(
-                            zoneEditedResults[activeZone.id]?.[match.id]
-                          )}
-                          externalError={
-                            zoneMatchErrors[activeZone.id]?.[match.id]
-                          }
-                          onEditStateChange={
-                            isOwner ? handleZoneEditStateChange : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                    {isOwner && (
-                      <div className="mt-2 flex items-center gap-3">
-                        <button
-                          onClick={() => void saveZoneResultsBatch()}
-                          disabled={
-                            savingZoneId === activeZone.id ||
-                            !Object.keys(zoneEditedResults[activeZone.id] ?? {})
-                              .length
-                          }
-                          className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {savingZoneId === activeZone.id
-                            ? "Guardando..."
-                            : "Guardar resultados"}
-                        </button>
-                        <span className="text-xs text-slate-500">
-                          Editados:{" "}
-                          {
-                            Object.keys(zoneEditedResults[activeZone.id] ?? {})
-                              .length
-                          }
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    No hay partidos cargados en esta zona.
-                  </p>
-                )}
-              </div>
-            </section>
-          )}
-          {activeTab === "Cruces" && (
-            <section className="space-y-4">
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPublicCrossesView("bracket")}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    publicCrossesView === "bracket"
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-300 bg-white text-slate-700"
-                  }`}
-                >
-                  Vista de llave
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPublicCrossesView("zone")}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    publicCrossesView === "zone"
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-300 bg-white text-slate-700"
-                  }`}
-                >
-                  Vista de zona
-                </button>
-              </div>
-
-              {publicCrossesView === "bracket" ? (
-                <TournamentBracket
-                  matches={orderedBracketMatches}
-                  stageLabels={stageLabelOverrides}
-                />
-              ) : (
-                <section className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {publicBracketStages.map((stage) => (
-                      <button
-                        key={stage}
-                        type="button"
-                        onClick={() => setActivePublicBracketStage(stage)}
-                        className={`rounded-full px-3 py-1 text-sm ${
-                          stage === activePublicBracketStage
-                            ? "bg-slate-900 text-white"
-                            : "border border-slate-300 text-slate-700"
-                        }`}
-                      >
-                        {stageLabelFor(stage)}
-                      </button>
-                    ))}
-                  </div>
-                  <div className={matchCardsGridClass}>
-                    {publicVisibleBracketMatches.map((match) => (
-                      <MatchCardFull key={match.id} match={match} />
-                    ))}
-                  </div>
-                  {!publicVisibleBracketMatches.length && (
-                    <p className="text-sm text-slate-500">
-                      No hay cruces para esta instancia.
-                    </p>
-                  )}
-                </section>
-              )}
-            </section>
-          )}
-          {activeTab === "Posiciones" && (
-            <section>
-              <div className="mb-3">
-                <SearchInput
-                  value={resultsQuery}
-                  onChange={setResultsQuery}
-                  placeholder="Buscar jugador en resultados..."
-                />
-              </div>
-              <p className="mb-2 text-xs text-slate-500">
-                Mostrando {filteredResults.length} de{" "}
-                {(data?.results ?? []).length} jugadores.
-              </p>
-              <div className="overflow-x-auto">
-                <table className="tm-zebra-table w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2">Jugador</th>
-                      {!shouldHideCompetitionStatus && (
-                        <th className="py-2 text-center">Estado</th>
-                      )}
-                      <th className="py-2 text-right">Puntos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResults.length ? (
-                      filteredResults.map((row, rowIndex) => (
-                        <tr
-                          key={row.playerId}
-                          className={`border-b border-slate-100 last:border-none ${
-                            rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/70"
-                          }`}
-                        >
-                          <td className="py-2 text-slate-700">
-                            {row.playerName}
-                          </td>
-                          {!shouldHideCompetitionStatus && (
-                            <td className="py-2 text-center">
-                              {row.isInCompetition ? (
-                                <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                                  <span
-                                    className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500"
-                                    title="En competencia"
-                                  />
-                                  En competencia
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />
-                                  Eliminado
-                                </span>
-                              )}
-                            </td>
-                          )}
-                          <td className="py-2 text-right font-semibold text-slate-900">
-                            {row.points}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={shouldHideCompetitionStatus ? 2 : 3}
-                          className="py-4 text-center text-slate-500"
-                        >
-                          No se encontraron jugadores.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-          {activeTab === "Horarios" && (
-            <ScheduleSection
-              matches={data.schedule}
-              storageKey={`tournament:${slug}:${category}:schedule-day-tab`}
-            />
-          )}
-        </section>
+        <PublicTournamentTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          orderedZones={orderedZones}
+          activeZone={activeZone}
+          setZoneId={setZoneId}
+          orderedZoneMatches={orderedZoneMatches}
+          buildZoneMatchLabel={buildZoneMatchLabel}
+          isOwner={isOwner}
+          zoneEditedResults={zoneEditedResults}
+          zoneMatchErrors={zoneMatchErrors}
+          handleZoneEditStateChange={handleZoneEditStateChange}
+          saveZoneResultsBatch={saveZoneResultsBatch}
+          savingZoneId={savingZoneId}
+          publicCrossesView={publicCrossesView}
+          setPublicCrossesView={setPublicCrossesView}
+          orderedBracketMatches={orderedBracketMatches}
+          stageLabelOverrides={stageLabelOverrides}
+          publicBracketStages={publicBracketStages}
+          activePublicBracketStage={activePublicBracketStage}
+          setActivePublicBracketStage={setActivePublicBracketStage}
+          stageLabelFor={stageLabelFor}
+          publicVisibleBracketMatches={publicVisibleBracketMatches}
+          resultsQuery={resultsQuery}
+          setResultsQuery={setResultsQuery}
+          filteredResults={filteredResults}
+          shouldHideCompetitionStatus={shouldHideCompetitionStatus}
+          totalResults={(data?.results ?? []).length}
+          schedule={data.schedule}
+          slug={slug}
+          category={category}
+        />
       )}
 
       {isAdmin && (
@@ -3776,147 +3406,4 @@ export const TournamentCategoryPage = ({
       )}
     </section>
   );
-};
-
-const ScheduleSection = ({
-  matches,
-  storageKey,
-}: {
-  matches: {
-    id: string;
-    day: string;
-    time: string;
-    court?: string;
-    team1: string;
-    team2: string;
-  }[];
-  storageKey: string;
-}) => {
-  const dayTabs = useMemo(
-    () => Array.from(new Set(matches.map((match) => match.day))),
-    [matches]
-  );
-  const [day, setDay] = usePersistentTab<string>({
-    storageKey,
-    tabs: dayTabs,
-    defaultTab: dayTabs[0],
-  });
-  const dayMatches = matches.filter((match) => match.day === day);
-
-  const courts = Array.from(
-    new Set(dayMatches.map((match) => match.court ?? "-"))
-  ).sort(sortCourts);
-  const timeSlots = Array.from(
-    new Set(dayMatches.map((match) => match.time))
-  ).sort(sortTimes);
-
-  const matchesByCell = new Map(
-    dayMatches.map((match) => [`${match.time}__${match.court ?? "-"}`, match])
-  );
-
-  return (
-    <section>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
-          {dayTabs.map((item) => (
-            <button
-              key={item}
-              onClick={() => setDay(item)}
-              className={`rounded-full px-3 py-1.5 text-sm ${
-                day === item
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 text-slate-700"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        {dayMatches.length ? (
-          <table className="min-w-[500px] w-full text-left text-sm">
-            <thead>
-              <tr className="sticky top-0 z-10 border-b border-slate-200 bg-white text-slate-500">
-                <th className="sticky left-0 z-20 w-20 bg-white py-2 pr-2">
-                  Hora
-                </th>
-                {courts.map((court) => (
-                  <th key={court} className="min-w-40 py-2 px-1">
-                    {court}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((time, rowIndex) => (
-                <tr
-                  key={time}
-                  className={`border-b border-slate-100 last:border-none align-top ${
-                    rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                  }`}
-                >
-                  <td className="sticky left-0 z-10 bg-inherit py-2 pr-2 font-semibold text-slate-700">
-                    {time}
-                  </td>
-                  {courts.map((court) => {
-                    const match = matchesByCell.get(`${time}__${court}`);
-                    return (
-                      <td key={`${time}-${court}`} className="py-2 px-1">
-                        {match ? (
-                          <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-left">
-                            <p className="text-xs font-medium text-slate-800 leading-tight">
-                              {match.team1}
-                            </p>
-                            <p className="my-1 text-[11px] uppercase text-slate-400">
-                              vs
-                            </p>
-                            <p className="text-xs font-medium text-slate-800 leading-tight">
-                              {match.team2}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex h-[74px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-400">
-                            -
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-slate-500">Sin partidos programados.</p>
-        )}
-      </div>
-    </section>
-  );
-};
-
-const sortCourts = (a: string, b: string) => {
-  const parseCourt = (value: string) => {
-    const normalized = value.trim().toUpperCase();
-    if (normalized === "-") return 999;
-    const match = normalized.match(/^C(\d+)$/);
-    if (match) return Number(match[1]);
-    return 998;
-  };
-
-  return parseCourt(a) - parseCourt(b) || a.localeCompare(b);
-};
-
-const sortTimes = (a: string, b: string) => {
-  const toMinutes = (value: string) => {
-    const [hours, minutes] = value.split(":").map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.POSITIVE_INFINITY;
-    return hours * 60 + minutes;
-  };
-
-  const aMinutes = toMinutes(a);
-  const bMinutes = toMinutes(b);
-
-  if (aMinutes === bMinutes) return a.localeCompare(b);
-  return aMinutes - bMinutes;
 };

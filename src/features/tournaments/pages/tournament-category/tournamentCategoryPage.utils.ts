@@ -35,3 +35,30 @@ export const parseScheduleStartTimes = (value: unknown): Record<string, string> 
 
   return safe;
 };
+
+export const sortCourts = (a: string, b: string) => {
+  const parseCourt = (value: string) => {
+    const normalized = value.trim().toUpperCase();
+    if (normalized === "-") return 999;
+    const match = normalized.match(/^C(\d+)$/);
+    if (match) return Number(match[1]);
+    return 998;
+  };
+
+  return parseCourt(a) - parseCourt(b) || a.localeCompare(b);
+};
+
+export const sortTimes = (a: string, b: string) => {
+  const toMinutes = (value: string) => {
+    const [hours, minutes] = value.split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes))
+      return Number.POSITIVE_INFINITY;
+    return hours * 60 + minutes;
+  };
+
+  const aMinutes = toMinutes(a);
+  const bMinutes = toMinutes(b);
+
+  if (aMinutes === bMinutes) return a.localeCompare(b);
+  return aMinutes - bMinutes;
+};
