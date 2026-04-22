@@ -145,7 +145,7 @@ export const MatchCard = ({
   const onEditStateChangeRef = useRef(onEditStateChange);
   const cardInfoItems = useMemo(() => {
     const hasDefinedSchedule = match.time !== "Sin horario definido";
-    const items = hasDefinedSchedule ? [match.day, match.time] : [match.time];
+    const items = hasDefinedSchedule ? [match.day, match.time] : [];
     if (eliminationMatchLabel) items.push(eliminationMatchLabel);
     if (extraInfoLabel) items.push(extraInfoLabel);
     return items;

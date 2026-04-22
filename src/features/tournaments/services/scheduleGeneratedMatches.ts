@@ -18,9 +18,21 @@ type ScheduleOptions = {
 
 const toLocalTimestamp = (day: string, time: string): string => {
   const [hours, minutes] = time.split(":").map(Number)
-  const safeHours = Number.isFinite(hours) ? `${hours}`.padStart(2, "0") : "00"
-  const safeMinutes = Number.isFinite(minutes) ? `${minutes}`.padStart(2, "0") : "00"
-  return `${day}T${safeHours}:${safeMinutes}:00`
+  const safeHours = Number.isFinite(hours) ? hours : 0
+  const safeMinutes = Number.isFinite(minutes) ? minutes : 0
+
+  const baseDate = new Date(`${day}T00:00:00`)
+  if (Number.isNaN(baseDate.getTime())) {
+    return `${day}T00:00:00`
+  }
+
+  baseDate.setMinutes(safeHours * 60 + safeMinutes)
+  const yyyy = baseDate.getFullYear()
+  const mm = `${baseDate.getMonth() + 1}`.padStart(2, "0")
+  const dd = `${baseDate.getDate()}`.padStart(2, "0")
+  const hh = `${baseDate.getHours()}`.padStart(2, "0")
+  const min = `${baseDate.getMinutes()}`.padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`
 }
 
 const parseScheduleStartTimes = (value: unknown): Record<string, string> => {

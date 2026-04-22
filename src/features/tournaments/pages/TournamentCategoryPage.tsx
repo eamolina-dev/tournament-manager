@@ -52,7 +52,6 @@ import {
   adminResultsTabs,
   defaultCourtsCount,
   defaultMatchIntervalMinutes,
-  defaultScheduleStartTime,
   eliminationStageOrder,
   getEliminationStageLabel,
   matchCardsGridClass,
@@ -554,7 +553,7 @@ export const TournamentCategoryPage = ({
     );
     const nextStartTimes = scheduleDays.reduce<Record<string, string>>(
       (acc, day) => {
-        acc[day.key] = persistedStartTimes[day.key] ?? defaultScheduleStartTime;
+        acc[day.key] = persistedStartTimes[day.key] ?? "";
         return acc;
       },
       {}
@@ -693,16 +692,6 @@ export const TournamentCategoryPage = ({
     }
   }, [data, scheduleDays]);
 
-  useEffect(() => {
-    if (!scheduleDays.length) return;
-    const fallback = scheduleDays[0]?.key ?? "";
-    setPhaseByDay((prev) => ({
-      quarterfinals: prev.quarterfinals || fallback,
-      semifinals: prev.semifinals || fallback,
-      finals: prev.finals || fallback,
-    }));
-  }, [scheduleDays]);
-
   const canGenerateZones = (data?.teams.length ?? 0) >= MIN_TEAMS_FOR_ZONES;
   const teamsForZoneBoard = useMemo<ZoneTeam[]>(
     () => (data?.teams ?? []).map((team) => ({ id: team.id, name: team.name })),
@@ -747,27 +736,14 @@ export const TournamentCategoryPage = ({
       .sort((left, right) => left.localeCompare(right))
       .join("__");
   useEffect(() => {
-    if (!zoneBoardColumns.length || !scheduleDays.length) return;
-
-    const fallback = scheduleDays[0]?.key ?? "";
-
-    setZoneDayById((prev) => {
-      const next = zoneBoardColumns.reduce<Record<string, string>>(
-        (acc, zone) => {
-          acc[zone.id] = prev[zone.id] || fallback;
-          return acc;
-        },
-        {}
-      );
-
-      // 🔥 evitar loop: comparar antes de actualizar
-      const isEqual =
-        Object.keys(next).length === Object.keys(prev).length &&
-        Object.keys(next).every((key) => next[key] === prev[key]);
-
-      return isEqual ? prev : next;
-    });
-  }, [zoneBoardColumns, scheduleDays]);
+    if (!zoneBoardColumns.length) return;
+    setZoneDayById((prev) =>
+      zoneBoardColumns.reduce<Record<string, string>>((acc, zone) => {
+        acc[zone.id] = prev[zone.id] ?? "";
+        return acc;
+      }, {})
+    );
+  }, [zoneBoardColumns]);
   useEffect(() => {
     setZoneConfigSuccess(null);
   }, [manualZones]);
@@ -872,19 +848,6 @@ export const TournamentCategoryPage = ({
     setScheduleConfigSuccess(null);
     setActionNotice(null);
 
-    const hasInvalidTime = scheduleDays.some(
-      (day) =>
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(
-          scheduleStartTimesInput[day.key] ?? ""
-        )
-    );
-    if (hasInvalidTime) {
-      const message =
-        "Revisá los horarios de inicio: el formato debe ser HH:MM.";
-      setScheduleConfigError(message);
-      setActionNotice({ type: "error", message });
-      return;
-    }
     if (matchIntervalMinutesInput <= 0) {
       const message = "El intervalo entre partidos debe ser mayor a 0.";
       setScheduleConfigError(message);
@@ -902,7 +865,10 @@ export const TournamentCategoryPage = ({
     try {
       const payloadStartTimes = scheduleDays.reduce<Record<string, string>>(
         (acc, day) => {
-          acc[day.key] = scheduleStartTimesInput[day.key];
+          const candidate = scheduleStartTimesInput[day.key] ?? "";
+          if (/^([01]\d|2[0-3]):[0-5]\d$/.test(candidate)) {
+            acc[day.key] = candidate;
+          }
           return acc;
         },
         {}
@@ -919,10 +885,23 @@ export const TournamentCategoryPage = ({
       );
 
       await updateTournamentCategory(data.tournamentCategoryId, {
-        schedule_start_times: payloadStartTimes,
+        schedule_start_times: Object.keys(payloadStartTimes).length
+          ? payloadStartTimes
+          : null,
         match_interval_minutes: matchIntervalMinutesInput,
         courts_count: courtsCountInput,
       });
+      if (!canApplyScheduling) {
+        setScheduleConfigSuccess(
+          "Configuración guardada sin aplicar horarios. Podés definir día y hora más adelante."
+        );
+        setActionNotice({
+          type: "success",
+          message: "Configuración guardada sin horarios.",
+        });
+        await load();
+        return;
+      }
       if (orderedEditableMatches.length) {
         const shouldOverwriteSchedule = window.confirm(
           "Esto actualizará día, hora y cancha de los partidos existentes. ¿Querés continuar?"
@@ -1345,6 +1324,32 @@ export const TournamentCategoryPage = ({
       })),
     [schedulingData.validPhaseKeys]
   );
+  const hasValidStartTimeByDay = useMemo(
+    () =>
+      scheduleDays.every((day) =>
+        /^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleStartTimesInput[day.key] ?? "")
+      ),
+    [scheduleDays, scheduleStartTimesInput]
+  );
+  const hasAssignedDaysForZones = useMemo(
+    () =>
+      schedulingData.validZones.every((zone) =>
+        Boolean(zoneDayById[zone.id]?.trim())
+      ),
+    [schedulingData.validZones, zoneDayById]
+  );
+  const hasAssignedDaysForPhases = useMemo(
+    () =>
+      schedulingPhases.every((phase) => Boolean(phaseByDay[phase.key]?.trim())),
+    [phaseByDay, schedulingPhases]
+  );
+  const canApplyScheduling =
+    scheduleDays.length > 0 &&
+    hasValidStartTimeByDay &&
+    hasAssignedDaysForZones &&
+    hasAssignedDaysForPhases &&
+    matchIntervalMinutesInput > 0 &&
+    courtsCountInput > 0;
   const teamPointsById = useMemo(() => {
     const scoreMap = new Map<string, number>();
     orderedZones.forEach((zone) => {
@@ -1648,6 +1653,7 @@ export const TournamentCategoryPage = ({
     setSaving(true);
     try {
       await generateFullTournament(data.tournamentCategoryId, {
+        applyScheduling: canApplyScheduling,
         scheduling: {
           zoneDayById,
           phaseByDay,
@@ -2907,8 +2913,7 @@ export const TournamentCategoryPage = ({
                           placeholder="HH:mm"
                           pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
                           value={
-                            scheduleStartTimesInput[day.key] ??
-                            defaultScheduleStartTime
+                            scheduleStartTimesInput[day.key] ?? ""
                           }
                           onChange={(event) =>
                             setScheduleStartTimesInput((prev) => ({
