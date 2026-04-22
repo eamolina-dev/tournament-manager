@@ -3,6 +3,7 @@ import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type {
   GroupStanding,
   GroupTableRow,
+  PlayerParticipation,
   Ranking,
   RankingRule,
 } from "../../../shared/types/entities"
@@ -10,6 +11,15 @@ import type {
 export const getTeamResults = async (): Promise<Ranking[]> => {
   const { data, error } = await supabase
     .from("team_results")
+    .select("*")
+
+  throwIfError(error)
+  return data
+}
+
+export const getPlayerParticipations = async (): Promise<PlayerParticipation[]> => {
+  const { data, error } = await supabase
+    .from("player_participations")
     .select("*")
 
   throwIfError(error)

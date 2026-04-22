@@ -24,6 +24,9 @@ export type TeamUpdate = TableUpdate<"teams">
 export type Player = TableRow<"players">
 export type PlayerInsert = TableInsert<"players">
 export type PlayerUpdate = TableUpdate<"players">
+export type PlayerParticipation = TableRow<"player_participations">
+export type PlayerParticipationInsert = TableInsert<"player_participations">
+export type PlayerParticipationUpdate = TableUpdate<"player_participations">
 
 export type Registration = TableRow<"registrations">
 export type RegistrationInsert = TableInsert<"registrations">

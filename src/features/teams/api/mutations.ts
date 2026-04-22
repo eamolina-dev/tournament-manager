@@ -1,11 +1,17 @@
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
-import type { Team, TeamInsert, TeamUpdate } from "../../../shared/types/entities"
+import type {
+  PlayerParticipationInsert,
+  Team,
+  TeamInsert,
+  TeamUpdate,
+} from "../../../shared/types/entities"
 import { assertNonEmptyString } from "../../../shared/lib/validation"
 import {
   assertTournamentEditableByCategoryId,
   assertTournamentEditableByTeamId,
 } from "../../tournaments/services/tournamentStatusGuard"
+import { toDatabaseGender } from "../../../shared/lib/category-display"
 
 const SAME_PLAYER_ERROR = "A team cannot have the same player twice."
 const PLAYER_ALREADY_ASSIGNED_ERROR =
@@ -75,6 +81,60 @@ const assertPlayersNotAssignedInCategory = async (args: {
   }
 }
 
+const syncParticipationsForTeam = async ({
+  teamId,
+  tournamentCategoryId,
+  playerIds,
+}: {
+  teamId: string
+  tournamentCategoryId: string
+  playerIds: string[]
+}): Promise<void> => {
+  const normalizedPlayerIds = Array.from(new Set(playerIds.filter(Boolean)))
+
+  const { error: deleteError } = await supabase
+    .from("player_participations")
+    .delete()
+    .eq("team_id", teamId)
+  throwIfError(deleteError)
+
+  if (!normalizedPlayerIds.length) return
+
+  const { data: tournamentCategory, error: tournamentCategoryError } = await supabase
+    .from("tournament_categories")
+    .select("id, tournament_id, category_id, gender")
+    .eq("id", tournamentCategoryId)
+    .single()
+
+  throwIfError(tournamentCategoryError)
+
+  if (!tournamentCategory.category_id) {
+    throw new Error("La categoría del torneo no tiene category_id para crear participaciones.")
+  }
+  if (!tournamentCategory.tournament_id) {
+    throw new Error("La categoría del torneo no tiene tournament_id para crear participaciones.")
+  }
+
+  const normalizedGender = toDatabaseGender(tournamentCategory.gender) ?? "mixed"
+
+  const rows: PlayerParticipationInsert[] = normalizedPlayerIds.map((playerId) => ({
+    player_id: playerId,
+    team_id: teamId,
+    tournament_id: tournamentCategory.tournament_id,
+    tournament_category_id: tournamentCategory.id,
+    played_category_id: tournamentCategory.category_id,
+    played_gender: normalizedGender,
+    ranking_category_id: tournamentCategory.category_id,
+    ranking_gender: normalizedGender,
+    rule_code: "STANDARD",
+  }))
+
+  const { error: insertError } = await supabase
+    .from("player_participations")
+    .insert(rows)
+  throwIfError(insertError)
+}
+
 export const createTeam = async (input: TeamInsert): Promise<Team> => {
   if (!input.tournament_category_id) {
     throw new Error("Falta tournament_category_id para crear el equipo.")
@@ -127,6 +187,12 @@ export const createTeam = async (input: TeamInsert): Promise<Team> => {
     throwIfError(rollbackError)
     throw new Error(PLAYER_ALREADY_ASSIGNED_ERROR)
   }
+
+  await syncParticipationsForTeam({
+    teamId: data.id,
+    tournamentCategoryId: data.tournament_category_id,
+    playerIds: [data.player1_id, data.player2_id].filter(Boolean) as string[],
+  })
 
   return data
 }
@@ -197,6 +263,12 @@ export const updateTeam = async (
     throwIfError(rollbackError)
     throw new Error(PLAYER_ALREADY_ASSIGNED_ERROR)
   }
+
+  await syncParticipationsForTeam({
+    teamId: data.id,
+    tournamentCategoryId: data.tournament_category_id,
+    playerIds: [data.player1_id, data.player2_id].filter(Boolean) as string[],
+  })
 
   return data
 }
