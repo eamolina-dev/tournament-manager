@@ -55,9 +55,8 @@ export const generateEliminationMatches = async ({
     const firstRound = sortedRounds[0]
     const secondRound = firstRound ? firstRound / 2 : 0
     const firstRoundMatchesCount = template.filter((match) => match.round === firstRound).length
-    const secondRoundMatchesCount = template.filter((match) => match.round === secondRound).length
     const editableRounds = new Set(
-      firstRound && secondRound > 0 && firstRoundMatchesCount < secondRoundMatchesCount
+      firstRound && secondRound > 0 && firstRoundMatchesCount < firstRound
         ? [firstRound, secondRound]
         : [firstRound],
     )

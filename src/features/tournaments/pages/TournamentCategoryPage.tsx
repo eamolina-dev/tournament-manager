@@ -152,10 +152,7 @@ const getEditableRoundNumbers = (
   const firstRoundMatches =
     roundBlocks.find((roundBlock) => roundBlock.round === firstRound)?.matches
       .length ?? 0;
-  const secondRoundMatches =
-    roundBlocks.find((roundBlock) => roundBlock.round === secondRound)?.matches
-      .length ?? 0;
-  if (secondRound > 0 && firstRoundMatches < secondRoundMatches) {
+  if (secondRound > 0 && firstRoundMatches < firstRound) {
     return [firstRound, secondRound];
   }
   return [firstRound];
