@@ -133,6 +133,25 @@ const rankSeedSources = (sources: SeedSource[], groupRanking: string[]): SeedSou
   })
 }
 
+const buildBalancedRoundSlots = (sources: Array<string | null>): Array<string | null> => {
+  const balanced: Array<string | null> = []
+  let left = 0
+  let right = sources.length - 1
+
+  while (left <= right) {
+    if (left === right) {
+      balanced.push(sources[left])
+      break
+    }
+
+    balanced.push(sources[left], sources[right])
+    left += 1
+    right -= 1
+  }
+
+  return balanced
+}
+
 const buildInitialRounds = (
   seedTokens: string[],
   groupRanking: string[],
@@ -252,7 +271,7 @@ export const generateBracket = (
 
     const round = nextPowerOfTwo(activeTeams) / 2
     const stage = getStageFromActiveTeams(activeTeams)
-    const nextRoundSlots: Array<string | null> = []
+    const advancingSourcesByMatchOrder: Array<string | null> = []
 
     for (let index = 0; index < currentRoundSlots.length; index += 2) {
       const order = index / 2 + 1
@@ -269,14 +288,14 @@ export const generateBracket = (
           team2,
         })
 
-        nextRoundSlots.push(`W-${order}-${round}`)
+        advancingSourcesByMatchOrder.push(`W-${order}-${round}`)
         continue
       }
 
-      nextRoundSlots.push(team1 ?? team2 ?? null)
+      advancingSourcesByMatchOrder.push(team1 ?? team2 ?? null)
     }
 
-    currentRoundSlots = nextRoundSlots
+    currentRoundSlots = buildBalancedRoundSlots(advancingSourcesByMatchOrder)
   }
 
   return matches.map((match, index) => ({
