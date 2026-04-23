@@ -113,6 +113,7 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
+const AUTO_REFRESH_INTERVAL_MS = 60_000;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
   if (stage === "semi") return "Semis";
@@ -338,8 +339,15 @@ export const TournamentCategoryPage = ({
     );
   };
 
-  const load = async () => {
+  const load = async ({
+    showLoading = true,
+    useCache = true,
+  }: {
+    showLoading?: boolean;
+    useCache?: boolean;
+  } = {}) => {
     if (
+      useCache &&
       categoryCacheKey &&
       lastLoadedCacheKeyRef.current !== categoryCacheKey
     ) {
@@ -357,7 +365,9 @@ export const TournamentCategoryPage = ({
         }
       }
     }
-    setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       let tournamentSlug = slug;
       let categorySlug = category;
@@ -415,13 +425,40 @@ export const TournamentCategoryPage = ({
         });
       }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
+  const loadRef = useRef(load);
+
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
   useEffect(() => {
     void load();
   }, [slug, category, eventId, categoryId, isAdmin, categoryCacheKey]);
+
+  useEffect(() => {
+    const refreshInBackground = () => {
+      if (document.visibilityState !== "visible") return;
+      void loadRef.current({ showLoading: false, useCache: false });
+    };
+
+    const intervalId = window.setInterval(
+      refreshInBackground,
+      AUTO_REFRESH_INTERVAL_MS
+    );
+    window.addEventListener("focus", refreshInBackground);
+    document.addEventListener("visibilitychange", refreshInBackground);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshInBackground);
+      document.removeEventListener("visibilitychange", refreshInBackground);
+    };
+  }, []);
 
   const activeZone = useMemo(() => {
     if (!orderedZones.length) return null;
