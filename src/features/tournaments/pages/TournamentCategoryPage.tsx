@@ -113,7 +113,7 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 };
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
-const MIN_TEAMS_FOR_ZONES = 6;
+const MIN_TEAMS_FOR_ZONES = 8;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
   if (stage === "semi") return "Semifinal";
@@ -138,6 +138,27 @@ type DisplayRoundBlock = {
   round: number;
   title: string;
   matches: EliminationTemplateMatch[];
+};
+
+const getEditableRoundNumbers = (
+  roundBlocks: DisplayRoundBlock[]
+): number[] => {
+  const sortedRounds = [...roundBlocks]
+    .map((roundBlock) => roundBlock.round)
+    .sort((a, b) => b - a);
+  if (!sortedRounds.length) return [];
+  const firstRound = sortedRounds[0];
+  const secondRound = firstRound / 2;
+  const firstRoundMatches =
+    roundBlocks.find((roundBlock) => roundBlock.round === firstRound)?.matches
+      .length ?? 0;
+  const secondRoundMatches =
+    roundBlocks.find((roundBlock) => roundBlock.round === secondRound)?.matches
+      .length ?? 0;
+  if (secondRound > 0 && firstRoundMatches < secondRoundMatches) {
+    return [firstRound, secondRound];
+  }
+  return [firstRound];
 };
 
 const hasSource = (source: string | null | undefined): boolean =>
@@ -1167,9 +1188,13 @@ export const TournamentCategoryPage = ({
     [roundBlocks]
   );
   const visibleRoundBlocks = useMemo(() => roundBlocks, [roundBlocks]);
-  const editableRound = useMemo(
-    () => [...visibleRoundBlocks].sort((a, b) => b.round - a.round)[0]?.round ?? null,
+  const editableRounds = useMemo(
+    () => getEditableRoundNumbers(visibleRoundBlocks),
     [visibleRoundBlocks]
+  );
+  const editableRoundsSet = useMemo(
+    () => new Set(editableRounds),
+    [editableRounds]
   );
 
   const getEffectiveSource = useCallback(
@@ -1185,8 +1210,8 @@ export const TournamentCategoryPage = ({
   );
 
   const isEditableSourceSlot = useCallback(
-    (round: number): boolean => editableRound != null && round === editableRound,
-    [editableRound]
+    (round: number): boolean => editableRoundsSet.has(round),
+    [editableRoundsSet]
   );
   const getManualMatchForRoundOrder = useCallback(
     (round: number, order: number) => manualCrossingsByRoundOrder.get(`${round}-${order}`),
@@ -1240,7 +1265,10 @@ export const TournamentCategoryPage = ({
       const winnerSources = eliminationTemplateMatches
         .filter((match) => match.round === previousRound)
         .map((match) => `W-${match.order}-${match.round}`);
-      const allowedSources = [...allowedCrossingSources, ...winnerSources];
+      const allowedSources =
+        previousRound > 0
+          ? [...allowedCrossingSources, ...winnerSources]
+          : [...allowedCrossingSources];
 
       return allowedSources.filter((source) => source === currentValue || !used.has(source));
     },
@@ -1462,11 +1490,14 @@ export const TournamentCategoryPage = ({
     const normalizedAllowedGroupSources = new Set(
       allowedCrossingSources.map((source) => source.trim().toUpperCase())
     );
-    const allowedWinnerSources = new Set(
-      eliminationTemplateMatches
-        .filter((match) => match.round === (editableRound ?? 0) * 2)
-        .map((match) => `W-${match.order}-${match.round}`.toUpperCase())
-    );
+    const allowedWinnerSourcesByRound = new Map<number, Set<string>>();
+    editableRounds.forEach((round) => {
+      const previousRound = round * 2;
+      const winnerSources = eliminationTemplateMatches
+        .filter((match) => match.round === previousRound)
+        .map((match) => `W-${match.order}-${match.round}`.toUpperCase());
+      allowedWinnerSourcesByRound.set(round, new Set(winnerSources));
+    });
     const editableTemplateMatches = eliminationTemplateMatches.filter(
       (match) => isEditableSourceSlot(match.round)
     );
@@ -1511,6 +1542,8 @@ export const TournamentCategoryPage = ({
         (item) => item.round === match.round && item.order === match.order
       );
       if (!templateMatch) return;
+      const allowedWinnerSources =
+        allowedWinnerSourcesByRound.get(templateMatch.round) ?? new Set<string>();
       const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
         {
           source: match.team1Source,
@@ -1531,17 +1564,18 @@ export const TournamentCategoryPage = ({
             `El source ${source} no es válido para esta categoría.`
           );
         }
-        if (normalizedAllowedGroupSources.has(source) && usedSources.has(source)) {
+        if (usedSources.has(source)) {
           throw new Error(
             `El source ${source} está repetido en la configuración manual.`
           );
         }
-        if (normalizedAllowedGroupSources.has(source)) {
-          usedSources.add(source);
-        }
+        usedSources.add(source);
       });
     });
-    if (usedSources.size !== normalizedAllowedGroupSources.size) {
+    const usedGroupSources = Array.from(usedSources).filter((source) =>
+      normalizedAllowedGroupSources.has(source)
+    );
+    if (usedGroupSources.length !== normalizedAllowedGroupSources.size) {
       throw new Error("Debés usar todos los clasificados exactamente una vez.");
     }
 
@@ -2519,7 +2553,7 @@ export const TournamentCategoryPage = ({
             </p>
             {!isStep2Enabled && (
               <p className="mt-2 text-xs text-amber-700">
-                Completá el Paso 1 (al menos 6 equipos) para habilitar este
+                Completá el Paso 1 (al menos 8 equipos) para habilitar este
                 bloque.
               </p>
             )}
@@ -3098,7 +3132,7 @@ export const TournamentCategoryPage = ({
 
             {!canGenerateZones && (
               <p className="mt-2 text-xs text-amber-600">
-                Necesitás al menos 6 equipos para generar el torneo.
+                Necesitás al menos 8 equipos para generar el torneo.
               </p>
             )}
             {generationError && (

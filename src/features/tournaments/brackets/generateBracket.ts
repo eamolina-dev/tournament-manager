@@ -1,7 +1,7 @@
 import type { Team } from "../../../shared/types/entities"
 import type { MatchTemplate } from "./match-template"
 
-const MAX_TEAMS = 32
+const MAX_TEAMS = 16
 
 const nextPowerOfTwo = (value: number): number => {
   let result = 1
@@ -13,8 +13,7 @@ const getStageFromRoundSize = (roundSize: number): MatchTemplate["stage"] => {
   if (roundSize === 2) return "final"
   if (roundSize === 4) return "semi"
   if (roundSize <= 8) return "quarter"
-  if (roundSize <= 16) return "round_of_16"
-  return "round_of_32"
+  return "round_of_16"
 }
 
 const buildSeedTokens = (teamCount: number, groupRanking: string[]): string[] => {

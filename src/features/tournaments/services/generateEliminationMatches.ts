@@ -51,34 +51,45 @@ export const generateEliminationMatches = async ({
       }
       manualRounds.add(match.round)
     })
-    if (manualRounds.size !== 1) {
-      throw new Error("La configuración manual debe definir una única ronda editable.")
+    const sortedRounds = Array.from(new Set(template.map((match) => match.round))).sort((a, b) => b - a)
+    const firstRound = sortedRounds[0]
+    const secondRound = firstRound ? firstRound / 2 : 0
+    const firstRoundMatchesCount = template.filter((match) => match.round === firstRound).length
+    const secondRoundMatchesCount = template.filter((match) => match.round === secondRound).length
+    const editableRounds = new Set(
+      firstRound && secondRound > 0 && firstRoundMatchesCount < secondRoundMatchesCount
+        ? [firstRound, secondRound]
+        : [firstRound],
+    )
+    for (const configuredRound of manualRounds) {
+      if (!editableRounds.has(configuredRound)) {
+        throw new Error(`Cruce manual inválido: la ronda R${configuredRound} no es editable.`)
+      }
     }
-    const editableRound = [...manualRounds][0]
-    const editableRoundTemplate = template
-      .filter((match) => match.round === editableRound)
-      .sort((a, b) => a.order - b.order)
-    if (!editableRoundTemplate.length) {
-      throw new Error(`Cruce manual inválido: no existe la ronda R${editableRound}.`)
-    }
-    if (normalizedManual.length !== editableRoundTemplate.length) {
-      throw new Error("La configuración manual no coincide con la cantidad de partidos de la ronda editable.")
+    const editableTemplateMatches = template
+      .filter((match) => editableRounds.has(match.round))
+      .sort((a, b) => b.round - a.round || a.order - b.order)
+    if (normalizedManual.length !== editableTemplateMatches.length) {
+      throw new Error("La configuración manual no coincide con la cantidad de partidos editables.")
     }
     const manualByRoundOrder = new Map(
       normalizedManual.map((match) => [`${match.round}-${match.order}`, match]),
     )
-    const allowedWinnerSources = new Set(
-      template
-        .flatMap((match) => [match.team1, match.team2])
-        .map((source) => source.trim().toUpperCase())
-        .filter((source) => parseSource(source)?.type === "playoff"),
-    )
+    const allowedWinnerSourcesByRound = new Map<number, Set<string>>()
+    editableRounds.forEach((round) => {
+      const previousRound = round * 2
+      const winnerSources = template
+        .filter((match) => match.round === previousRound)
+        .map((match) => `W-${match.order}-${match.round}`.toUpperCase())
+      allowedWinnerSourcesByRound.set(round, new Set(winnerSources))
+    })
     const usedSources = new Set<string>()
-    for (const match of editableRoundTemplate) {
+    for (const match of editableTemplateMatches) {
       const manual = manualByRoundOrder.get(`${match.round}-${match.order}`)
       if (!manual) {
         throw new Error(`Falta configurar el cruce ${match.order} de la ronda ${match.round}.`)
       }
+      const allowedWinnerSources = allowedWinnerSourcesByRound.get(match.round) ?? new Set<string>()
       const slotPairs = [
         { source: manual.team1Source, slot: "team1" },
         { source: manual.team2Source, slot: "team2" },
@@ -92,12 +103,14 @@ export const generateEliminationMatches = async ({
         if (!isQualifiedSource && !isWinnerSource) {
           throw new Error(`Cruce manual inválido: ${source} no es un source permitido.`)
         }
-        if (isQualifiedSource) {
-          if (usedSources.has(source)) {
-            throw new Error(`Cruce manual inválido: ${source} está repetido en la configuración manual.`)
-          }
-          usedSources.add(source)
+        if (usedSources.has(source)) {
+          throw new Error(`Cruce manual inválido: ${source} está repetido en la configuración manual.`)
         }
+        if (isQualifiedSource) {
+          usedSources.add(source)
+          continue
+        }
+        usedSources.add(source)
       }
       match.team1 = manual.team1Source
       match.team2 = manual.team2Source
