@@ -123,71 +123,6 @@ const adjustFirstRoundPairings = (slots: Array<string | null>): Array<string | n
   return adjusted
 }
 
-
-const countSameGroupPairConflicts = (slots: Array<string | null>): number => {
-  let conflicts = 0
-
-  for (let index = 0; index < slots.length; index += 2) {
-    const group1 = getGroupFromSeed(slots[index])
-    const group2 = getGroupFromSeed(slots[index + 1])
-    if (group1 && group2 && group1 === group2) {
-      conflicts += 1
-    }
-  }
-
-  return conflicts
-}
-
-const choosePlayInSecondPlaces = (
-  secondPlacesWorstFirst: SeedSource[],
-  requiredCount: number,
-  thirdPlaces: SeedSource[],
-  groupRanking: string[],
-): SeedSource[] => {
-  if (requiredCount <= 0) return []
-
-  let bestSelection: SeedSource[] = secondPlacesWorstFirst.slice(0, requiredCount)
-  let bestScore: { conflicts: number; penalty: number } | null = null
-
-  const evaluateSelection = (selection: SeedSource[]): { conflicts: number; penalty: number } => {
-    const playInSeeds = rankSeedSources([...thirdPlaces, ...selection], groupRanking)
-    const playInSlots = adjustFirstRoundPairings(
-      buildStandardSeedOrder(playInSeeds.length).map((seed) => playInSeeds[seed - 1]?.token ?? null),
-    )
-    const conflicts = countSameGroupPairConflicts(playInSlots)
-    const penalty = selection.reduce(
-      (sum, seed) => sum + secondPlacesWorstFirst.findIndex((candidate) => candidate.token === seed.token),
-      0,
-    )
-
-    return { conflicts, penalty }
-  }
-
-  const search = (start: number, selection: SeedSource[]): void => {
-    if (selection.length === requiredCount) {
-      const score = evaluateSelection(selection)
-      if (
-        !bestScore ||
-        score.conflicts < bestScore.conflicts ||
-        (score.conflicts === bestScore.conflicts && score.penalty < bestScore.penalty)
-      ) {
-        bestScore = score
-        bestSelection = [...selection]
-      }
-      return
-    }
-
-    for (let index = start; index < secondPlacesWorstFirst.length; index += 1) {
-      selection.push(secondPlacesWorstFirst[index])
-      search(index + 1, selection)
-      selection.pop()
-    }
-  }
-
-  search(0, [])
-  return bestSelection
-}
-
 const rankSeedSources = (sources: SeedSource[], groupRanking: string[]): SeedSource[] => {
   const groupRank = new Map(groupRanking.map((group, index) => [group.trim().toUpperCase(), index]))
 
@@ -233,42 +168,12 @@ const buildInitialRounds = (
   const directCount = mainSize - playInWinnersCount
 
   const rankedSeeds = rankSeedSources(parsedSeeds, groupRanking)
-  const firstPlaces = rankedSeeds.filter((seed) => seed.position === 1)
-  const secondPlaces = rankedSeeds.filter((seed) => seed.position === 2)
-  const thirdPlaces = rankedSeeds.filter((seed) => seed.position === 3)
-
-  if (firstPlaces.length > directCount) {
-    throw new Error("No hay lugar suficiente para evitar play-in de primeros puestos.")
-  }
-
-  if (thirdPlaces.length > playInTeamsCount) {
-    throw new Error("La cantidad de terceros supera los cupos de play-in disponibles.")
-  }
-
-  const groupRank = new Map(groupRanking.map((group, index) => [group.trim().toUpperCase(), index]))
-  const lowestSecondPlaces = [...secondPlaces].sort(
-    (a, b) => (groupRank.get(b.group) ?? -1) - (groupRank.get(a.group) ?? -1),
-  )
-
-  const requiredSecondPlacesInPlayIn = playInTeamsCount - thirdPlaces.length
-  if (requiredSecondPlacesInPlayIn > secondPlaces.length) {
-    throw new Error("No alcanzan segundos puestos para completar los cruces de play-in.")
-  }
-
-  const playInSecondPlaces = choosePlayInSecondPlaces(
-    lowestSecondPlaces,
-    requiredSecondPlacesInPlayIn,
-    thirdPlaces,
-    groupRanking,
-  )
-  const playInSet = new Set([...thirdPlaces, ...playInSecondPlaces].map((seed) => seed.token))
-
   const playInSeeds = rankSeedSources(
-    rankedSeeds.filter((seed) => playInSet.has(seed.token)),
+    rankedSeeds.slice(Math.max(0, rankedSeeds.length - playInTeamsCount)),
     groupRanking,
   )
   const directSeeds = rankSeedSources(
-    rankedSeeds.filter((seed) => !playInSet.has(seed.token)),
+    rankedSeeds.slice(0, Math.max(0, rankedSeeds.length - playInTeamsCount)),
     groupRanking,
   )
 
