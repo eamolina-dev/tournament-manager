@@ -81,7 +81,6 @@ import type {
   EditedResultsState,
   FlowStatus,
   MatchErrorState,
-  MatchGenerationDraft,
   SchedulingPhaseKey,
   SectionTab,
   TeamFormState,
@@ -285,8 +284,6 @@ export const TournamentCategoryPage = ({
   const [manualCrossingsError, setManualCrossingsError] = useState<
     string | null
   >(null);
-  const [lastGenerationDraft, setLastGenerationDraft] =
-    useState<MatchGenerationDraft | null>(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
   const stageLabelsStorageKey = data
     ? `tm:stage-labels:${data.tournamentCategoryId}`
@@ -1607,24 +1604,9 @@ export const TournamentCategoryPage = ({
       setManualZones(readyZones);
     }
 
-    const generationDraft: MatchGenerationDraft = {
-      zones: readyZones,
-      scheduling: {
-        zoneDayById,
-        startTimesByDay: scheduleStartTimesInput,
-        matchIntervalMinutes: matchIntervalMinutesInput,
-        courtsCount: courtsCountInput,
-        phaseByDay,
-      },
-    };
     let validManualCrossings: ManualEliminationMatchInput[] = [];
     try {
       validManualCrossings = validateManualCrossings();
-      if (validManualCrossings.length) {
-        generationDraft.elimination = {
-          firstRoundMatches: validManualCrossings,
-        };
-      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -1635,8 +1617,6 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
-    setLastGenerationDraft(generationDraft);
-
     setSaving(true);
     try {
       await generateFullTournament(data.tournamentCategoryId, {
@@ -3155,13 +3135,6 @@ export const TournamentCategoryPage = ({
               </div>
             )}
 
-            {lastGenerationDraft && (
-              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <pre className="max-h-48 overflow-auto rounded bg-white p-2 text-xs text-slate-700">
-                  {JSON.stringify(lastGenerationDraft, null, 2)}
-                </pre>
-              </div>
-            )}
           </article>
 
           {saving && <p className="text-xs text-slate-500">Procesando...</p>}

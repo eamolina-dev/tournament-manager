@@ -263,12 +263,12 @@ export const generateFullTournament = async (
     throwIfError(teamsError)
 
     const safeTeams = validateTeamRefs(teams)
-    if (safeTeams.length < MIN_TEAMS_FOR_TOURNAMENT) {
-      throw new Error("Se necesitan al menos 8 equipos para generar el torneo.")
-    }
-    if (safeTeams.length > MAX_TEAMS_FOR_TOURNAMENT) {
-      throw new Error("Se permiten entre 8 y 16 equipos clasificados a cruces eliminatorios.")
-    }
+    // if (safeTeams.length < MIN_TEAMS_FOR_TOURNAMENT) {
+    //   throw new Error("Se necesitan al menos 8 equipos para generar el torneo.")
+    // }
+    // if (safeTeams.length > MAX_TEAMS_FOR_TOURNAMENT) {
+    //   throw new Error("Se permiten entre 8 y 16 equipos clasificados a cruces eliminatorios.")
+    // }
 
     debugGeneration(debugEnabled, "Inicio generación", {
       tournamentCategoryId,
