@@ -58,37 +58,73 @@ export const generateBracket = (
   if (bracketSize < 2) return []
 
   const matches: MatchTemplate[] = []
+  const playInMatches = seedTokens.length - (bracketSize / 2)
+  const byesCount = bracketSize - seedTokens.length
 
-  for (let roundSize = bracketSize; roundSize >= 2; roundSize /= 2) {
-    const round = roundSize / 2
-    const stage = getStageFromRoundSize(roundSize)
-    const matchesInRound = roundSize / 2
+  const firstRound = bracketSize / 2
+  const firstRoundStage = getStageFromRoundSize(bracketSize)
+  for (let order = 1; order <= playInMatches; order += 1) {
+    const firstSlotIndex = (order - 1) * 2
+    matches.push({
+      matchNumber: 0,
+      round: firstRound,
+      order,
+      stage: firstRoundStage,
+      team1: seedTokens[firstSlotIndex] ?? "",
+      team2: seedTokens[firstSlotIndex + 1] ?? "",
+    })
+  }
 
-    for (let order = 1; order <= matchesInRound; order += 1) {
-      if (roundSize === bracketSize) {
-        const firstSlotIndex = (order - 1) * 2
-        const team1 = seedTokens[firstSlotIndex] ?? ""
-        const team2 = seedTokens[firstSlotIndex + 1] ?? ""
+  if (firstRound > 1) {
+    const secondRound = bracketSize / 4
+    const secondRoundStage = getStageFromRoundSize(bracketSize / 2)
+    const byeSources = seedTokens.slice(playInMatches * 2)
+
+    if (byesCount === 0) {
+      for (let order = 1; order <= secondRound; order += 1) {
+        matches.push({
+          matchNumber: 0,
+          round: secondRound,
+          order,
+          stage: secondRoundStage,
+          team1: `W-${(order * 2) - 1}-${firstRound}`,
+          team2: `W-${order * 2}-${firstRound}`,
+        })
+      }
+    } else {
+      const roundSources: string[] = [
+        ...Array.from({ length: playInMatches }, (_, index) => `W-${index + 1}-${firstRound}`),
+        ...byeSources,
+      ]
+      const secondRoundMatches = bracketSize / 4
+      for (let order = 1; order <= secondRoundMatches; order += 1) {
+        const sourceIndex = (order - 1) * 2
+        matches.push({
+          matchNumber: 0,
+          round: secondRound,
+          order,
+          stage: secondRoundStage,
+          team1: roundSources[sourceIndex] ?? "",
+          team2: roundSources[sourceIndex + 1] ?? "",
+        })
+      }
+    }
+
+    for (let roundSize = bracketSize / 4; roundSize >= 2; roundSize /= 2) {
+      const round = roundSize / 2
+      const stage = getStageFromRoundSize(roundSize)
+      const matchesInRound = roundSize / 2
+      const previousRound = roundSize
+      for (let order = 1; order <= matchesInRound; order += 1) {
         matches.push({
           matchNumber: 0,
           round,
           order,
           stage,
-          team1,
-          team2,
+          team1: `W-${(order * 2) - 1}-${previousRound}`,
+          team2: `W-${order * 2}-${previousRound}`,
         })
-        continue
       }
-
-      const previousRound = roundSize
-      matches.push({
-        matchNumber: 0,
-        round,
-        order,
-        stage,
-        team1: `W-${(order * 2) - 1}-${previousRound}`,
-        team2: `W-${order * 2}-${previousRound}`,
-      })
     }
   }
 
