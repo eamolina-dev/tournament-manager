@@ -116,8 +116,9 @@ const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
-  if (stage === "semi") return "Semifinal";
-  if (stage === "quarter" || stage === "round_of_8") return "Cuartos de final";
+  if (stage === "semi") return "Semis";
+  if (stage === "quarter" || stage === "round_of_8") return "Cuartos";
+  if (stage === "round_of_16") return "Octavos";
   return `Ronda ${fallbackRound}`;
 };
 const getSourceOptionLabel = (
@@ -129,8 +130,8 @@ const getSourceOptionLabel = (
   if (parsed.type === "group") return source;
   const roundTitle =
     roundTitleByNumber?.get(parsed.round) ?? `Ronda ${parsed.round}`;
-  if (parsed.outcome === "W") return `Ganador ${roundTitle} ${parsed.order}`;
-  return `Perdedor ${roundTitle} ${parsed.order}`;
+  if (parsed.outcome === "W") return `Ganador de ${roundTitle} ${parsed.order}`;
+  return `Perdedor de ${roundTitle} ${parsed.order}`;
 };
 
 type EliminationTemplateMatch = ReturnType<typeof getEliminationTemplate>[number];
@@ -3153,28 +3154,6 @@ export const TournamentCategoryPage = ({
                 ) : null}
               </div>
             )}
-
-            <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Zonas generadas ({orderedZones.length})
-              </p>
-              {orderedZones.length ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {orderedZones.map((zone) => (
-                    <span
-                      key={zone.id}
-                      className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
-                    >
-                      {zone.name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-1 text-sm text-slate-500">
-                  Todavía no hay zonas generadas.
-                </p>
-              )}
-            </div>
 
             {lastGenerationDraft && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">

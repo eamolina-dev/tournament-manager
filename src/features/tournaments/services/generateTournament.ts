@@ -267,7 +267,7 @@ export const generateFullTournament = async (
       throw new Error("Se necesitan al menos 8 equipos para generar el torneo.")
     }
     if (safeTeams.length > MAX_TEAMS_FOR_TOURNAMENT) {
-      throw new Error("Se permiten hasta 16 equipos para generar el torneo.")
+      throw new Error("Se permiten entre 8 y 16 equipos clasificados a cruces eliminatorios.")
     }
 
     debugGeneration(debugEnabled, "Inicio generación", {
