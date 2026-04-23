@@ -5,18 +5,6 @@ import { throwIfError } from "../../../shared/lib/throw-if-error"
 import type { MatchInsert, Team } from "../../../shared/types/entities"
 import { parseSource } from "../utils/resolveTeamSourcesForMatches"
 
-const OVERRIDDEN_QUARTER_SOURCES_BY_CATEGORY: Record<
-  string,
-  { order: number; team1Source: string; team2Source: string }[]
-> = {
-  "79e8ecef-2388-4637-b923-206cb458866e": [
-    { order: 1, team1Source: "1A", team2Source: "3B" },
-    { order: 2, team1Source: "2B", team2Source: "2C" },
-    { order: 3, team1Source: "1C", team2Source: "2A" },
-    { order: 4, team1Source: "3A", team2Source: "1B" },
-  ],
-}
-
 const buildPlayoffMatchKey = (order: number, round: number): string => `${order}-${round}`
 
 export const getEliminationTemplate = (
@@ -47,20 +35,6 @@ export const generateEliminationMatches = async ({
 }): Promise<number> => {
   const template = getEliminationTemplate(qualifiedTeamSources, groupRanking).map((match) => ({ ...match }))
   if (!template.length) return 0
-
-  const quarterOverrides = OVERRIDDEN_QUARTER_SOURCES_BY_CATEGORY[tournamentCategoryId]
-  if (quarterOverrides?.length) {
-    const overrideByOrder = new Map(
-      quarterOverrides.map((override) => [override.order, override]),
-    )
-    template.forEach((match) => {
-      if (!["quarter", "round_of_8"].includes(match.stage)) return
-      const override = overrideByOrder.get(match.order)
-      if (!override) return
-      match.team1 = override.team1Source
-      match.team2 = override.team2Source
-    })
-  }
 
   if (manualFirstRoundMatches?.length) {
     const normalizedSources = new Set(qualifiedTeamSources.map((source) => source.trim().toUpperCase()))
@@ -177,8 +151,8 @@ export const generateEliminationMatches = async ({
     match_number: toAbsoluteMatchNumber(templateMatch.matchNumber),
     round: templateMatch.round,
     round_order: templateMatch.order,
-    team1_source: templateMatch.team1,
-    team2_source: templateMatch.team2,
+    team1_source: templateMatch.team1.trim() ? templateMatch.team1 : null,
+    team2_source: templateMatch.team2.trim() ? templateMatch.team2 : null,
     group_id: null,
   }))
 
