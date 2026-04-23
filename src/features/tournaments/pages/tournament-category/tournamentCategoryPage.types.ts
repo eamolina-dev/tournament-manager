@@ -76,7 +76,7 @@ export type MatchGenerationDraft = {
 };
 
 export type ManualEliminationMatchInput = {
-  round?: number;
+  round: number;
   order: number;
   team1Source: string;
   team2Source: string;

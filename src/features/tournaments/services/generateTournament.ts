@@ -231,7 +231,7 @@ export const generateFullTournament = async (
       phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
     }
     elimination?: {
-      firstRoundMatches?: Array<{ round?: number; order: number; team1Source: string; team2Source: string }>
+      firstRoundMatches?: Array<{ round: number; order: number; team1Source: string; team2Source: string }>
     }
   },
 ): Promise<{

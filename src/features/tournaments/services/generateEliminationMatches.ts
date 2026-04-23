@@ -31,7 +31,7 @@ export const generateEliminationMatches = async ({
   tournamentCategoryId: string
   qualifiedTeamSources: string[]
   groupRanking: string[]
-  manualFirstRoundMatches?: Array<{ round?: number; order: number; team1Source: string; team2Source: string }>
+  manualFirstRoundMatches?: Array<{ round: number; order: number; team1Source: string; team2Source: string }>
 }): Promise<number> => {
   const template = getEliminationTemplate(qualifiedTeamSources, groupRanking).map((match) => ({ ...match }))
   if (!template.length) return 0
@@ -44,78 +44,63 @@ export const generateEliminationMatches = async ({
       team1Source: match.team1Source.trim().toUpperCase(),
       team2Source: match.team2Source.trim().toUpperCase(),
     }))
+    const manualRounds = new Set<number>()
+    normalizedManual.forEach((match) => {
+      if (!match.round || !Number.isInteger(match.round) || match.round <= 0) {
+        throw new Error("La configuración manual de cruces tiene rondas inválidas.")
+      }
+      manualRounds.add(match.round)
+    })
+    if (manualRounds.size !== 1) {
+      throw new Error("La configuración manual debe definir una única ronda editable.")
+    }
+    const editableRound = [...manualRounds][0]
+    const editableRoundTemplate = template
+      .filter((match) => match.round === editableRound)
+      .sort((a, b) => a.order - b.order)
+    if (!editableRoundTemplate.length) {
+      throw new Error(`Cruce manual inválido: no existe la ronda R${editableRound}.`)
+    }
+    if (normalizedManual.length !== editableRoundTemplate.length) {
+      throw new Error("La configuración manual no coincide con la cantidad de partidos de la ronda editable.")
+    }
     const manualByRoundOrder = new Map(
-      normalizedManual.map((match) => [`${match.round ?? "first"}-${match.order}`, match]),
+      normalizedManual.map((match) => [`${match.round}-${match.order}`, match]),
     )
-    const firstRound = template.reduce(
-      (maxRound, match) => {
-        if (!Number.isFinite(maxRound)) return match.round
-        return Math.max(maxRound, match.round)
-      },
-      Number.NEGATIVE_INFINITY,
+    const allowedWinnerSources = new Set(
+      template
+        .flatMap((match) => [match.team1, match.team2])
+        .map((source) => source.trim().toUpperCase())
+        .filter((source) => parseSource(source)?.type === "playoff"),
     )
-    const firstRoundTemplate = template.filter((match) => match.round === firstRound)
-    const hasRoundAwareConfig = normalizedManual.some((match) => Number.isInteger(match.round))
-
     const usedSources = new Set<string>()
-    if (!hasRoundAwareConfig) {
-      if (normalizedManual.length !== firstRoundTemplate.length) {
-        throw new Error("La configuración manual de cruces no coincide con la cantidad de partidos iniciales.")
+    for (const match of editableRoundTemplate) {
+      const manual = manualByRoundOrder.get(`${match.round}-${match.order}`)
+      if (!manual) {
+        throw new Error(`Falta configurar el cruce ${match.order} de la ronda ${match.round}.`)
       }
-      for (const match of firstRoundTemplate) {
-        const manual = manualByRoundOrder.get(`first-${match.order}`)
-        if (!manual) {
-          throw new Error(`Falta configurar el cruce ${match.order} de la primera ronda eliminatoria.`)
+      const slotPairs = [
+        { source: manual.team1Source, slot: "team1" },
+        { source: manual.team2Source, slot: "team2" },
+      ] as const
+      for (const { source, slot } of slotPairs) {
+        if (!source) {
+          throw new Error(`Cruce manual inválido: falta source en ${slot} del partido ${match.order}.`)
         }
-        const slotPairs = [
-          { source: manual.team1Source, templateSource: match.team1.trim().toUpperCase() },
-          { source: manual.team2Source, templateSource: match.team2.trim().toUpperCase() },
-        ]
-        for (const { source, templateSource } of slotPairs) {
-          const isQualifiedSource = normalizedSources.has(source)
-          const isLockedPlayoffSource = source === templateSource && parseSource(templateSource)?.type === "playoff"
-          if (!isQualifiedSource && !isLockedPlayoffSource) {
-            throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
-          }
-          if (!isQualifiedSource) continue
-          if (usedSources.has(source)) {
-            throw new Error(`Cruce manual inválido: ${source} está repetido en la primera ronda.`)
-          }
-          usedSources.add(source)
+        const isQualifiedSource = normalizedSources.has(source)
+        const isWinnerSource = allowedWinnerSources.has(source)
+        if (!isQualifiedSource && !isWinnerSource) {
+          throw new Error(`Cruce manual inválido: ${source} no es un source permitido.`)
         }
-        match.team1 = manual.team1Source
-        match.team2 = manual.team2Source
-      }
-    } else {
-      for (const manual of normalizedManual) {
-        if (!manual.round || !Number.isInteger(manual.round) || manual.round <= 0) {
-          throw new Error("La configuración manual de cruces tiene rondas inválidas.")
-        }
-        const target = template.find(
-          (match) => match.round === manual.round && match.order === manual.order,
-        )
-        if (!target) {
-          throw new Error(`Cruce manual inválido: no existe el partido R${manual.round}-M${manual.order}.`)
-        }
-        const slotPairs = [
-          { source: manual.team1Source, templateSource: target.team1.trim().toUpperCase() },
-          { source: manual.team2Source, templateSource: target.team2.trim().toUpperCase() },
-        ]
-        for (const { source, templateSource } of slotPairs) {
-          const isQualifiedSource = normalizedSources.has(source)
-          const isLockedPlayoffSource = source === templateSource && parseSource(templateSource)?.type === "playoff"
-          if (!isQualifiedSource && !isLockedPlayoffSource) {
-            throw new Error(`Cruce manual inválido: ${source} no es una clasificación de zona válida.`)
-          }
-          if (!isQualifiedSource) continue
+        if (isQualifiedSource) {
           if (usedSources.has(source)) {
             throw new Error(`Cruce manual inválido: ${source} está repetido en la configuración manual.`)
           }
           usedSources.add(source)
         }
-        target.team1 = manual.team1Source
-        target.team2 = manual.team2Source
       }
+      match.team1 = manual.team1Source
+      match.team2 = manual.team2Source
     }
 
     const groupSourcesInTemplate = template

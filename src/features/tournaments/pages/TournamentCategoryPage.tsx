@@ -143,14 +143,6 @@ type DisplayRoundBlock = {
 const hasSource = (source: string | null | undefined): boolean =>
   Boolean(source?.trim());
 
-const isGroupSource = (source: string): boolean =>
-  parseSource(source)?.type === "group";
-
-const isWinnerSource = (source: string): boolean => {
-  const parsed = parseSource(source);
-  return parsed?.type === "playoff" && parsed.outcome === "W";
-};
-
 const buildRoundBlocksForDisplay = (
   matches: EliminationTemplateMatch[]
 ): DisplayRoundBlock[] => {
@@ -161,55 +153,16 @@ const buildRoundBlocksForDisplay = (
     grouped.set(match.round, list);
   });
 
-  const nonEmptyRoundBlocks = Array.from(grouped.entries())
+  return Array.from(grouped.entries())
     .sort((a, b) => b[0] - a[0])
-    .map(([round, roundMatches]) => {
-      const filteredMatches = [...roundMatches]
+    .map(([round, roundMatches]) => ({
+      round,
+      title: getRoundTitle(roundMatches[0]?.stage ?? "", round),
+      matches: [...roundMatches]
         .sort((a, b) => a.order - b.order)
-        .filter((match) => hasSource(match.team1) || hasSource(match.team2));
-      return {
-        round,
-        title: getRoundTitle(roundMatches[0]?.stage ?? "", round),
-        matches: filteredMatches,
-      };
-    })
+        .filter((match) => hasSource(match.team1) || hasSource(match.team2)),
+    }))
     .filter((roundBlock) => roundBlock.matches.length > 0);
-
-  if (!nonEmptyRoundBlocks.length) return [];
-
-  const firstRoundBlock = nonEmptyRoundBlocks[0];
-  const isPlayInRound =
-    firstRoundBlock.matches.length < firstRoundBlock.round &&
-    firstRoundBlock.matches.every(
-      (match) => isGroupSource(match.team1) && isGroupSource(match.team2)
-    );
-
-  if (nonEmptyRoundBlocks.length === 1) return [firstRoundBlock];
-
-  if (!isPlayInRound) {
-    return nonEmptyRoundBlocks.slice(0, 2);
-  }
-
-  const nextMainRound =
-    nonEmptyRoundBlocks.slice(1).find((roundBlock) =>
-      roundBlock.matches.some((match) => {
-        const team1HasSource = hasSource(match.team1);
-        const team2HasSource = hasSource(match.team2);
-        if (!team1HasSource && !team2HasSource) return false;
-
-        const team1Winner = isWinnerSource(match.team1);
-        const team2Winner = isWinnerSource(match.team2);
-        const team1Group = isGroupSource(match.team1);
-        const team2Group = isGroupSource(match.team2);
-        const hasWinnerSource = team1Winner || team2Winner;
-        const hasGroupWinnerMix =
-          (team1Group && team2Winner) || (team2Group && team1Winner);
-
-        return hasWinnerSource || hasGroupWinnerMix;
-      })
-    ) ?? nonEmptyRoundBlocks[1];
-
-  return [firstRoundBlock, nextMainRound];
 };
 
 export const TournamentCategoryPage = ({
@@ -755,12 +708,12 @@ export const TournamentCategoryPage = ({
         if (Array.isArray(storedManualCrossings)) {
           setManualCrossings(
             storedManualCrossings
-              .filter((item) => Number.isFinite(item?.order))
+              .filter(
+                (item) =>
+                  Number.isFinite(item?.order) && Number.isFinite(item?.round)
+              )
               .map((item) => ({
-                round:
-                  typeof item.round === "number" && Number.isFinite(item.round)
-                    ? item.round
-                    : undefined,
+                round: Number(item.round),
                 order: item.order,
                 team1Source: String(item.team1Source ?? ""),
                 team2Source: String(item.team2Source ?? ""),
@@ -1196,7 +1149,7 @@ export const TournamentCategoryPage = ({
     () =>
       new Map(
         manualCrossings.map((match) => [
-          `${match.round ?? "first"}-${match.order}`,
+          `${match.round}-${match.order}`,
           match,
         ])
       ),
@@ -1213,18 +1166,11 @@ export const TournamentCategoryPage = ({
       ),
     [roundBlocks]
   );
-  const configurableRoundNumbers = useMemo(
-    () => roundBlocks.map((roundBlock) => roundBlock.round),
-    [roundBlocks]
-  );
   const visibleRoundBlocks = useMemo(() => roundBlocks, [roundBlocks]);
-  const manualCrossingsRoundFallback = useMemo(() => {
-    if (configurableRoundNumbers.length) {
-      return [...configurableRoundNumbers].sort((a, b) => b - a)[0];
-    }
-    if (roundBlocks.length) return roundBlocks[0].round;
-    return null;
-  }, [configurableRoundNumbers, roundBlocks]);
+  const editableRound = useMemo(
+    () => [...visibleRoundBlocks].sort((a, b) => b.round - a.round)[0]?.round ?? null,
+    [visibleRoundBlocks]
+  );
 
   const getEffectiveSource = useCallback(
     (
@@ -1234,23 +1180,16 @@ export const TournamentCategoryPage = ({
       templateSource: string
     ) =>
       manualCrossingsByRoundOrder.get(`${round}-${order}`)?.[slot] ??
-      manualCrossingsByRoundOrder.get(`first-${order}`)?.[slot] ??
       templateSource,
     [manualCrossingsByRoundOrder]
   );
 
   const isEditableSourceSlot = useCallback(
-    (round: number, templateSource: string): boolean => {
-      const parsed = parseSource(templateSource);
-      if (!configurableRoundNumbers.includes(round)) return false;
-      return parsed?.type === "group";
-    },
-    [configurableRoundNumbers]
+    (round: number): boolean => editableRound != null && round === editableRound,
+    [editableRound]
   );
   const getManualMatchForRoundOrder = useCallback(
-    (round: number, order: number) =>
-      manualCrossingsByRoundOrder.get(`${round}-${order}`) ??
-      manualCrossingsByRoundOrder.get(`first-${order}`),
+    (round: number, order: number) => manualCrossingsByRoundOrder.get(`${round}-${order}`),
     [manualCrossingsByRoundOrder]
   );
   const getEditableSlotValue = useCallback(
@@ -1269,8 +1208,8 @@ export const TournamentCategoryPage = ({
 
       visibleRoundBlocks.forEach((roundBlock) => {
         roundBlock.matches.forEach((match) => {
-          const team1Editable = isEditableSourceSlot(match.round, match.team1);
-          const team2Editable = isEditableSourceSlot(match.round, match.team2);
+          const team1Editable = isEditableSourceSlot(match.round);
+          const team2Editable = isEditableSourceSlot(match.round);
           if (team1Editable) {
             const value = getEditableSlotValue(
               match.round,
@@ -1297,12 +1236,17 @@ export const TournamentCategoryPage = ({
         used.delete(currentSlotValue);
       }
 
-      return allowedCrossingSources.filter(
-        (source) => source === currentValue || !used.has(source)
-      );
+      const previousRound = round * 2;
+      const winnerSources = eliminationTemplateMatches
+        .filter((match) => match.round === previousRound)
+        .map((match) => `W-${match.order}-${match.round}`);
+      const allowedSources = [...allowedCrossingSources, ...winnerSources];
+
+      return allowedSources.filter((source) => source === currentValue || !used.has(source));
     },
     [
       allowedCrossingSources,
+      eliminationTemplateMatches,
       getEditableSlotValue,
       isEditableSourceSlot,
       visibleRoundBlocks,
@@ -1317,14 +1261,14 @@ export const TournamentCategoryPage = ({
             order: number;
             slot: "team1Source" | "team2Source";
           }> = [];
-          if (isEditableSourceSlot(match.round, match.team1)) {
+          if (isEditableSourceSlot(match.round)) {
             slots.push({
               round: match.round,
               order: match.order,
               slot: "team1Source",
             });
           }
-          if (isEditableSourceSlot(match.round, match.team2)) {
+          if (isEditableSourceSlot(match.round)) {
             slots.push({
               round: match.round,
               order: match.order,
@@ -1349,12 +1293,8 @@ export const TournamentCategoryPage = ({
         eliminationTemplateMatches.some(
           (match) =>
             match.order === item.order &&
-            (item.round
-              ? match.round === item.round
-              : manualCrossingsRoundFallback != null &&
-                match.round === manualCrossingsRoundFallback) &&
-            (isEditableSourceSlot(match.round, match.team1) ||
-              isEditableSourceSlot(match.round, match.team2))
+            match.round === item.round &&
+            isEditableSourceSlot(match.round)
         )
       )
     );
@@ -1362,7 +1302,6 @@ export const TournamentCategoryPage = ({
   }, [
     eliminationTemplateMatches,
     isEditableSourceSlot,
-    manualCrossingsRoundFallback,
   ]);
   const schedulingPhases = useMemo(
     () =>
@@ -1497,12 +1436,12 @@ export const TournamentCategoryPage = ({
           team1Source: match.team1,
           team2Source: match.team2,
         };
-        const team1Editable = isEditableSourceSlot(match.round, match.team1);
-        const team2Editable = isEditableSourceSlot(match.round, match.team2);
+        const team1Editable = isEditableSourceSlot(match.round);
+        const team2Editable = isEditableSourceSlot(match.round);
         if (!team1Editable && !team2Editable) return [];
         return [slots];
       })
-      .sort((a, b) => (a.round ?? 0) - (b.round ?? 0) || a.order - b.order);
+      .sort((a, b) => a.round - b.round || a.order - b.order);
     setManualCrossings(suggested);
     setManualCrossingsError(null);
   };
@@ -1520,19 +1459,22 @@ export const TournamentCategoryPage = ({
       );
     }
 
-    const normalizedAllowed = new Set(
+    const normalizedAllowedGroupSources = new Set(
       allowedCrossingSources.map((source) => source.trim().toUpperCase())
     );
+    const allowedWinnerSources = new Set(
+      eliminationTemplateMatches
+        .filter((match) => match.round === (editableRound ?? 0) * 2)
+        .map((match) => `W-${match.order}-${match.round}`.toUpperCase())
+    );
     const editableTemplateMatches = eliminationTemplateMatches.filter(
-      (match) =>
-        isEditableSourceSlot(match.round, match.team1) ||
-        isEditableSourceSlot(match.round, match.team2)
+      (match) => isEditableSourceSlot(match.round)
     );
     const normalizedDraft = editableTemplateMatches.map((templateMatch) => {
       const draftMatch = manualCrossings.find(
         (item) =>
           item.order === templateMatch.order &&
-          (item.round ?? manualCrossingsRoundFallback) === templateMatch.round
+          item.round === templateMatch.round
       );
       if (!draftMatch) {
         throw new Error(
@@ -1545,14 +1487,8 @@ export const TournamentCategoryPage = ({
 
       const team1Source = draftMatch.team1Source.trim().toUpperCase();
       const team2Source = draftMatch.team2Source.trim().toUpperCase();
-      const team1Editable = isEditableSourceSlot(
-        templateMatch.round,
-        templateMatch.team1
-      );
-      const team2Editable = isEditableSourceSlot(
-        templateMatch.round,
-        templateMatch.team2
-      );
+      const team1Editable = isEditableSourceSlot(templateMatch.round);
+      const team2Editable = isEditableSourceSlot(templateMatch.round);
       if ((team1Editable && !team1Source) || (team2Editable && !team2Source)) {
         throw new Error(
           `Completá los clasificados de zona del partido ${
@@ -1578,35 +1514,34 @@ export const TournamentCategoryPage = ({
       const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
         {
           source: match.team1Source,
-          editable: isEditableSourceSlot(
-            templateMatch.round,
-            templateMatch.team1
-          ),
+          editable: isEditableSourceSlot(templateMatch.round),
         },
         {
           source: match.team2Source,
-          editable: isEditableSourceSlot(
-            templateMatch.round,
-            templateMatch.team2
-          ),
+          editable: isEditableSourceSlot(templateMatch.round),
         },
       ];
       sourcesBySlot.forEach(({ source, editable }) => {
         if (!editable) return;
-        if (!normalizedAllowed.has(source)) {
+        if (
+          !normalizedAllowedGroupSources.has(source) &&
+          !allowedWinnerSources.has(source)
+        ) {
           throw new Error(
             `El source ${source} no es válido para esta categoría.`
           );
         }
-        if (usedSources.has(source)) {
+        if (normalizedAllowedGroupSources.has(source) && usedSources.has(source)) {
           throw new Error(
             `El source ${source} está repetido en la configuración manual.`
           );
         }
-        usedSources.add(source);
+        if (normalizedAllowedGroupSources.has(source)) {
+          usedSources.add(source);
+        }
       });
     });
-    if (usedSources.size !== normalizedAllowed.size) {
+    if (usedSources.size !== normalizedAllowedGroupSources.size) {
       throw new Error("Debés usar todos los clasificados exactamente una vez.");
     }
 
@@ -2973,14 +2908,8 @@ export const TournamentCategoryPage = ({
                         {roundBlock.title}
                       </p>
                       {roundBlock.matches.map((match) => {
-                        const team1Editable = isEditableSourceSlot(
-                          match.round,
-                          match.team1
-                        );
-                        const team2Editable = isEditableSourceSlot(
-                          match.round,
-                          match.team2
-                        );
+                        const team1Editable = isEditableSourceSlot(match.round);
+                        const team2Editable = isEditableSourceSlot(match.round);
                         const team1Current = team1Editable
                           ? getEditableSlotValue(
                               match.round,
@@ -3027,8 +2956,7 @@ export const TournamentCategoryPage = ({
                             const existing = prev.find(
                               (item) =>
                                 item.order === match.order &&
-                                (item.round ?? manualCrossingsRoundFallback) ===
-                                  keyRound
+                                item.round === keyRound
                             );
                             const next = {
                               round: keyRound,
@@ -3049,15 +2977,13 @@ export const TournamentCategoryPage = ({
                                 (item) =>
                                   !(
                                     item.order === match.order &&
-                                    (item.round ?? manualCrossingsRoundFallback) ===
-                                      keyRound
+                                    item.round === keyRound
                                   )
                               ),
                               next,
                             ].sort(
                               (a, b) =>
-                                (a.round ?? 0) - (b.round ?? 0) ||
-                                a.order - b.order
+                                a.round - b.round || a.order - b.order
                             );
                           });
                         };
