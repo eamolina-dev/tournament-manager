@@ -66,10 +66,11 @@ export const getAllCategories = async (): Promise<
 export const getTournamentCategoryBySlugs = async (
   tournamentSlug: string,
   categorySlug: string,
-  preferredTournamentCategoryId?: string
+  preferredTournamentCategoryId?: string,
+  tournamentId?: string,
 ) => {
-  const tournament = await getTournamentBySlug(tournamentSlug)
-  if (!tournament) return null
+  const resolvedTournamentId = tournamentId ?? (await getTournamentBySlug(tournamentSlug))?.id
+  if (!resolvedTournamentId) return null
 
   const { data, error } = await supabase
     .from("tournament_categories")
@@ -84,7 +85,7 @@ export const getTournamentCategoryBySlugs = async (
       courts_count,
       category:categories(name, slug, level)
     `)
-    .eq("tournament_id", tournament.id)
+    .eq("tournament_id", resolvedTournamentId)
 
   throwIfError(error)
 

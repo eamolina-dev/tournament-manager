@@ -178,6 +178,7 @@ export const getTournamentCategoryPageData = async (
     tournamentSlug,
     categorySlug,
     preferredTournamentCategoryId,
+    tournament.id,
   )
 
   if (!category) return null

@@ -1869,6 +1869,36 @@ export const TournamentCategoryPage = ({
     return null;
   };
 
+  const patchMatchLocally = useCallback(
+    (
+      matchId: string,
+      buildPatch: (match: { id: string }) => Record<string, unknown>
+    ) => {
+      setData((prev) => {
+        if (!prev) return prev;
+
+        const patchList = <T extends { id: string }>(list: T[]): T[] =>
+          list.map((match) =>
+            match.id === matchId
+              ? ({ ...match, ...buildPatch(match) } as T)
+              : match
+          );
+
+        return {
+          ...prev,
+          zones: prev.zones.map((zone) => ({
+            ...zone,
+            matches: patchList(zone.matches),
+          })),
+          bracketMatches: patchList(prev.bracketMatches),
+          schedule: patchList(prev.schedule),
+          editableMatches: patchList(prev.editableMatches),
+        };
+      });
+    },
+    []
+  );
+
   const saveMatchResult = async ({
     matchId,
     sets,
@@ -1923,7 +1953,12 @@ export const TournamentCategoryPage = ({
       console.error("No se pudo propagar el ganador del match:", error);
     }
     if (shouldReload) {
-      await load();
+      const nextScore = sets.map((set) => `${set.team1}-${set.team2}`).join(" ");
+      patchMatchLocally(matchId, () => ({
+        score: nextScore,
+        sets,
+      }));
+      void loadRef.current({ showLoading: false, useCache: false });
     }
   };
 
@@ -2194,8 +2229,11 @@ export const TournamentCategoryPage = ({
     scheduledAt: string | null;
   }) => {
     try {
-      await updateMatch(matchId, { scheduled_at: scheduledAt });
-      await load();
+      const updatedMatch = await updateMatch(matchId, { scheduled_at: scheduledAt });
+      patchMatchLocally(matchId, () => ({
+        scheduledAt: updatedMatch.scheduled_at,
+      }));
+      void loadRef.current({ showLoading: false, useCache: false });
       setActionNotice({
         type: "success",
         message: "Horario del partido actualizado.",
