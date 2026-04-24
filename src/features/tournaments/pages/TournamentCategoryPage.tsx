@@ -119,7 +119,6 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
-const AUTO_REFRESH_INTERVAL_MS = 600_000;
 const toZoneNameByIndex = (index: number) => `Zona ${toGroupKeyByIndex(index)}`;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
@@ -524,26 +523,6 @@ export const TournamentCategoryPage = ({
   useEffect(() => {
     void load();
   }, [slug, category, eventId, categoryId, isAdmin, categoryCacheKey]);
-
-  useEffect(() => {
-    const refreshInBackground = () => {
-      if (document.visibilityState !== "visible") return;
-      void loadRef.current({ showLoading: false, useCache: false });
-    };
-
-    const intervalId = window.setInterval(
-      refreshInBackground,
-      AUTO_REFRESH_INTERVAL_MS
-    );
-    window.addEventListener("focus", refreshInBackground);
-    document.addEventListener("visibilitychange", refreshInBackground);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshInBackground);
-      document.removeEventListener("visibilitychange", refreshInBackground);
-    };
-  }, []);
 
   const activeZone = useMemo(() => {
     if (!orderedZones.length) return null;
