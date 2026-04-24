@@ -3,7 +3,6 @@ import { RankingTable } from "../components/RankingTable";
 import { getRankingsByCategory } from "../../../features/rankings/services/getRankingsByCategory";
 import {
   createEmptyCategoryRankingMap,
-  rankingGenderCodes,
   type CategoryCode,
   type RankingGenderCode,
 } from "../../../shared/types/ranking";
@@ -11,11 +10,21 @@ import { SearchInput } from "../../../shared/components/SearchInput";
 import { useSearchFilter } from "../../../shared/hooks/useSearchFilter";
 import { TableLayout } from "../../../shared/components/TableLayout";
 
-const visibleRankingCategories: CategoryCode[] = ["6ta", "7ma", "8va"];
+type RankingSegment = {
+  key: `${CategoryCode}-${RankingGenderCode}`;
+  category: CategoryCode;
+  gender: RankingGenderCode;
+  label: string;
+};
+
+const buildSegmentLabel = (
+  category: CategoryCode,
+  gender: RankingGenderCode
+): string => `${category} - ${gender}`;
 
 export const RankingsPage = () => {
-  const [selected, setSelected] = useState<CategoryCode>("6ta");
-  const [selectedGender, setSelectedGender] = useState<RankingGenderCode>("M");
+  const [selectedSegmentKey, setSelectedSegmentKey] =
+    useState<RankingSegment["key"] | null>(null);
   const [rankings, setRankings] = useState(createEmptyCategoryRankingMap);
   const [query, setQuery] = useState("");
 
@@ -34,10 +43,57 @@ export const RankingsPage = () => {
     void load();
   }, []);
 
-  const rows = useMemo(
-    () => rankings[selected][selectedGender],
-    [rankings, selected, selectedGender]
+  const availableSegments = useMemo<RankingSegment[]>(() => {
+    const segments: RankingSegment[] = [];
+
+    for (const [category, rowsByGender] of Object.entries(rankings) as [
+      CategoryCode,
+      Record<RankingGenderCode, { points: number }[]>
+    ][]) {
+      for (const [gender, rows] of Object.entries(rowsByGender) as [
+        RankingGenderCode,
+        { points: number }[]
+      ][]) {
+        if (!rows.some((row) => row.points > 0)) continue;
+        segments.push({
+          key: `${category}-${gender}`,
+          category,
+          gender,
+          label: buildSegmentLabel(category, gender),
+        });
+      }
+    }
+
+    return segments.sort((a, b) => a.label.localeCompare(b.label));
+  }, [rankings]);
+
+  useEffect(() => {
+    if (!availableSegments.length) {
+      setSelectedSegmentKey(null);
+      return;
+    }
+
+    const hasCurrentSelection = availableSegments.some(
+      (segment) => segment.key === selectedSegmentKey
+    );
+
+    if (hasCurrentSelection) return;
+
+    setSelectedSegmentKey(availableSegments[0].key);
+  }, [availableSegments, selectedSegmentKey]);
+
+  const selectedSegment = useMemo(
+    () =>
+      availableSegments.find((segment) => segment.key === selectedSegmentKey) ??
+      null,
+    [availableSegments, selectedSegmentKey]
   );
+
+  const rows = useMemo(() => {
+    if (!selectedSegment) return [];
+    return rankings[selectedSegment.category][selectedSegment.gender];
+  }, [rankings, selectedSegment]);
+
   const rowsWithPoints = useMemo(
     () => rows.filter((row) => row.points >= 1),
     [rows]
@@ -51,32 +107,17 @@ export const RankingsPage = () => {
         controls={
           <>
             <div className="flex flex-wrap gap-2">
-              {visibleRankingCategories.map((category) => (
+              {availableSegments.map((segment) => (
                 <button
-                  key={category}
-                  onClick={() => setSelected(category)}
+                  key={segment.key}
+                  onClick={() => setSelectedSegmentKey(segment.key)}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    category === selected
+                    segment.key === selectedSegmentKey
                       ? "bg-slate-900 text-white"
                       : "border border-slate-300 bg-white text-slate-700"
                   }`}
                 >
-                  {category}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {rankingGenderCodes.map((gender) => (
-                <button
-                  key={gender}
-                  onClick={() => setSelectedGender(gender)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                    gender === selectedGender
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-300 bg-white text-slate-700"
-                  }`}
-                >
-                  {gender}
+                  {segment.label}
                 </button>
               ))}
             </div>

@@ -11,6 +11,11 @@ type TournamentHeaderData = {
   semifinalists: string[] | null;
 };
 
+type PublicCategoryOption = {
+  id: string;
+  label: string;
+};
+
 export const TournamentCategoryHeader = ({
   data,
   isAdmin,
@@ -23,6 +28,9 @@ export const TournamentCategoryHeader = ({
   slug,
   category,
   actionNotice,
+  publicCategoryOptions = [],
+  activeTournamentCategoryId,
+  onPublicCategorySelect,
 }: {
   data: TournamentHeaderData;
   isAdmin: boolean;
@@ -35,6 +43,9 @@ export const TournamentCategoryHeader = ({
   slug: string;
   category: string;
   actionNotice: ActionNotice;
+  publicCategoryOptions?: PublicCategoryOption[];
+  activeTournamentCategoryId?: string;
+  onPublicCategorySelect?: (categoryId: string) => void;
 }) => (
   <header className="tm-card">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -83,6 +94,26 @@ export const TournamentCategoryHeader = ({
         gender: data.gender,
       })}
     </p>
+
+    {!isAdmin && publicCategoryOptions.length > 1 && onPublicCategorySelect && (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {publicCategoryOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onPublicCategorySelect(option.id)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+              option.id === activeTournamentCategoryId
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    )}
+
     {!isAdmin && isOwner && (
       <p className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
         Modo edición activo

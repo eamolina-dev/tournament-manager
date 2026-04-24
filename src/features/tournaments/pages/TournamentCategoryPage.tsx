@@ -92,7 +92,10 @@ import type {
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
 import { CreatePlayerModal } from "../../players/components/CreatePlayerModal";
 import { isPlayerCategoryCompatible } from "../../players/services/categoryRules";
-import { getGenderShortLabel } from "../../../shared/lib/category-display";
+import {
+  formatCategoryName,
+  getGenderShortLabel,
+} from "../../../shared/lib/category-display";
 import { validateTeamPair } from "../../../shared/lib/ui-validations";
 
 const extractZoneLabelPrefix = (zoneName: string) => {
@@ -139,6 +142,11 @@ type DisplayRoundBlock = {
   round: number;
   title: string;
   matches: EliminationTemplateMatch[];
+};
+type PublicCategoryOption = {
+  id: string;
+  routeCategory: string;
+  label: string;
 };
 
 const getEditableRoundNumbers = (
@@ -286,6 +294,9 @@ export const TournamentCategoryPage = ({
     string | null
   >(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
+  const [publicCategoryOptions, setPublicCategoryOptions] = useState<
+    PublicCategoryOption[]
+  >([]);
   const stageLabelsStorageKey = data
     ? `tm:stage-labels:${data.tournamentCategoryId}`
     : "";
@@ -415,6 +426,40 @@ export const TournamentCategoryPage = ({
         categoryId
       );
       setData(response);
+      if (!isAdmin && response?.tournamentId) {
+        const [allCategories, tournamentCategories] = await Promise.all([
+          getAllCategories(),
+          getTournamentCategories(response.tournamentId),
+        ]);
+        const categoryById = new Map(
+          allCategories.map((item) => [item.id, item])
+        );
+        const options: PublicCategoryOption[] = tournamentCategories
+          .map((item) => {
+            const categoryName = item.is_suma
+              ? `Suma ${item.suma_value ?? ""}`.trim()
+              : categoryById.get(item.category_id ?? "")?.name ?? "Categoría";
+            const routeCategory = item.is_suma
+              ? item.suma_value != null
+                ? `suma-${item.suma_value}`
+                : null
+              : categoryById.get(item.category_id ?? "")?.slug;
+            if (!routeCategory) return null;
+            return {
+              id: item.id,
+              routeCategory,
+              label: formatCategoryName({
+                categoryName,
+                gender: item.gender,
+              }),
+            };
+          })
+          .filter((item): item is PublicCategoryOption => Boolean(item))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setPublicCategoryOptions(options);
+      } else {
+        setPublicCategoryOptions([]);
+      }
       if (categoryCacheKey && response?.tournamentCategoryId) {
         sessionStorage.setItem(categoryCacheKey, JSON.stringify(response));
         lastLoadedCacheKeyRef.current = categoryCacheKey;
@@ -2076,6 +2121,20 @@ export const TournamentCategoryPage = ({
   const roundBlocksForDisplay = [...visibleRoundBlocks].sort(
     (a, b) => b.round - a.round
   );
+  const handlePublicCategorySelect = useCallback(
+    (tournamentCategoryId: string) => {
+      if (!navigate) return;
+      const selectedCategory = publicCategoryOptions.find(
+        (item) => item.id === tournamentCategoryId
+      );
+      if (!selectedCategory) return;
+      const search = window.location.search;
+      navigate(
+        `${tenantBasePath}/tournament/${slug}/${selectedCategory.routeCategory}${search}`
+      );
+    },
+    [navigate, publicCategoryOptions, slug, tenantBasePath]
+  );
 
   if (loading)
     return (
@@ -2104,6 +2163,9 @@ export const TournamentCategoryPage = ({
         slug={slug}
         category={category}
         actionNotice={actionNotice}
+        publicCategoryOptions={publicCategoryOptions}
+        activeTournamentCategoryId={data.tournamentCategoryId}
+        onPublicCategorySelect={handlePublicCategorySelect}
       />
 
       {isAdmin && !isAdminResultsMode && (
