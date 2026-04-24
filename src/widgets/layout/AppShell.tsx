@@ -52,7 +52,11 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
       <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+            const normalizedHref = item.href.replace(/\/+$/, "") || "/";
+            const isActive =
+              normalizedPath === normalizedHref ||
+              (normalizedHref !== "/" && normalizedPath.startsWith(`${normalizedHref}/`));
             return (
               <button
                 key={item.href}

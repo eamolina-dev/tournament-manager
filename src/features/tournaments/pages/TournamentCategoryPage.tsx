@@ -17,6 +17,10 @@ import { createPlayer } from "../../../features/players/api/mutations";
 import { getPlayers } from "../../../features/players/api/queries";
 import { recalculateProgressiveTeamResults } from "../../../features/rankings/api/mutations";
 import {
+  getPlayerParticipations,
+  getTeamResults,
+} from "../../../features/rankings/api/queries";
+import {
   createTeam,
   deleteTeam,
   updateTeam,
@@ -117,6 +121,7 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
+const toZoneNameByIndex = (index: number) => `Zona ${toGroupKeyByIndex(index)}`;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
   if (stage === "semi") return "Semis";
@@ -237,6 +242,9 @@ export const TournamentCategoryPage = ({
   const [savingDraftTeams, setSavingDraftTeams] = useState(false);
   const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
   const [resultsQuery, setResultsQuery] = useState("");
+  const [rankingPointsByPlayerId, setRankingPointsByPlayerId] = useState<
+    Map<string, number>
+  >(new Map());
   const [categoriesCatalog, setCategoriesCatalog] = useState<
     { id: string; name: string; level: number | null }[]
   >([]);
@@ -826,7 +834,13 @@ export const TournamentCategoryPage = ({
 
   const canGenerateZones = (data?.teams.length ?? 0) >= MIN_TEAMS_FOR_ZONES;
   const teamsForZoneBoard = useMemo<ZoneTeam[]>(
-    () => (data?.teams ?? []).map((team) => ({ id: team.id, name: team.name })),
+    () =>
+      (data?.teams ?? []).map((team) => ({
+        id: team.id,
+        name: team.name,
+        player1Id: team.player1Id,
+        player2Id: team.player2Id,
+      })),
     [data?.teams]
   );
   const teamsByIdForZones = useMemo(
@@ -879,6 +893,65 @@ export const TournamentCategoryPage = ({
   useEffect(() => {
     setZoneConfigSuccess(null);
   }, [manualZones]);
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRankingPoints = async () => {
+      if (!data?.categoryId || !data.gender) {
+        setRankingPointsByPlayerId(new Map());
+        return;
+      }
+
+      const rankingGender = getGenderShortLabel(data.gender);
+      if (!rankingGender || rankingGender === "X") {
+        setRankingPointsByPlayerId(new Map());
+        return;
+      }
+
+      try {
+        const [results, participations] = await Promise.all([
+          getTeamResults(),
+          getPlayerParticipations(),
+        ]);
+        const pointsByTeamContextKey = new Map<string, number>();
+        results.forEach((result) => {
+          if (!result.tournament_category_id) return;
+          pointsByTeamContextKey.set(
+            `${result.team_id}::${result.tournament_category_id}`,
+            result.points_awarded ?? 0
+          );
+        });
+
+        const nextPointsByPlayer = new Map<string, number>();
+        participations.forEach((participation) => {
+          if (participation.ranking_category_id !== data.categoryId) return;
+          if (getGenderShortLabel(participation.ranking_gender) !== rankingGender) {
+            return;
+          }
+          const contextKey = `${participation.team_id ?? ""}::${participation.tournament_category_id}`;
+          const points = pointsByTeamContextKey.get(contextKey) ?? 0;
+          nextPointsByPlayer.set(
+            participation.player_id,
+            (nextPointsByPlayer.get(participation.player_id) ?? 0) + points
+          );
+        });
+
+        if (!cancelled) {
+          setRankingPointsByPlayerId(nextPointsByPlayer);
+        }
+      } catch {
+        if (!cancelled) {
+          setRankingPointsByPlayerId(new Map());
+        }
+      }
+    };
+
+    void loadRankingPoints();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.categoryId, data?.gender]);
   useEffect(() => {
     if (!teamsDraftStorageKey) return;
     localStorage.setItem(
@@ -1128,7 +1201,7 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
-    const nextZones = zoneBoardColumns.map((zone) => ({
+    const normalizedZones = zoneBoardColumns.map((zone) => ({
       ...zone,
       name: zone.name.trim(),
     }));
@@ -1138,7 +1211,7 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
-    const normalizedNames = nextZones.map((zone) =>
+    const normalizedNames = normalizedZones.map((zone) =>
       zone.name.toLocaleLowerCase()
     );
     if (new Set(normalizedNames).size !== normalizedNames.length) {
@@ -1147,6 +1220,26 @@ export const TournamentCategoryPage = ({
       setActionNotice({ type: "error", message });
       return;
     }
+    const nextZones = [...normalizedZones]
+      .sort((left, right) => {
+        const leftPoints = left.teamIds.reduce(
+          (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+          0
+        );
+        const rightPoints = right.teamIds.reduce(
+          (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+          0
+        );
+        if (leftPoints !== rightPoints) {
+          return rightPoints - leftPoints;
+        }
+        return left.name.localeCompare(right.name);
+      })
+      .map((zone, index) => ({
+        ...zone,
+        name: toZoneNameByIndex(index),
+      }));
+
     try {
       setSaving(true);
       await saveZonesForCategory(
@@ -1444,13 +1537,14 @@ export const TournamentCategoryPage = ({
     courtsCountInput > 0;
   const teamPointsById = useMemo(() => {
     const scoreMap = new Map<string, number>();
-    orderedZones.forEach((zone) => {
-      zone.standings.forEach((standing) => {
-        scoreMap.set(standing.teamId, standing.pts);
-      });
+    teamsForZoneBoard.forEach((team) => {
+      const points =
+        (team.player1Id ? rankingPointsByPlayerId.get(team.player1Id) ?? 0 : 0) +
+        (team.player2Id ? rankingPointsByPlayerId.get(team.player2Id) ?? 0 : 0);
+      scoreMap.set(team.id, points);
     });
     return scoreMap;
-  }, [orderedZones]);
+  }, [rankingPointsByPlayerId, teamsForZoneBoard]);
   const zoneValidation = useMemo(
     () => validateZones(normalizedZoneColumns),
     [normalizedZoneColumns]

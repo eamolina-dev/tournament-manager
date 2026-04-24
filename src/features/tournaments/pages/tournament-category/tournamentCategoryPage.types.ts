@@ -56,6 +56,8 @@ export type ZoneBoardColumn = {
 export type ZoneTeam = {
   id: string;
   name: string;
+  player1Id: string | null;
+  player2Id: string | null;
 };
 export type ZoneValidationResult = {
   warnings: string[];

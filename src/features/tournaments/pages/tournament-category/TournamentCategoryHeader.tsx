@@ -16,6 +16,12 @@ type PublicCategoryOption = {
   label: string;
 };
 
+const demoResultsTournamentIds = new Set([
+  "4f92e176-e28e-4de9-a335-ce23156e44ec",
+  "305aa23d-99be-4060-83a3-9355831a07af",
+  "d5f123ab-b98e-4359-96d9-4f37235f4ad4",
+]);
+
 export const TournamentCategoryHeader = ({
   data,
   isAdmin,
@@ -94,6 +100,13 @@ export const TournamentCategoryHeader = ({
         gender: data.gender,
       })}
     </p>
+    {demoResultsTournamentIds.has(data.tournamentId) && (
+      <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        ⚠️ Aviso: este torneo usa resultados ficticios de partidos para
+        simular zonas, cruces y puntajes finales. Los resultados reales no están
+        reflejados.
+      </p>
+    )}
 
     {!isAdmin && publicCategoryOptions.length > 1 && onPublicCategorySelect && (
       <div className="mt-3 flex flex-wrap gap-2">
