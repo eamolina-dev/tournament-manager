@@ -119,7 +119,7 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
-const AUTO_REFRESH_INTERVAL_MS = 60_000;
+const AUTO_REFRESH_INTERVAL_MS = 600_000;
 const toZoneNameByIndex = (index: number) => `Zona ${toGroupKeyByIndex(index)}`;
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
@@ -141,7 +141,9 @@ const getSourceOptionLabel = (
   return `Perdedor de ${roundTitle} ${parsed.order}`;
 };
 
-type EliminationTemplateMatch = ReturnType<typeof getEliminationTemplate>[number];
+type EliminationTemplateMatch = ReturnType<
+  typeof getEliminationTemplate
+>[number];
 type DisplayRoundBlock = {
   round: number;
   title: string;
@@ -175,7 +177,11 @@ const hasSource = (source: string | null | undefined): boolean =>
   Boolean(source?.trim());
 
 const tabSectionSkeleton = (
-  <section className="space-y-3 animate-pulse" aria-live="polite" aria-busy="true">
+  <section
+    className="space-y-3 animate-pulse"
+    aria-live="polite"
+    aria-busy="true"
+  >
     <div className="h-4 w-44 rounded bg-slate-200" />
     <div className="grid gap-2 sm:grid-cols-2">
       <div className="h-20 rounded-lg bg-slate-100" />
@@ -951,10 +957,14 @@ export const TournamentCategoryPage = ({
         const nextPointsByPlayer = new Map<string, number>();
         participations.forEach((participation) => {
           if (participation.ranking_category_id !== data.categoryId) return;
-          if (getGenderShortLabel(participation.ranking_gender) !== rankingGender) {
+          if (
+            getGenderShortLabel(participation.ranking_gender) !== rankingGender
+          ) {
             return;
           }
-          const contextKey = `${participation.team_id ?? ""}::${participation.tournament_category_id}`;
+          const contextKey = `${participation.team_id ?? ""}::${
+            participation.tournament_category_id
+          }`;
           const points = pointsByTeamContextKey.get(contextKey) ?? 0;
           nextPointsByPlayer.set(
             participation.player_id,
@@ -1365,10 +1375,7 @@ export const TournamentCategoryPage = ({
   const manualCrossingsByRoundOrder = useMemo(
     () =>
       new Map(
-        manualCrossings.map((match) => [
-          `${match.round}-${match.order}`,
-          match,
-        ])
+        manualCrossings.map((match) => [`${match.round}-${match.order}`, match])
       ),
     [manualCrossings]
   );
@@ -1410,7 +1417,8 @@ export const TournamentCategoryPage = ({
     [editableRoundsSet]
   );
   const getManualMatchForRoundOrder = useCallback(
-    (round: number, order: number) => manualCrossingsByRoundOrder.get(`${round}-${order}`),
+    (round: number, order: number) =>
+      manualCrossingsByRoundOrder.get(`${round}-${order}`),
     [manualCrossingsByRoundOrder]
   );
   const getEditableSlotValue = useCallback(
@@ -1466,7 +1474,9 @@ export const TournamentCategoryPage = ({
           ? [...allowedCrossingSources, ...winnerSources]
           : [...allowedCrossingSources];
 
-      return allowedSources.filter((source) => source === currentValue || !used.has(source));
+      return allowedSources.filter(
+        (source) => source === currentValue || !used.has(source)
+      );
     },
     [
       allowedCrossingSources,
@@ -1523,10 +1533,7 @@ export const TournamentCategoryPage = ({
       )
     );
     setManualCrossingsError(null);
-  }, [
-    eliminationTemplateMatches,
-    isEditableSourceSlot,
-  ]);
+  }, [eliminationTemplateMatches, isEditableSourceSlot]);
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1565,7 +1572,9 @@ export const TournamentCategoryPage = ({
     const scoreMap = new Map<string, number>();
     teamsForZoneBoard.forEach((team) => {
       const points =
-        (team.player1Id ? rankingPointsByPlayerId.get(team.player1Id) ?? 0 : 0) +
+        (team.player1Id
+          ? rankingPointsByPlayerId.get(team.player1Id) ?? 0
+          : 0) +
         (team.player2Id ? rankingPointsByPlayerId.get(team.player2Id) ?? 0 : 0);
       scoreMap.set(team.id, points);
     });
@@ -1695,8 +1704,8 @@ export const TournamentCategoryPage = ({
         .map((match) => `W-${match.order}-${match.round}`.toUpperCase());
       allowedWinnerSourcesByRound.set(round, new Set(winnerSources));
     });
-    const editableTemplateMatches = eliminationTemplateMatches.filter(
-      (match) => isEditableSourceSlot(match.round)
+    const editableTemplateMatches = eliminationTemplateMatches.filter((match) =>
+      isEditableSourceSlot(match.round)
     );
     const normalizedDraft = editableTemplateMatches.map((templateMatch) => {
       const draftMatch = manualCrossings.find(
@@ -1740,7 +1749,8 @@ export const TournamentCategoryPage = ({
       );
       if (!templateMatch) return;
       const allowedWinnerSources =
-        allowedWinnerSourcesByRound.get(templateMatch.round) ?? new Set<string>();
+        allowedWinnerSourcesByRound.get(templateMatch.round) ??
+        new Set<string>();
       const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
         {
           source: match.team1Source,
@@ -1909,7 +1919,9 @@ export const TournamentCategoryPage = ({
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "No se pudieron eliminar los equipos.";
+        error instanceof Error
+          ? error.message
+          : "No se pudieron eliminar los equipos.";
       setTeamDraftError(message);
       setActionNotice({ type: "error", message });
     } finally {
@@ -2130,7 +2142,9 @@ export const TournamentCategoryPage = ({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "No se pudieron guardar los resultados.";
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los resultados.";
       setActionNotice({ type: "error", message });
     } finally {
       setSavingZoneId(null);
@@ -2229,7 +2243,9 @@ export const TournamentCategoryPage = ({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "No se pudieron guardar los cruces.";
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los cruces.";
       setActionNotice({ type: "error", message });
     } finally {
       setSavingBracket(false);
@@ -2244,7 +2260,9 @@ export const TournamentCategoryPage = ({
     scheduledAt: string | null;
   }) => {
     try {
-      const updatedMatch = await updateMatch(matchId, { scheduled_at: scheduledAt });
+      const updatedMatch = await updateMatch(matchId, {
+        scheduled_at: scheduledAt,
+      });
       patchMatchLocally(matchId, () => ({
         scheduledAt: updatedMatch.scheduled_at,
       }));
@@ -3046,9 +3064,7 @@ export const TournamentCategoryPage = ({
                           inputMode="numeric"
                           placeholder="HH:mm"
                           pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
-                          value={
-                            scheduleStartTimesInput[day.key] ?? ""
-                          }
+                          value={scheduleStartTimesInput[day.key] ?? ""}
                           onChange={(event) =>
                             setScheduleStartTimesInput((prev) => ({
                               ...prev,
@@ -3269,8 +3285,7 @@ export const TournamentCategoryPage = ({
                               ),
                               next,
                             ].sort(
-                              (a, b) =>
-                                a.round - b.round || a.order - b.order
+                              (a, b) => a.round - b.round || a.order - b.order
                             );
                           });
                         };
@@ -3409,7 +3424,6 @@ export const TournamentCategoryPage = ({
                 ) : null}
               </div>
             )}
-
           </article>
 
           {saving && <p className="text-xs text-slate-500">Procesando...</p>}
