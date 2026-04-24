@@ -280,3 +280,27 @@ export const deleteTeam = async (teamId: string): Promise<void> => {
 
   throwIfError(error)
 }
+
+const isMissingBatchRpcError = (error: { code?: string; message?: string } | null): boolean => {
+  if (!error) return false
+  if (error.code === "42883") return true
+  return (error.message ?? "").toLowerCase().includes("does not exist")
+}
+
+export const deleteTeamsBatch = async (teamIds: string[]): Promise<void> => {
+  const safeTeamIds = Array.from(new Set(teamIds.filter(Boolean)))
+  if (!safeTeamIds.length) return
+
+  const { error: rpcError } = await supabase.rpc("delete_teams_batch", {
+    p_team_ids: safeTeamIds,
+  })
+
+  if (!rpcError) return
+  if (!isMissingBatchRpcError(rpcError)) {
+    throwIfError(rpcError)
+  }
+
+  for (const teamId of safeTeamIds) {
+    await deleteTeam(teamId)
+  }
+}

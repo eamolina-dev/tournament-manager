@@ -20,7 +20,7 @@ import {
 } from "../../../features/rankings/api/queries";
 import {
   createTeam,
-  deleteTeam,
+  deleteTeamsBatch,
   updateTeam,
 } from "../../../features/teams/api/mutations";
 import {
@@ -257,7 +257,9 @@ export const TournamentCategoryPage = ({
   const [draftTeams, setDraftTeams] = useState<DraftTeam[]>([]);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [savingDraftTeams, setSavingDraftTeams] = useState(false);
+  const [deletingTeams, setDeletingTeams] = useState(false);
   const [teamDraftError, setTeamDraftError] = useState<string | null>(null);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [resultsQuery, setResultsQuery] = useState("");
   const [rankingPointsByPlayerId, setRankingPointsByPlayerId] = useState<
     Map<string, number>
@@ -1879,6 +1881,42 @@ export const TournamentCategoryPage = ({
     }));
   }, [blockedPlayerIds]);
 
+  useEffect(() => {
+    const validIds = new Set((data?.teams ?? []).map((team) => team.id));
+    setSelectedTeamIds((prev) => prev.filter((teamId) => validIds.has(teamId)));
+  }, [data?.teams]);
+
+  const handleDeleteSelectedTeams = async () => {
+    if (!data || !selectedTeamIds.length) return;
+    if (!isTournamentEditable) {
+      setTeamDraftError(structuralLockMessage);
+      return;
+    }
+    const shouldDelete = window.confirm(
+      `Se eliminarán ${selectedTeamIds.length} equipos. ¿Querés continuar?`
+    );
+    if (!shouldDelete) return;
+
+    setDeletingTeams(true);
+    setTeamDraftError(null);
+    try {
+      await deleteTeamsBatch(selectedTeamIds);
+      setSelectedTeamIds([]);
+      await load();
+      setActionNotice({
+        type: "success",
+        message: "Equipos eliminados correctamente.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudieron eliminar los equipos.";
+      setTeamDraftError(message);
+      setActionNotice({ type: "error", message });
+    } finally {
+      setDeletingTeams(false);
+    }
+  };
+
   const resolvePlayerId = async ({
     selectedId,
     required,
@@ -2675,19 +2713,21 @@ export const TournamentCategoryPage = ({
                           >
                             Editar
                           </button>
-                          <button
-                            onClick={() => {
-                              if (!isTournamentEditable) {
-                                setTeamDraftError(structuralLockMessage);
-                                return;
+                          <label className="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={selectedTeamIds.includes(team.id)}
+                              onChange={(event) =>
+                                setSelectedTeamIds((prev) =>
+                                  event.target.checked
+                                    ? [...prev, team.id]
+                                    : prev.filter((id) => id !== team.id)
+                                )
                               }
-                              void deleteTeam(team.id).then(load);
-                            }}
-                            disabled={!isTournamentEditable}
-                            className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-600"
-                          >
-                            Eliminar
-                          </button>
+                              disabled={!isTournamentEditable || deletingTeams}
+                            />
+                            Seleccionar
+                          </label>
                         </div>
                       </div>
                     );
@@ -2703,6 +2743,22 @@ export const TournamentCategoryPage = ({
                   </p>
                 </div>
               )}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteSelectedTeams()}
+                  disabled={
+                    !isTournamentEditable ||
+                    deletingTeams ||
+                    selectedTeamIds.length === 0
+                  }
+                  className="rounded border border-red-300 px-3 py-1 text-xs font-medium text-red-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  {deletingTeams
+                    ? "Eliminando equipos..."
+                    : `Eliminar seleccionados (${selectedTeamIds.length})`}
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
