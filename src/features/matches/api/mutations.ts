@@ -302,8 +302,13 @@ export const replaceMatchSets = async (
 
 const isMissingBatchRpcError = (error: { code?: string; message?: string } | null): boolean => {
   if (!error) return false
-  if (error.code === "42883") return true
-  return (error.message ?? "").toLowerCase().includes("does not exist")
+  if (error.code === "42883" || error.code === "PGRST202") return true
+  const message = (error.message ?? "").toLowerCase()
+  return (
+    message.includes("does not exist") ||
+    message.includes("could not find the function") ||
+    message.includes("schema cache")
+  )
 }
 
 export const saveMatchResultsBatch = async ({
