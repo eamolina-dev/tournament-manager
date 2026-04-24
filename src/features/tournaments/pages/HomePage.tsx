@@ -216,7 +216,8 @@ export const HomePage = ({
                     Gestionar
                   </button>
                 </div>
-              ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
+              ) : tournament.photoCount > 0 ? (
+                // ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
                 <button
                   onClick={() =>
                     navigate(
