@@ -1615,6 +1615,7 @@ export type Database = {
         Args: { p_tournament_category_id: string }
         Returns: undefined
       }
+      unaccent: { Args: { "": string }; Returns: string }
       update_group_positions: {
         Args: { p_group_id: string }
         Returns: undefined
