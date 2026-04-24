@@ -18,7 +18,13 @@ const adminNavItems = [
   { label: "Jugadores", href: "/admin/players" },
 ];
 
-const reservedRootSegments = new Set(["admin", "tournament", "tournaments", "rankings", "login"]);
+const reservedRootSegments = new Set([
+  "admin",
+  "tournament",
+  "tournaments",
+  "rankings",
+  "login",
+]);
 
 const getScopedSlug = (pathname: string, tenantSlug: string | null) => {
   if (tenantSlug) return tenantSlug;
@@ -30,13 +36,24 @@ const getScopedSlug = (pathname: string, tenantSlug: string | null) => {
 
 const getNavItems = (pathname: string, slug: string | null) => {
   const scopedSlug = getScopedSlug(pathname, slug);
-  const isSlugAdminPath = Boolean(scopedSlug && pathname.startsWith(`/${scopedSlug}/admin`));
+  const isSlugAdminPath = Boolean(
+    scopedSlug && pathname.startsWith(`/${scopedSlug}/admin`)
+  );
   if (isSlugAdminPath) {
-    return adminNavItems.map((item) => ({ ...item, href: `/${scopedSlug}${item.href}` }));
+    return adminNavItems.map((item) => ({
+      ...item,
+      href: `/${scopedSlug}${item.href}`,
+    }));
   }
 
-  if (scopedSlug && (pathname === `/${scopedSlug}` || pathname.startsWith(`/${scopedSlug}/`))) {
-    return publicNavItems.map((item) => ({ ...item, href: `/${scopedSlug}${item.href === "/" ? "" : item.href}` }));
+  if (
+    scopedSlug &&
+    (pathname === `/${scopedSlug}` || pathname.startsWith(`/${scopedSlug}/`))
+  ) {
+    return publicNavItems.map((item) => ({
+      ...item,
+      href: `/${scopedSlug}${item.href === "/" ? "" : item.href}`,
+    }));
   }
 
   return publicNavItems;
@@ -45,18 +62,21 @@ const getNavItems = (pathname: string, slug: string | null) => {
 export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
   const { slug, user, signOut } = useTenantAuth();
   const navItems = getNavItems(pathname, slug);
-  const isAdminPath = pathname.startsWith("/admin") || Boolean(slug && pathname.startsWith(`/${slug}/admin`));
+  const isAdminPath =
+    pathname.startsWith("/admin") ||
+    Boolean(slug && pathname.startsWith(`/${slug}/admin`));
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-[var(--tm-border)] bg-[#081727]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1200px] items-center gap-2 px-4 py-3">
           {navItems.map((item) => {
-            const normalizedPath = pathname.replace(/\/+$/, "") || "/";
-            const normalizedHref = item.href.replace(/\/+$/, "") || "/";
-            const isActive =
-              normalizedPath === normalizedHref ||
-              (normalizedHref !== "/" && normalizedPath.startsWith(`${normalizedHref}/`));
+            // const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+            // const normalizedHref = item.href.replace(/\/+$/, "") || "/";
+            // const isActive =
+            //   normalizedPath === normalizedHref ||
+            //   (normalizedHref !== "/" && normalizedPath.startsWith(`${normalizedHref}/`));
+            const isActive = pathname === item.href;
             return (
               <button
                 key={item.href}
@@ -87,7 +107,9 @@ export const AppShell = ({ children, pathname, navigate }: AppShellProps) => {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-4 px-4 py-5">{children}</main>
+      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-4 px-4 py-5">
+        {children}
+      </main>
       {!isAdminPath ? <Footer /> : null}
     </div>
   );

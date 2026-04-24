@@ -55,12 +55,16 @@ export const TournamentCategoryHeader = ({
 }) => (
   <header className="tm-card">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-2xl font-bold text-slate-900">{data.tournamentName}</h1>
+      <h1 className="text-2xl font-bold text-slate-900">
+        {data.tournamentName}
+      </h1>
       {isAdmin && !isAdminResultsMode && navigate ? (
         <button
           disabled={!isTournamentEditable}
           onClick={() =>
-            navigate(`${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`)
+            navigate(
+              `${tenantBasePath}/admin/tournaments/${data.tournamentId}/edit`
+            )
           }
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
         >
@@ -86,7 +90,9 @@ export const TournamentCategoryHeader = ({
 
       {isAdmin && !eventId && navigate && (
         <button
-          onClick={() => navigate(`${tenantBasePath}/tournament/${slug}/${category}?owner=1`)}
+          onClick={() =>
+            navigate(`${tenantBasePath}/tournament/${slug}/${category}?owner=1`)
+          }
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
         >
           Ver vista pública
@@ -101,10 +107,9 @@ export const TournamentCategoryHeader = ({
       })}
     </p>
     {demoResultsTournamentIds.has(data.tournamentId) && (
-      <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        ⚠️ Aviso: este torneo usa resultados ficticios de partidos para
-        simular zonas, cruces y puntajes finales. Los resultados reales no están
-        reflejados.
+      <p className="mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+        ℹ️ Los resultados de los partidos fueron simulados para completar el
+        torneo. La estructura, zonas, parejas, cruces y puntajes son reales.
       </p>
     )}
 
