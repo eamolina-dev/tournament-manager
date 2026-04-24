@@ -328,7 +328,10 @@ export const saveMatchResultsBatch = async ({
     })),
   })
 
-  if (!rpcError) return
+  if (!rpcError) {
+    await recalculateProgressiveTeamResults(tournamentCategoryId)
+    return
+  }
   if (!isMissingBatchRpcError(rpcError)) {
     throwIfError(rpcError)
   }
