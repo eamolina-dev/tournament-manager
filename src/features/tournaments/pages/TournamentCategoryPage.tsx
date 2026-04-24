@@ -175,6 +175,18 @@ const getEditableRoundNumbers = (
 const hasSource = (source: string | null | undefined): boolean =>
   Boolean(source?.trim());
 
+const tabSectionSkeleton = (
+  <section className="space-y-3 animate-pulse" aria-live="polite" aria-busy="true">
+    <div className="h-4 w-44 rounded bg-slate-200" />
+    <div className="grid gap-2 sm:grid-cols-2">
+      <div className="h-20 rounded-lg bg-slate-100" />
+      <div className="h-20 rounded-lg bg-slate-100" />
+      <div className="h-20 rounded-lg bg-slate-100" />
+      <div className="h-20 rounded-lg bg-slate-100" />
+    </div>
+  </section>
+);
+
 const buildRoundBlocksForDisplay = (
   matches: EliminationTemplateMatch[]
 ): DisplayRoundBlock[] => {
@@ -217,6 +229,12 @@ export const TournamentCategoryPage = ({
     defaultTab: "Zonas",
   });
   const [loading, setLoading] = useState(true);
+  const [loadingTab, setLoadingTab] = useState<Record<SectionTab, boolean>>({
+    Zonas: false,
+    Cruces: false,
+    Posiciones: false,
+    Horarios: false,
+  });
   const [saving, setSaving] = useState(false);
   const [data, setData] =
     useState<Awaited<ReturnType<typeof getTournamentCategoryPageData>>>(null);
@@ -365,6 +383,10 @@ export const TournamentCategoryPage = ({
     showLoading?: boolean;
     useCache?: boolean;
   } = {}) => {
+    const refreshingTab = activeTab;
+    if (!showLoading) {
+      setLoadingTab((prev) => ({ ...prev, [refreshingTab]: true }));
+    }
     if (
       useCache &&
       categoryCacheKey &&
@@ -480,6 +502,9 @@ export const TournamentCategoryPage = ({
     } finally {
       if (showLoading) {
         setLoading(false);
+      }
+      if (!showLoading) {
+        setLoadingTab((prev) => ({ ...prev, [refreshingTab]: false }));
       }
     }
   };
@@ -2270,9 +2295,20 @@ export const TournamentCategoryPage = ({
 
   if (loading)
     return (
-      <p className="rounded-xl bg-white p-4 text-sm text-slate-600">
-        Cargando torneo...
-      </p>
+      <section
+        className="space-y-3 rounded-xl bg-white p-4 animate-pulse"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="h-5 w-56 rounded bg-slate-200" />
+        <div className="h-4 w-36 rounded bg-slate-100" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+        </div>
+      </section>
     );
   if (!data)
     return (
@@ -3391,7 +3427,7 @@ export const TournamentCategoryPage = ({
           </div>
 
           {activeTab === "Zonas" && activeZone && (
-            <section>
+            loadingTab.Zonas ? tabSectionSkeleton : <section>
               <div className="mb-3 flex flex-wrap gap-2">
                 {orderedZones.map((zone) => (
                   <button
@@ -3459,7 +3495,7 @@ export const TournamentCategoryPage = ({
           )}
 
           {activeTab === "Cruces" && (
-            <section className="space-y-4">
+            loadingTab.Cruces ? tabSectionSkeleton : <section className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {adminBracketStages.map((stage) => (
                   <button
@@ -3541,6 +3577,7 @@ export const TournamentCategoryPage = ({
           schedule={data.schedule}
           slug={slug}
           category={category}
+          isActiveTabRefreshing={loadingTab[activeTab]}
         />
       )}
 

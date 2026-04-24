@@ -79,6 +79,7 @@ export const PublicTournamentTabs = ({
   schedule,
   slug,
   category,
+  isActiveTabRefreshing,
 }: {
   activeTab: SectionTab;
   setActiveTab: (tab: SectionTab) => void;
@@ -114,6 +115,7 @@ export const PublicTournamentTabs = ({
   schedule: ScheduleMatch[];
   slug: string;
   category: string;
+  isActiveTabRefreshing: boolean;
 }) => (
   <section className="space-y-4 tm-card">
     <div className="flex flex-wrap gap-2">
@@ -132,7 +134,19 @@ export const PublicTournamentTabs = ({
       ))}
     </div>
 
-    {activeTab === "Zonas" && activeZone && (
+    {isActiveTabRefreshing ? (
+      <section className="space-y-3 animate-pulse" aria-live="polite" aria-busy="true">
+        <div className="h-4 w-40 rounded bg-slate-200" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+          <div className="h-20 rounded-lg bg-slate-100" />
+        </div>
+      </section>
+    ) : null}
+
+    {!isActiveTabRefreshing && activeTab === "Zonas" && activeZone && (
       <section>
         <div className="mb-3 flex flex-wrap gap-2">
           {orderedZones.map((zone) => (
@@ -220,7 +234,7 @@ export const PublicTournamentTabs = ({
         </div>
       </section>
     )}
-    {activeTab === "Cruces" && (
+    {!isActiveTabRefreshing && activeTab === "Cruces" && (
       <section className="space-y-4">
         <div className="flex items-center justify-end gap-2">
           <button
@@ -279,7 +293,7 @@ export const PublicTournamentTabs = ({
         )}
       </section>
     )}
-    {activeTab === "Posiciones" && (
+    {!isActiveTabRefreshing && activeTab === "Posiciones" && (
       <section>
         <div className="mb-3">
           <SearchInput
@@ -346,7 +360,7 @@ export const PublicTournamentTabs = ({
         </div>
       </section>
     )}
-    {activeTab === "Horarios" && (
+    {!isActiveTabRefreshing && activeTab === "Horarios" && (
       <ScheduleSection
         matches={schedule}
         storageKey={`tournament:${slug}:${category}:schedule-day-tab`}
