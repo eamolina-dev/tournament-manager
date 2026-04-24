@@ -4,7 +4,9 @@ import { getPhotosByTournament } from "../../photos/api/queries";
 import {
   createCategory,
   createTournament,
+  deleteTournament,
   deleteTournamentCategory,
+  updateTournamentCategory,
   updateTournament,
 } from "../../../features/tournaments/api/mutations";
 import {
@@ -19,6 +21,10 @@ import {
   validateCategorySelection,
   validateTournamentForm,
 } from "../../../shared/lib/ui-validations";
+import {
+  defaultCourtsCount,
+  defaultMatchIntervalMinutes,
+} from "./tournament-category/tournamentCategoryPage.constants";
 import type { Database } from "../../../shared/types/database";
 
 type TournamentCreatePageProps = {
@@ -55,6 +61,7 @@ type TournamentSetupDraft = {
 };
 
 type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
+type AdminManageTab = "datos" | "fotos" | "inscriptos" | "configuracion";
 
 const genderOptions: { value: TournamentCategoryGender; label: string }[] = [
   { value: "M", label: "Masculino" },
@@ -101,6 +108,14 @@ export const TournamentCreatePage = ({
   const [photos, setPhotos] = useState<PhotoRow[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminManageTab>("datos");
+  const [defaultCourtsCountInput, setDefaultCourtsCountInput] = useState(
+    defaultCourtsCount
+  );
+  const [defaultMatchIntervalInput, setDefaultMatchIntervalInput] = useState(
+    defaultMatchIntervalMinutes
+  );
+  const [savingDefaults, setSavingDefaults] = useState(false);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     slug?: string;
@@ -226,6 +241,17 @@ export const TournamentCreatePage = ({
           };
         });
         setExistingCategories(mappedExistingCategories);
+
+        const firstCourtsCount = tournamentCategories.find(
+          (row) => row.courts_count != null
+        )?.courts_count;
+        const firstMatchInterval = tournamentCategories.find(
+          (row) => row.match_interval_minutes != null
+        )?.match_interval_minutes;
+        setDefaultCourtsCountInput(firstCourtsCount ?? defaultCourtsCount);
+        setDefaultMatchIntervalInput(
+          firstMatchInterval ?? defaultMatchIntervalMinutes
+        );
       } catch (loadError) {
         setError(
           loadError instanceof Error ? loadError.message : "No se pudo cargar el torneo"
@@ -427,6 +453,75 @@ export const TournamentCreatePage = ({
     }
   };
 
+  const handleDeleteTournament = async () => {
+    if (!currentTournamentId) return;
+    const confirmed = window.confirm(
+      `¿Eliminar el torneo \"${name || "sin nombre"}\"? Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await deleteTournament(currentTournamentId);
+      navigate(getBackPath());
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "No se pudo eliminar el torneo."
+      );
+    }
+  };
+
+  const handleSaveDefaultSetup = async () => {
+    if (!currentTournamentId || !existingCategories.length) {
+      setError("Este torneo no tiene categorías para aplicar configuración.");
+      return;
+    }
+    if (
+      !Number.isInteger(defaultCourtsCountInput) ||
+      defaultCourtsCountInput <= 0
+    ) {
+      setError("Cantidad de canchas debe ser un entero mayor a 0.");
+      return;
+    }
+    if (
+      !Number.isInteger(defaultMatchIntervalInput) ||
+      defaultMatchIntervalInput <= 0
+    ) {
+      setError("Intervalo entre partidos debe ser un entero mayor a 0.");
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setSavingDefaults(true);
+    try {
+      await Promise.all(
+        existingCategories.map((categoryItem) =>
+          updateTournamentCategory(categoryItem.id, {
+            courts_count: defaultCourtsCountInput,
+            match_interval_minutes: defaultMatchIntervalInput,
+          })
+        )
+      );
+      setSuccessMessage(
+        "Configuración por defecto aplicada a todas las categorías del torneo."
+      );
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "No se pudieron guardar los valores por defecto."
+      );
+    } finally {
+      setSavingDefaults(false);
+    }
+  };
+
+  const shouldShowAdminManageTabs = isAdminMode && isEditMode;
+
   return (
     <section className="grid gap-4">
       <article className="tm-card">
@@ -435,17 +530,6 @@ export const TournamentCreatePage = ({
             {isEditMode ? "Editar torneo" : "Crear torneo"}
           </h1>
           <div className="flex flex-wrap gap-2">
-            {isAdminMode && currentTournamentId ? (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`${tenantBasePath}/admin/tournaments/${currentTournamentId}/registrations`)
-                }
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                Gestionar inscriptos
-              </button>
-            ) : null}
             <button
               onClick={() => navigate(getBackPath())}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -455,7 +539,33 @@ export const TournamentCreatePage = ({
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
+        {shouldShowAdminManageTabs ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { key: "datos", label: "Datos" },
+              { key: "fotos", label: "Fotos" },
+              { key: "inscriptos", label: "Inscriptos" },
+              { key: "configuracion", label: "Configuración" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveAdminTab(tab.key as AdminManageTab)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                  activeAdminTab === tab.key
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {(!shouldShowAdminManageTabs || activeAdminTab === "datos") && (
+          <>
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
           <label className="space-y-1">
             <span className="text-xs font-medium text-slate-600">Nombre del torneo *</span>
             <input
@@ -550,17 +660,17 @@ export const TournamentCreatePage = ({
           >
             {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear torneo"}
           </button>
-        </div>
-        {(formErrors.name || formErrors.slug || formErrors.dates) && (
-          <p className="mt-2 text-sm text-red-600">
-            {formErrors.name ?? formErrors.slug ?? formErrors.dates}
-          </p>
-        )}
-        <p className="mt-1 text-xs text-slate-500">
-          Campos obligatorios: <span className="font-semibold">*</span>
-        </p>
+            </div>
+            {(formErrors.name || formErrors.slug || formErrors.dates) && (
+              <p className="mt-2 text-sm text-red-600">
+                {formErrors.name ?? formErrors.slug ?? formErrors.dates}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-slate-500">
+              Campos obligatorios: <span className="font-semibold">*</span>
+            </p>
 
-        <div className="mt-4 rounded-xl border border-slate-200 p-3">
+            <div className="mt-4 rounded-xl border border-slate-200 p-3">
           <p className="text-sm font-semibold text-slate-900">Categoría / tipo</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <select
@@ -711,13 +821,15 @@ export const TournamentCreatePage = ({
               </div>
             </div>
           )}
-        </div>
+            </div>
+          </>
+        )}
 
         {successMessage && <p className="mt-2 text-sm text-emerald-700">{successMessage}</p>}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {isEditMode && currentTournamentId ? (
+      {isEditMode && currentTournamentId && (!shouldShowAdminManageTabs || activeAdminTab === "fotos") ? (
         <article className="tm-card">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-slate-900">Fotos del torneo</h2>
@@ -763,6 +875,86 @@ export const TournamentCreatePage = ({
           ) : (
             !photosLoading ? <p className="mt-2 text-sm text-slate-500">Aún no hay fotos en este torneo.</p> : null
           )}
+        </article>
+      ) : null}
+
+      {shouldShowAdminManageTabs && activeAdminTab === "inscriptos" && currentTournamentId ? (
+        <article className="tm-card">
+          <h2 className="text-lg font-semibold text-slate-900">Inscriptos</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Gestioná altas, confirmaciones y edición de inscripciones desde el módulo de inscriptos.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `${tenantBasePath}/admin/tournaments/${currentTournamentId}/registrations`
+              )
+            }
+            className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+          >
+            Ir a gestionar inscriptos
+          </button>
+        </article>
+      ) : null}
+
+      {shouldShowAdminManageTabs && activeAdminTab === "configuracion" && currentTournamentId ? (
+        <article className="tm-card">
+          <h2 className="text-lg font-semibold text-slate-900">Configuración</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">
+                Canchas por defecto
+              </span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={defaultCourtsCountInput}
+                onChange={(event) =>
+                  setDefaultCourtsCountInput(Number(event.target.value))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-slate-600">
+                Intervalo por defecto (min)
+              </span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={defaultMatchIntervalInput}
+                onChange={(event) =>
+                  setDefaultMatchIntervalInput(Number(event.target.value))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSaveDefaultSetup()}
+            disabled={savingDefaults}
+            className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+          >
+            {savingDefaults ? "Guardando..." : "Guardar defaults de setup"}
+          </button>
+
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <p className="text-sm font-semibold text-red-700">Zona peligrosa</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Esta acción elimina torneo, categorías, equipos, partidos y fotos asociadas.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleDeleteTournament()}
+              className="mt-3 rounded-lg border border-red-400/60 px-3 py-2 text-sm text-red-400"
+            >
+              Eliminar torneo
+            </button>
+          </div>
         </article>
       ) : null}
     </section>

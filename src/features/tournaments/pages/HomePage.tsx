@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMatchesByCategory } from "../../../features/matches/api/queries";
 import { getPhotoCountsByTournament } from "../../../features/photos/api/queries";
-import { deleteTournament } from "../../../features/tournaments/api/mutations";
 import {
   getAllCategories,
   getTournamentCategories,
@@ -214,30 +213,7 @@ export const HomePage = ({
                     }
                     className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
                   >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() =>
-                      void (async () => {
-                        const confirmed = window.confirm(
-                          `¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`
-                        );
-                        if (!confirmed) return;
-                        try {
-                          await deleteTournament(tournament.id);
-                          await load();
-                        } catch (deleteError) {
-                          setError(
-                            deleteError instanceof Error
-                              ? deleteError.message
-                              : "No se pudo eliminar el torneo"
-                          );
-                        }
-                      })()
-                    }
-                    className="rounded-lg border border-red-400/60 px-3 py-1 text-sm text-red-300"
-                  >
-                    Eliminar
+                    Gestionar
                   </button>
                 </div>
               ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
