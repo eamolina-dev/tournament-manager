@@ -73,6 +73,7 @@ import {
 } from "./tournament-category/tournamentCategoryPage.utils";
 import { TournamentCategoryHeader } from "./tournament-category/TournamentCategoryHeader";
 import { PublicTournamentTabs } from "./tournament-category/PublicTournamentTabs";
+import { AdminResultsTabs } from "./tournament-category/AdminResultsTabs";
 import { validateZones } from "./tournament-category/tournamentCategoryZoneValidation";
 import {
   areSetsEqual,
@@ -3409,140 +3410,34 @@ export const TournamentCategoryPage = ({
       )}
 
       {isAdminResultsMode && (
-        <section className="space-y-4 tm-card">
-          <div className="flex flex-wrap gap-2">
-            {adminResultsTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                  tab === activeTab
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-300 bg-white text-slate-700"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === "Zonas" && activeZone && (
-            loadingTab.Zonas ? tabSectionSkeleton : <section>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {orderedZones.map((zone) => (
-                  <button
-                    key={zone.id}
-                    onClick={() => setZoneId(zone.id)}
-                    className={`rounded-full px-3 py-1 text-sm ${
-                      zone.id === activeZone.id
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
-                    }`}
-                  >
-                    {zone.name}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4">
-                {orderedZoneMatches.length ? (
-                  <>
-                    <div className={matchCardsGridClass}>
-                      {orderedZoneMatches.map((match, index) => (
-                        <MatchCardFull
-                          key={match.id}
-                          match={match}
-                          extraInfoLabel={buildZoneMatchLabel(
-                            activeZone.name,
-                            index
-                          )}
-                          isEditable
-                          hideSaveButton
-                          isScheduleEditable
-                          onSaveSchedule={handleSaveMatchSchedule}
-                          isModified={Boolean(
-                            zoneEditedResults[activeZone.id]?.[match.id]
-                          )}
-                          externalError={
-                            zoneMatchErrors[activeZone.id]?.[match.id]
-                          }
-                          onEditStateChange={handleZoneEditStateChange}
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <button
-                        onClick={() => void saveZoneResultsBatch()}
-                        disabled={
-                          savingZoneId === activeZone.id ||
-                          !Object.keys(zoneEditedResults[activeZone.id] ?? {})
-                            .length
-                        }
-                        className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {savingZoneId === activeZone.id
-                          ? "Guardando..."
-                          : "Guardar resultados"}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-500">
-                    No hay partidos cargados en esta zona.
-                  </p>
-                )}
-              </div>
-            </section>
-          )}
-
-          {activeTab === "Cruces" && (
-            loadingTab.Cruces ? tabSectionSkeleton : <section className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {adminBracketStages.map((stage) => (
-                  <button
-                    key={stage}
-                    onClick={() => setActiveAdminBracketStage(stage)}
-                    className={`rounded-full px-3 py-1 text-sm ${
-                      stage === activeAdminBracketStage
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-300 text-slate-700"
-                    }`}
-                  >
-                    {stageLabelFor(stage)}
-                  </button>
-                ))}
-              </div>
-              <div className={matchCardsGridClass}>
-                {adminVisibleBracketMatches.map((match) => (
-                  <MatchCardFull
-                    key={match.id}
-                    match={match}
-                    isEditable
-                    hideSaveButton
-                    isScheduleEditable
-                    onSaveSchedule={handleSaveMatchSchedule}
-                    isModified={Boolean(bracketEditedResults[match.id])}
-                    externalError={bracketMatchErrors[match.id]}
-                    onEditStateChange={handleBracketEditStateChange}
-                  />
-                ))}
-              </div>
-              {!adminVisibleBracketMatches.length && (
-                <p className="text-sm text-slate-500">
-                  No hay cruces para esta instancia.
-                </p>
-              )}
-              <button
-                onClick={() => void saveBracketResultsBatch()}
-                disabled={
-                  savingBracket || !Object.keys(bracketEditedResults).length
-                }
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {savingBracket ? "Guardando..." : "Guardar resultados"}
-              </button>
-            </section>
-          )}
-        </section>
+        <AdminResultsTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          orderedZones={orderedZones}
+          activeZone={activeZone}
+          setZoneId={setZoneId}
+          orderedZoneMatches={orderedZoneMatches}
+          buildZoneMatchLabel={buildZoneMatchLabel}
+          zoneEditedResults={zoneEditedResults}
+          zoneMatchErrors={zoneMatchErrors}
+          handleZoneEditStateChange={handleZoneEditStateChange}
+          saveZoneResultsBatch={saveZoneResultsBatch}
+          savingZoneId={savingZoneId}
+          loadingZoneTab={loadingTab.Zonas}
+          tabSectionSkeleton={tabSectionSkeleton}
+          adminBracketStages={adminBracketStages}
+          activeAdminBracketStage={activeAdminBracketStage}
+          setActiveAdminBracketStage={setActiveAdminBracketStage}
+          stageLabelFor={stageLabelFor}
+          adminVisibleBracketMatches={adminVisibleBracketMatches}
+          onSaveSchedule={handleSaveMatchSchedule}
+          bracketEditedResults={bracketEditedResults}
+          bracketMatchErrors={bracketMatchErrors}
+          handleBracketEditStateChange={handleBracketEditStateChange}
+          saveBracketResultsBatch={saveBracketResultsBatch}
+          savingBracket={savingBracket}
+          loadingCrossesTab={loadingTab.Cruces}
+        />
       )}
 
       {!isAdmin && (
