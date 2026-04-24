@@ -9,13 +9,11 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
-  propagateMatchWinner,
-  replaceMatchSets,
+  saveMatchResultsBatch,
   updateMatch,
 } from "../../../features/matches/api/mutations";
 import { createPlayer } from "../../../features/players/api/mutations";
 import { getPlayers } from "../../../features/players/api/queries";
-import { recalculateProgressiveTeamResults } from "../../../features/rankings/api/mutations";
 import {
   getPlayerParticipations,
   getTeamResults,
@@ -1925,69 +1923,6 @@ export const TournamentCategoryPage = ({
     []
   );
 
-  const saveMatchResult = async ({
-    matchId,
-    sets,
-    winnerTeamId,
-    skipRankingRecalculation = false,
-    shouldReload = true,
-  }: {
-    matchId: string;
-    sets: MatchSetScore[];
-    winnerTeamId: string | null;
-    skipRankingRecalculation?: boolean;
-    shouldReload?: boolean;
-  }): Promise<void> => {
-    if (!matchId) {
-      throw new Error(
-        "No se pudo guardar el resultado: falta el ID del partido."
-      );
-    }
-    const hasInvalidSet = sets.some(
-      (set) =>
-        Number.isNaN(set.team1) ||
-        Number.isNaN(set.team2) ||
-        set.team1 < 0 ||
-        set.team2 < 0
-    );
-    if (hasInvalidSet) {
-      throw new Error("No se pudo guardar el resultado: hay sets inválidos.");
-    }
-
-    await replaceMatchSets(
-      matchId,
-      sets.map((set, index) => ({
-        setNumber: index + 1,
-        team1Games: set.team1,
-        team2Games: set.team2,
-      }))
-    );
-    const updatedMatch = await updateMatch(
-      matchId,
-      {
-        winner_team_id: winnerTeamId,
-      },
-      {
-        skipRankingRecalculation,
-      }
-    );
-    try {
-      if (updatedMatch?.winner_team_id) {
-        await propagateMatchWinner(updatedMatch);
-      }
-    } catch (error) {
-      console.error("No se pudo propagar el ganador del match:", error);
-    }
-    if (shouldReload) {
-      const nextScore = sets.map((set) => `${set.team1}-${set.team2}`).join(" ");
-      patchMatchLocally(matchId, () => ({
-        score: nextScore,
-        sets,
-      }));
-      void loadRef.current({ showLoading: false, useCache: false });
-    }
-  };
-
   const handleZoneEditStateChange = useCallback(
     ({
       matchId: zoneMatchId,
@@ -2090,7 +2025,11 @@ export const TournamentCategoryPage = ({
 
     setSavingZoneId(activeZone.id);
     const nextErrors: MatchErrorState = {};
-    let hasSuccessfulSave = false;
+    const preparedUpdates: {
+      matchId: string;
+      winnerTeamId: string | null;
+      sets: { setNumber: number; team1Games: number; team2Games: number }[];
+    }[] = [];
 
     try {
       for (const [matchId, payload] of entries) {
@@ -2109,21 +2048,22 @@ export const TournamentCategoryPage = ({
           match.team2Id,
           payload.sets
         );
-        try {
-          await saveMatchResult({
-            matchId,
-            sets: payload.sets,
-            winnerTeamId,
-            team1Id: match.team1Id,
-            team2Id: match.team2Id,
-            skipRankingRecalculation: true,
-            shouldReload: false,
-          });
-          hasSuccessfulSave = true;
-        } catch (error) {
-          nextErrors[matchId] =
-            error instanceof Error ? error.message : "Error al guardar.";
-        }
+        preparedUpdates.push({
+          matchId,
+          winnerTeamId,
+          sets: payload.sets.map((set, index) => ({
+            setNumber: index + 1,
+            team1Games: set.team1,
+            team2Games: set.team2,
+          })),
+        });
+      }
+
+      if (preparedUpdates.length) {
+        await saveMatchResultsBatch({
+          tournamentCategoryId: data.tournamentCategoryId,
+          updates: preparedUpdates,
+        });
       }
 
       setZoneMatchErrors((prev) => ({ ...prev, [activeZone.id]: nextErrors }));
@@ -2136,8 +2076,7 @@ export const TournamentCategoryPage = ({
         ),
       }));
 
-      if (hasSuccessfulSave) {
-        await recalculateProgressiveTeamResults(data.tournamentCategoryId);
+      if (preparedUpdates.length) {
         await load();
       }
       if (Object.keys(nextErrors).length === 0) {
@@ -2151,6 +2090,10 @@ export const TournamentCategoryPage = ({
           message: "Se guardaron resultados con algunos errores pendientes.",
         });
       }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudieron guardar los resultados.";
+      setActionNotice({ type: "error", message });
     } finally {
       setSavingZoneId(null);
     }
@@ -2182,7 +2125,11 @@ export const TournamentCategoryPage = ({
 
     setSavingBracket(true);
     const nextErrors: MatchErrorState = {};
-    let hasSuccessfulSave = false;
+    const preparedUpdates: {
+      matchId: string;
+      winnerTeamId: string | null;
+      sets: { setNumber: number; team1Games: number; team2Games: number }[];
+    }[] = [];
 
     try {
       for (const [matchId, payload] of entries) {
@@ -2201,21 +2148,22 @@ export const TournamentCategoryPage = ({
           match.team2Id,
           payload.sets
         );
-        try {
-          await saveMatchResult({
-            matchId,
-            sets: payload.sets,
-            winnerTeamId,
-            team1Id: match.team1Id,
-            team2Id: match.team2Id,
-            skipRankingRecalculation: true,
-            shouldReload: false,
-          });
-          hasSuccessfulSave = true;
-        } catch (error) {
-          nextErrors[matchId] =
-            error instanceof Error ? error.message : "Error al guardar.";
-        }
+        preparedUpdates.push({
+          matchId,
+          winnerTeamId,
+          sets: payload.sets.map((set, index) => ({
+            setNumber: index + 1,
+            team1Games: set.team1,
+            team2Games: set.team2,
+          })),
+        });
+      }
+
+      if (preparedUpdates.length) {
+        await saveMatchResultsBatch({
+          tournamentCategoryId: data.tournamentCategoryId,
+          updates: preparedUpdates,
+        });
       }
 
       setBracketMatchErrors(nextErrors);
@@ -2227,8 +2175,7 @@ export const TournamentCategoryPage = ({
         )
       );
 
-      if (hasSuccessfulSave) {
-        await recalculateProgressiveTeamResults(data.tournamentCategoryId);
+      if (preparedUpdates.length) {
         await load();
       }
       if (Object.keys(nextErrors).length === 0) {
@@ -2242,6 +2189,10 @@ export const TournamentCategoryPage = ({
           message: "Se guardaron cruces con algunos errores pendientes.",
         });
       }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudieron guardar los cruces.";
+      setActionNotice({ type: "error", message });
     } finally {
       setSavingBracket(false);
     }

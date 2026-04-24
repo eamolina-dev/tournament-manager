@@ -24,6 +24,11 @@ import {
 } from "../../tournaments/services/tournamentStatusGuard"
 
 type MatchSetScoreInput = { setNumber: number; team1Games: number; team2Games: number }
+type MatchResultBatchUpdate = {
+  matchId: string
+  winnerTeamId: string | null
+  sets: MatchSetScoreInput[]
+}
 
 const RESULT_UPDATE_FIELDS = new Set(["winner_team_id"])
 
@@ -295,6 +300,59 @@ export const replaceMatchSets = async (
   throwIfError(error)
 }
 
+const isMissingBatchRpcError = (error: { code?: string; message?: string } | null): boolean => {
+  if (!error) return false
+  if (error.code === "42883") return true
+  return (error.message ?? "").toLowerCase().includes("does not exist")
+}
+
+export const saveMatchResultsBatch = async ({
+  tournamentCategoryId,
+  updates,
+}: {
+  tournamentCategoryId: string
+  updates: MatchResultBatchUpdate[]
+}): Promise<void> => {
+  if (!updates.length) return
+
+  const { error: rpcError } = await supabase.rpc("save_match_results_batch", {
+    p_tournament_category_id: tournamentCategoryId,
+    p_updates: updates.map((update) => ({
+      match_id: update.matchId,
+      winner_team_id: update.winnerTeamId,
+      sets: update.sets.map((set) => ({
+        set_number: set.setNumber,
+        team1_games: set.team1Games,
+        team2_games: set.team2Games,
+      })),
+    })),
+  })
+
+  if (!rpcError) return
+  if (!isMissingBatchRpcError(rpcError)) {
+    throwIfError(rpcError)
+  }
+
+  const updatedMatches: Match[] = []
+
+  for (const update of updates) {
+    await replaceMatchSets(update.matchId, update.sets)
+    const updatedMatch = await updateMatch(
+      update.matchId,
+      { winner_team_id: update.winnerTeamId },
+      { skipRankingRecalculation: true },
+    )
+    updatedMatches.push(updatedMatch)
+  }
+
+  for (const updatedMatch of updatedMatches) {
+    if (!updatedMatch.winner_team_id) continue
+    await propagateMatchWinner(updatedMatch, { skipRankingRecalculation: true })
+  }
+
+  await recalculateProgressiveTeamResults(tournamentCategoryId)
+}
+
 export const updateMatchResult = async (
   matchId: string,
   winnerTeamId: string
@@ -555,7 +613,8 @@ const propagateMatchWinnerInternal = async (
 }
 
 export const propagateMatchWinner = async (
-  match: Match | null | undefined
+  match: Match | null | undefined,
+  options?: { skipRankingRecalculation?: boolean },
 ): Promise<void> => {
   if (!match?.id || !match.winner_team_id) return
   if (
@@ -566,7 +625,7 @@ export const propagateMatchWinner = async (
   } else {
     throw new Error("winner_team_id no coincide con los equipos del partido.")
   }
-  if (match.tournament_category_id) {
+  if (!options?.skipRankingRecalculation && match.tournament_category_id) {
     await recalculateProgressiveTeamResults(match.tournament_category_id)
   }
 }
