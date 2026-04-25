@@ -59,13 +59,15 @@ export const computeGroupStandings = (
 
     let team1SetsWon = 0
     let team2SetsWon = 0
+    let team1GamesDelta = 0
+    let team2GamesDelta = 0
 
     for (const set of sets) {
       const team1Games = set.team1_score
       const team2Games = set.team2_score
 
-      team1Standing.gamesWon += team1Games
-      team2Standing.gamesWon += team2Games
+      team1GamesDelta += team1Games - team2Games
+      team2GamesDelta += team2Games - team1Games
 
       if (team1Games > team2Games) {
         team1SetsWon += 1
@@ -74,8 +76,10 @@ export const computeGroupStandings = (
       }
     }
 
-    team1Standing.setsWon += team1SetsWon
-    team2Standing.setsWon += team2SetsWon
+    team1Standing.setsWon += team1SetsWon - team2SetsWon
+    team2Standing.setsWon += team2SetsWon - team1SetsWon
+    team1Standing.gamesWon += team1GamesDelta
+    team2Standing.gamesWon += team2GamesDelta
 
     if (team1SetsWon > team2SetsWon) {
       team1Standing.pts += 1
