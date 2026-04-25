@@ -69,11 +69,11 @@ export const computeGroupStandings = (
 
       if (isSuperTieBreakSet) {
         if (team1Games > team2Games) {
-          team1GamesDelta += 1
-          team2GamesDelta -= 1
+          team1GamesDelta += 0
+          team2GamesDelta -= 0
         } else if (team2Games > team1Games) {
-          team2GamesDelta += 1
-          team1GamesDelta -= 1
+          team2GamesDelta += 0
+          team1GamesDelta -= 0
         }
       } else {
         team1GamesDelta += team1Games - team2Games
