@@ -56,11 +56,15 @@ const SUPER_TIE_BREAK_OPTIONS = Array.from(
   (_, index) => `${index}`
 );
 type MatchStageWithGroup = MatchCardProps["match"]["stage"] | "group";
-const SUPER_TIE_BREAK_STAGES = new Set<MatchStageWithGroup>([
-  "group",
-  "round_of_16",
-  "round_of_8",
-  "quarter",
+// const SUPER_TIE_BREAK_STAGES = new Set<MatchStageWithGroup>([
+//   "group",
+//   "round_of_16",
+//   "round_of_8",
+//   "quarter",
+// ] as const);
+const NO_SUPER_TIE_BREAK_STAGES = new Set<MatchStageWithGroup>([
+  "semi",
+  "final",
 ] as const);
 
 const parseScore = (score?: string) => {
@@ -105,9 +109,13 @@ const getEliminationMatchLabel = (
   return stageLabel;
 };
 
+// const isSuperTieBreakMatch = (stage?: MatchStageWithGroup) => {
+//   if (!stage) return false;
+//   return SUPER_TIE_BREAK_STAGES.has(stage);
+// };
 const isSuperTieBreakMatch = (stage?: MatchStageWithGroup) => {
-  if (!stage) return false;
-  return SUPER_TIE_BREAK_STAGES.has(stage);
+  if (!stage) return true; // default: habilitado
+  return !NO_SUPER_TIE_BREAK_STAGES.has(stage);
 };
 
 const areEditableSetsEqual = (
