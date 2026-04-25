@@ -55,6 +55,13 @@ const SUPER_TIE_BREAK_OPTIONS = Array.from(
   { length: 21 },
   (_, index) => `${index}`
 );
+type MatchStageWithGroup = MatchCardProps["match"]["stage"] | "group";
+const SUPER_TIE_BREAK_STAGES = new Set<MatchStageWithGroup>([
+  "group",
+  "round_of_16",
+  "round_of_8",
+  "quarter",
+] as const);
 
 const parseScore = (score?: string) => {
   if (!score) return [];
@@ -96,6 +103,11 @@ const getEliminationMatchLabel = (
     return `${stageLabel} ${match.stageOrder}`;
   }
   return stageLabel;
+};
+
+const isSuperTieBreakMatch = (stage?: MatchStageWithGroup) => {
+  if (!stage) return false;
+  return SUPER_TIE_BREAK_STAGES.has(stage);
 };
 
 const areEditableSetsEqual = (
@@ -173,6 +185,10 @@ export const MatchCard = ({
         team2: sets[index]?.team2 ?? "",
       })),
     [sets]
+  );
+  const superTieBreakEnabled = useMemo(
+    () => isSuperTieBreakMatch(match.stage as MatchStageWithGroup | undefined),
+    [match.stage]
   );
 
   const updateSet = (index: number, key: "team1" | "team2", value: string) => {
@@ -300,7 +316,9 @@ export const MatchCard = ({
             </div>
             {setGridData.map((set, index) => {
               const options =
-                index === 2 ? SUPER_TIE_BREAK_OPTIONS : REGULAR_SET_OPTIONS;
+                index === 2 && superTieBreakEnabled
+                  ? SUPER_TIE_BREAK_OPTIONS
+                  : REGULAR_SET_OPTIONS;
               return (
                 <div
                   key={`team1-${index}`}
@@ -333,7 +351,9 @@ export const MatchCard = ({
             </div>
             {setGridData.map((set, index) => {
               const options =
-                index === 2 ? SUPER_TIE_BREAK_OPTIONS : REGULAR_SET_OPTIONS;
+                index === 2 && superTieBreakEnabled
+                  ? SUPER_TIE_BREAK_OPTIONS
+                  : REGULAR_SET_OPTIONS;
               return (
                 <div
                   key={`team2-${index}`}

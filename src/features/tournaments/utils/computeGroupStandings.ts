@@ -65,9 +65,20 @@ export const computeGroupStandings = (
     for (const set of sets) {
       const team1Games = set.team1_score
       const team2Games = set.team2_score
+      const isSuperTieBreakSet = team1Games >= 8 || team2Games >= 8
 
-      team1GamesDelta += team1Games - team2Games
-      team2GamesDelta += team2Games - team1Games
+      if (isSuperTieBreakSet) {
+        if (team1Games > team2Games) {
+          team1GamesDelta += 1
+          team2GamesDelta -= 1
+        } else if (team2Games > team1Games) {
+          team2GamesDelta += 1
+          team1GamesDelta -= 1
+        }
+      } else {
+        team1GamesDelta += team1Games - team2Games
+        team2GamesDelta += team2Games - team1Games
+      }
 
       if (team1Games > team2Games) {
         team1SetsWon += 1
