@@ -14,6 +14,7 @@ import type {
   MatchErrorState,
   SectionTab,
 } from "./tournamentCategoryPage.types";
+import { SimpleBracket } from "../../components/SimpleBracket";
 
 type CardMatch = ComponentProps<typeof MatchCardFull>["match"];
 
@@ -135,7 +136,11 @@ export const PublicTournamentTabs = ({
     </div>
 
     {isActiveTabRefreshing ? (
-      <section className="space-y-3 animate-pulse" aria-live="polite" aria-busy="true">
+      <section
+        className="space-y-3 animate-pulse"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <div className="h-4 w-40 rounded bg-slate-200" />
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="h-20 rounded-lg bg-slate-100" />
@@ -204,9 +209,13 @@ export const PublicTournamentTabs = ({
                     extraInfoLabel={buildZoneMatchLabel(activeZone.name, index)}
                     isEditable={isOwner}
                     hideSaveButton={isOwner}
-                    isModified={Boolean(zoneEditedResults[activeZone.id]?.[match.id])}
+                    isModified={Boolean(
+                      zoneEditedResults[activeZone.id]?.[match.id]
+                    )}
                     externalError={zoneMatchErrors[activeZone.id]?.[match.id]}
-                    onEditStateChange={isOwner ? handleZoneEditStateChange : undefined}
+                    onEditStateChange={
+                      isOwner ? handleZoneEditStateChange : undefined
+                    }
                   />
                 ))}
               </div>
@@ -216,20 +225,26 @@ export const PublicTournamentTabs = ({
                     onClick={() => void saveZoneResultsBatch()}
                     disabled={
                       savingZoneId === activeZone.id ||
-                      !Object.keys(zoneEditedResults[activeZone.id] ?? {}).length
+                      !Object.keys(zoneEditedResults[activeZone.id] ?? {})
+                        .length
                     }
                     className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {savingZoneId === activeZone.id ? "Guardando..." : "Guardar resultados"}
+                    {savingZoneId === activeZone.id
+                      ? "Guardando..."
+                      : "Guardar resultados"}
                   </button>
                   <span className="text-xs text-slate-500">
-                    Editados: {Object.keys(zoneEditedResults[activeZone.id] ?? {}).length}
+                    Editados:{" "}
+                    {Object.keys(zoneEditedResults[activeZone.id] ?? {}).length}
                   </span>
                 </div>
               )}
             </>
           ) : (
-            <p className="text-sm text-slate-500">No hay partidos cargados en esta zona.</p>
+            <p className="text-sm text-slate-500">
+              No hay partidos cargados en esta zona.
+            </p>
           )}
         </div>
       </section>
@@ -262,8 +277,15 @@ export const PublicTournamentTabs = ({
         </div>
 
         {publicCrossesView === "bracket" ? (
-          <TournamentBracket matches={orderedBracketMatches} stageLabels={stageLabelOverrides} />
+          <TournamentBracket
+            matches={orderedBracketMatches}
+            stageLabels={stageLabelOverrides}
+          />
         ) : (
+          // <SimpleBracket
+          //   matches={orderedBracketMatches}
+          //   stageLabels={stageLabelOverrides}
+          // />
           <section className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {publicBracketStages.map((stage) => (
@@ -287,7 +309,9 @@ export const PublicTournamentTabs = ({
               ))}
             </div>
             {!publicVisibleBracketMatches.length && (
-              <p className="text-sm text-slate-500">No hay cruces para esta instancia.</p>
+              <p className="text-sm text-slate-500">
+                No hay cruces para esta instancia.
+              </p>
             )}
           </section>
         )}
@@ -310,7 +334,9 @@ export const PublicTournamentTabs = ({
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-2">Jugador</th>
-                {!shouldHideCompetitionStatus && <th className="py-2 text-center">Estado</th>}
+                {!shouldHideCompetitionStatus && (
+                  <th className="py-2 text-center">Estado</th>
+                )}
                 <th className="py-2 text-right">Puntos</th>
               </tr>
             </thead>
@@ -342,7 +368,9 @@ export const PublicTournamentTabs = ({
                         )}
                       </td>
                     )}
-                    <td className="py-2 text-right font-semibold text-slate-900">{row.points}</td>
+                    <td className="py-2 text-right font-semibold text-slate-900">
+                      {row.points}
+                    </td>
                   </tr>
                 ))
               ) : (

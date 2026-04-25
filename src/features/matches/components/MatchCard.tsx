@@ -6,7 +6,15 @@ export type MatchSetScore = { team1: number; team2: number };
 export type MatchCardProps = {
   match: Pick<
     Match,
-    "id" | "team1" | "team2" | "score" | "day" | "time" | "court" | "stage" | "stageOrder"
+    | "id"
+    | "team1"
+    | "team2"
+    | "score"
+    | "day"
+    | "time"
+    | "court"
+    | "stage"
+    | "stageOrder"
   > & {
     scheduledAt?: string | null;
     team1Id?: string | null;
@@ -69,15 +77,18 @@ const buildInitialSets = (match: MatchCardProps["match"]) => {
   return [...mapped, ...EMPTY_SETS.slice(mapped.length)];
 };
 
-const MATCH_STAGE_LABELS: Partial<Record<NonNullable<Match["stage"]>, string>> = {
-  quarter: "Cuartos",
-  semi: "Semis",
-  final: "Final",
-  round_of_8: "Cuartos",
-  round_of_16: "Octavos",
-};
+const MATCH_STAGE_LABELS: Partial<Record<NonNullable<Match["stage"]>, string>> =
+  {
+    quarter: "Cuartos",
+    semi: "Semis",
+    final: "Final",
+    round_of_8: "Cuartos",
+    round_of_16: "Octavos",
+  };
 
-const getEliminationMatchLabel = (match: MatchCardProps["match"]): string | null => {
+const getEliminationMatchLabel = (
+  match: MatchCardProps["match"]
+): string | null => {
   if (!match.stage) return null;
   const stageLabel = MATCH_STAGE_LABELS[match.stage];
   if (!stageLabel) return null;
@@ -89,12 +100,12 @@ const getEliminationMatchLabel = (match: MatchCardProps["match"]): string | null
 
 const areEditableSetsEqual = (
   left: { team1: string; team2: string }[],
-  right: { team1: string; team2: string }[],
+  right: { team1: string; team2: string }[]
 ) =>
   left.length === right.length &&
   left.every(
     (set, index) =>
-      set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2,
+      set.team1 === right[index]?.team1 && set.team2 === right[index]?.team2
   );
 
 export const validateMatchSets = (sets: { team1: string; team2: string }[]) => {
@@ -142,7 +153,10 @@ export const MatchCard = ({
   const [scheduleError, setScheduleError] = useState("");
   const [savingSchedule, setSavingSchedule] = useState(false);
   const initialSets = useMemo(() => buildInitialSets(match), [match]);
-  const eliminationMatchLabel = useMemo(() => getEliminationMatchLabel(match), [match]);
+  const eliminationMatchLabel = useMemo(
+    () => getEliminationMatchLabel(match),
+    [match]
+  );
   const onEditStateChangeRef = useRef(onEditStateChange);
   const cardInfoItems = useMemo(() => {
     const hasDefinedSchedule = match.time !== "Sin horario definido";
@@ -252,7 +266,9 @@ export const MatchCard = ({
       });
     } catch (saveError) {
       setScheduleError(
-        saveError instanceof Error ? saveError.message : "Error al guardar horario."
+        saveError instanceof Error
+          ? saveError.message
+          : "Error al guardar horario."
       );
     } finally {
       setSavingSchedule(false);
@@ -262,8 +278,8 @@ export const MatchCard = ({
   if (match.isPlaceholder) {
     return (
       <article className="h-full rounded-md border border-dashed border-slate-200 bg-slate-50 p-3 text-slate-400 opacity-60">
-        <p className="text-sm font-semibold">Pendiente</p>
-        <p className="mt-1 text-xs">Por definir</p>
+        <p className="text-sm font-semibold">Libre</p>
+        <p className="mt-1 text-xs">Partido sin definir</p>
       </article>
     );
   }
@@ -271,7 +287,9 @@ export const MatchCard = ({
   return (
     <article
       className={`h-full tm-card ${
-        isModified ? "border-emerald-300 bg-emerald-50" : "bg-[var(--tm-surface)]"
+        isModified
+          ? "border-emerald-300 bg-emerald-50"
+          : "bg-[var(--tm-surface)]"
       }`}
     >
       <div className="overflow-x-auto">
@@ -371,7 +389,9 @@ export const MatchCard = ({
               {savingSchedule ? "Guardando..." : "Guardar hora"}
             </button>
           </div>
-          {scheduleError && <p className="text-xs text-red-600">{scheduleError}</p>}
+          {scheduleError && (
+            <p className="text-xs text-red-600">{scheduleError}</p>
+          )}
         </div>
       )}
 
@@ -383,12 +403,12 @@ export const MatchCard = ({
 
           {!hideSaveButton && (
             <button
-                onClick={() => void handleSave()}
-                disabled={saving}
-                className="rounded border border-[var(--tm-border)] px-2 py-1 text-xs text-[var(--tm-text)] disabled:opacity-60"
-              >
-                {saving ? "Guardando..." : "Guardar resultado"}
-              </button>
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="rounded border border-[var(--tm-border)] px-2 py-1 text-xs text-[var(--tm-text)] disabled:opacity-60"
+            >
+              {saving ? "Guardando..." : "Guardar resultado"}
+            </button>
           )}
         </div>
       )}
