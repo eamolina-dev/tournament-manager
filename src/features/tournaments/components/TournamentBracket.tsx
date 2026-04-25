@@ -8,15 +8,7 @@ import {
   getEliminationStageLabel,
   type EliminationStageKey,
 } from "../pages/tournament-category/tournamentCategoryPage.constants"
-
-const stageOrder = {
-  round_of_32: 1,
-  round_of_16: 2,
-  round_of_8: 3,
-  quarter: 4,
-  semi: 5,
-  final: 6,
-}
+import { normalizeMatchesForBracket } from "../brackets/normalizeMatchesForBracket"
 
 type BracketMatch = {
   id: string
@@ -49,41 +41,37 @@ const mapMatches = (
   matches: Match[],
   stageLabels?: Partial<Record<EliminationStageKey, string>>,
 ): BracketMatch[] => {
-  const sorted = [...matches].sort(
-    (a, b) =>
-      (a.matchNumber ?? Number.MAX_SAFE_INTEGER) - (b.matchNumber ?? Number.MAX_SAFE_INTEGER) ||
-      stageOrder[a.stage ?? "final"] - stageOrder[b.stage ?? "final"],
+  const normalizedRounds = normalizeMatchesForBracket(matches)
+
+  return normalizedRounds.flatMap((round, roundIndex) =>
+    round.matches.map((item) => {
+      const winner = getWinner(item.score)
+
+      return {
+        id: item.id,
+        name: item.stage
+          ? getEliminationStageLabel(item.stage as EliminationStageKey, stageLabels)
+          : `Ronda ${roundIndex + 1}`,
+        nextMatchId: item.nextMatchId ?? null,
+        tournamentRoundText: item.stage ?? `round_${roundIndex + 1}`,
+        state: "DONE" as const,
+        participants: [
+          {
+            id: `${item.id}-1`,
+            name: item.team1,
+            resultText: item.score,
+            isWinner: winner === 1,
+          },
+          {
+            id: `${item.id}-2`,
+            name: item.team2,
+            resultText: item.score,
+            isWinner: winner === 2,
+          },
+        ] as BracketMatch["participants"],
+      }
+    }),
   )
-
-  const withTree = sorted.map((item) => {
-    const winner = getWinner(item.score)
-
-    return {
-      id: item.id,
-      name: item.stage
-        ? getEliminationStageLabel(item.stage as EliminationStageKey, stageLabels)
-        : "Final",
-      nextMatchId: item.nextMatchId ?? null,
-      tournamentRoundText: item.stage ?? "final",
-      state: "DONE" as const,
-      participants: [
-        {
-          id: `${item.id}-1`,
-          name: item.team1,
-          resultText: item.score,
-          isWinner: winner === 1,
-        },
-        {
-          id: `${item.id}-2`,
-          name: item.team2,
-          resultText: item.score,
-          isWinner: winner === 2,
-        },
-      ] as BracketMatch["participants"],
-    }
-  })
-
-  return withTree
 }
 
 const BracketCard = ({
@@ -107,8 +95,10 @@ const BracketCard = ({
           team1: topParty.name,
           team2: bottomParty.name,
           score: topParty.resultText,
-          day: "Por definir",
-          time: "--:--",
+          day: "Viernes",
+          time: "Sin horario definido",
+          stage: "final",
+          stageOrder: 0,
         }
       }
     />
