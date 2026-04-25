@@ -2,6 +2,7 @@ type GroupMatch = {
   id: string
   team1Id?: string | null
   team2Id?: string | null
+  round?: number | null
 }
 
 type GroupMatchSet = {
@@ -46,6 +47,16 @@ export const computeGroupStandings = (
     list.push(set)
     setsByMatchId.set(set.matchId, list)
   }
+
+  const initialRound =
+    teams.length === 4
+      ? matches.reduce<number | null>((currentMax, match) => {
+          if (typeof match.round !== "number") return currentMax
+          return currentMax === null ? match.round : Math.max(currentMax, match.round)
+        }, null)
+      : null
+
+  const wonInitialRoundByTeamId = new Map<string, boolean>()
 
   for (const match of matches) {
     if (!match.team1Id || !match.team2Id) continue
@@ -94,13 +105,32 @@ export const computeGroupStandings = (
 
     if (team1SetsWon > team2SetsWon) {
       team1Standing.pts += 1
+      if (
+        initialRound !== null &&
+        match.round === initialRound &&
+        !wonInitialRoundByTeamId.has(match.team1Id)
+      ) {
+        wonInitialRoundByTeamId.set(match.team1Id, true)
+      }
     } else if (team2SetsWon > team1SetsWon) {
       team2Standing.pts += 1
+      if (
+        initialRound !== null &&
+        match.round === initialRound &&
+        !wonInitialRoundByTeamId.has(match.team2Id)
+      ) {
+        wonInitialRoundByTeamId.set(match.team2Id, true)
+      }
     }
   }
 
   return Array.from(standingsByTeamId.values()).sort((a, b) => {
     if (b.pts !== a.pts) return b.pts - a.pts
+    if (teams.length === 4 && a.pts === 1 && b.pts === 1 && initialRound !== null) {
+      const aWonInitialRound = wonInitialRoundByTeamId.get(a.teamId) ?? false
+      const bWonInitialRound = wonInitialRoundByTeamId.get(b.teamId) ?? false
+      if (aWonInitialRound !== bWonInitialRound) return Number(bWonInitialRound) - Number(aWonInitialRound)
+    }
     if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon
     return b.gamesWon - a.gamesWon
   })

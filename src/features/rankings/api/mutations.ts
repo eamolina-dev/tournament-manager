@@ -200,6 +200,7 @@ export const recalculateProgressiveTeamResults = async (
         id: match.id,
         team1Id: match.team1_id,
         team2Id: match.team2_id,
+        round: match.round,
       })),
       currentGroupMatches.flatMap((match) =>
         (setsByMatchId.get(match.id) ?? []).map((set) => ({

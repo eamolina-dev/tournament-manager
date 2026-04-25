@@ -470,6 +470,7 @@ const propagateGroupToPlayoffInternal = async (
           id: groupMatch.id,
           team1Id: groupMatch.team1_id,
           team2Id: groupMatch.team2_id,
+          round: groupMatch.round,
         })),
         (matchSets ?? []).map((set) => ({
           matchId: set.match_id ?? "",

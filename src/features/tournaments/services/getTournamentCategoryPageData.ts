@@ -288,6 +288,7 @@ export const getTournamentCategoryPageData = async (
     team1Id: match.team1_id,
     team2Id: match.team2_id,
     stageOrder: match.round_order,
+    round: match.round,
     score: toScoreString(setsByMatch.get(match.id) ?? []),
     sets: (setsByMatch.get(match.id) ?? []).map((set) => ({
       team1: set.team1_games ?? 0,
