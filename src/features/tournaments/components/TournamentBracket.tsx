@@ -86,6 +86,7 @@ const BracketCard = ({
   matchById: Map<string, Match>
 }) => {
   const sourceMatch = matchById.get(match.id)
+  const isPlaceholderMatch = match.id.startsWith("placeholder-")
 
   return (
     <MatchCardFull
@@ -99,6 +100,7 @@ const BracketCard = ({
           time: "Sin horario definido",
           stage: "final",
           stageOrder: 0,
+          isPlaceholder: isPlaceholderMatch,
         }
       }
     />

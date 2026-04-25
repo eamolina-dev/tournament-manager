@@ -12,6 +12,7 @@ export type MatchCardProps = {
     team1Id?: string | null;
     team2Id?: string | null;
     sets?: { team1: number; team2: number }[];
+    isPlaceholder?: boolean;
   };
   isEditable?: boolean;
   onSaveResult?: (input: {
@@ -257,6 +258,15 @@ export const MatchCard = ({
       setSavingSchedule(false);
     }
   };
+
+  if (match.isPlaceholder) {
+    return (
+      <article className="h-full rounded-md border border-dashed border-slate-200 bg-slate-50 p-3 text-slate-400 opacity-60">
+        <p className="text-sm font-semibold">Pendiente</p>
+        <p className="mt-1 text-xs">Por definir</p>
+      </article>
+    );
+  }
 
   return (
     <article

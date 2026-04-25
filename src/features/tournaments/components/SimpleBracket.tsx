@@ -15,6 +15,7 @@ const CustomMatchCard = ({
   matchById: Map<string, Match>
 }) => {
   const sourceMatch = matchById.get(seed.id)
+  const isPlaceholderMatch = seed.id.startsWith("placeholder-")
   const topPartyName = seed.teams?.[0]?.name ?? "BYE"
   const bottomPartyName = seed.teams?.[1]?.name ?? "BYE"
 
@@ -33,6 +34,7 @@ const CustomMatchCard = ({
                 time: "Sin horario definido",
                 stage: "final",
                 stageOrder: 0,
+                isPlaceholder: isPlaceholderMatch,
               }
             }
           />
