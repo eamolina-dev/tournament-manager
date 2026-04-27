@@ -79,7 +79,13 @@ const assertValidSuperTieBreak = (set: MatchSetScoreInput): void => {
   }
 }
 
-const validateMatchResultSets = (sets: MatchSetScoreInput[]): void => {
+const isRegularThirdSetStage = (stage: Match["stage"] | null | undefined): boolean =>
+  stage === "semi" || stage === "final"
+
+const validateMatchResultSets = (
+  sets: MatchSetScoreInput[],
+  stage?: Match["stage"] | null,
+): void => {
   if (!sets.length) {
     throw new Error("Debés cargar al menos un set.")
   }
@@ -98,7 +104,11 @@ const validateMatchResultSets = (sets: MatchSetScoreInput[]): void => {
     }
 
     if (set.setNumber === 3) {
-      assertValidSuperTieBreak(set)
+      if (isRegularThirdSetStage(stage)) {
+        assertValidRegularSet(set)
+      } else {
+        assertValidSuperTieBreak(set)
+      }
       continue
     }
 
@@ -277,7 +287,15 @@ export const replaceMatchSets = async (
   matchId: string,
   sets: { setNumber: number; team1Games: number; team2Games: number }[]
 ): Promise<void> => {
-  validateMatchResultSets(sets)
+  const { data: match, error: matchError } = await supabase
+    .from("matches")
+    .select("stage")
+    .eq("id", matchId)
+    .single()
+
+  throwIfError(matchError)
+
+  validateMatchResultSets(sets, match.stage)
 
   const { error: deleteError } = await supabase
     .from("match_sets")
@@ -365,6 +383,14 @@ export const updateMatchResult = async (
   matchId: string,
   winnerTeamId: string
 ): Promise<Match> => {
+  const { data: matchStageData, error: matchStageError } = await supabase
+    .from("matches")
+    .select("stage")
+    .eq("id", matchId)
+    .single()
+
+  throwIfError(matchStageError)
+
   const { data: matchSets, error: matchSetsError } = await supabase
     .from("match_sets")
     .select("set_number, team1_games, team2_games")
@@ -379,7 +405,7 @@ export const updateMatchResult = async (
     team2Games: set.team2_games ?? -1,
   }))
 
-  validateMatchResultSets(normalizedSets)
+  validateMatchResultSets(normalizedSets, matchStageData.stage)
   await assertWinnerConsistentWithSets(matchId, winnerTeamId, normalizedSets)
 
   const { data, error } = await supabase
