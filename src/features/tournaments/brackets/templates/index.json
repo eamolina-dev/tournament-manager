@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "qualified-08-groups-3-3-3-3",
+      "qualifiedCount": 8,
+      "groupSizePattern": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-08-groups-3-3-3-3.json",
+      "name": "8 clasificados - 4 grupos de 3 - cuartos completos"
+    },
+    {
+      "id": "qualified-09-groups-3-4-3-3",
+      "qualifiedCount": 9,
+      "groupSizePattern": [
+        3,
+        4,
+        3,
+        3
+      ],
+      "file": "qualified-09-groups-3-4-3-3.json",
+      "name": "9 clasificados - 3 grupos de 3 y 1 grupo de 4"
+    },
+    {
+      "id": "qualified-10-groups-4-4-3-3",
+      "qualifiedCount": 10,
+      "groupSizePattern": [
+        4,
+        4,
+        3,
+        3
+      ],
+      "file": "qualified-10-groups-4-4-3-3.json",
+      "name": "10 clasificados - 2 grupos de 3 y 2 grupos de 4"
+    },
+    {
+      "id": "qualified-10-groups-3-3-3-3-3",
+      "qualifiedCount": 10,
+      "groupSizePattern": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-10-groups-3-3-3-3-3.json",
+      "name": "10 clasificados - 5 grupos de 3"
+    },
+    {
+      "id": "qualified-11-groups-3-4-3-3-3",
+      "qualifiedCount": 11,
+      "groupSizePattern": [
+        3,
+        4,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-11-groups-3-4-3-3-3.json",
+      "name": "11 clasificados - 4 grupos de 3 y 1 grupo de 4"
+    },
+    {
+      "id": "qualified-12-groups-4-4-3-3-3",
+      "qualifiedCount": 12,
+      "groupSizePattern": [
+        4,
+        4,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-12-groups-4-4-3-3-3.json",
+      "name": "12 clasificados - 3 grupos de 3 y 2 grupos de 4"
+    },
+    {
+      "id": "qualified-12-groups-3-3-3-3-3-3",
+      "qualifiedCount": 12,
+      "groupSizePattern": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-12-groups-3-3-3-3-3-3.json",
+      "name": "12 clasificados - 6 grupos de 3"
+    },
+    {
+      "id": "qualified-16-groups-3-3-3-3-3-3-3-3",
+      "qualifiedCount": 16,
+      "groupSizePattern": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ],
+      "file": "qualified-16-groups-3-3-3-3-3-3-3-3.json",
+      "name": "16 clasificados - 8 grupos de 3 - octavos completos"
+    }
+  ]
+}

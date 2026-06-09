@@ -1,0 +1,123 @@
+{
+  "id": "qualified-08-groups-3-3-3-3",
+  "version": 1,
+  "qualifiedCount": 8,
+  "groupSizePattern": [
+    3,
+    3,
+    3,
+    3
+  ],
+  "name": "8 clasificados - 4 grupos de 3 - cuartos completos",
+  "description": "Cruces de cuartos para 4 zonas de 3 parejas/equipos.",
+  "matches": [
+    {
+      "id": "QF-M1",
+      "stage": "quarter",
+      "round": 4,
+      "order": 1,
+      "team1": {
+        "type": "group_seed",
+        "source": "1A"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "2C"
+      }
+    },
+    {
+      "id": "QF-M2",
+      "stage": "quarter",
+      "round": 4,
+      "order": 2,
+      "team1": {
+        "type": "group_seed",
+        "source": "2B"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "1D"
+      }
+    },
+    {
+      "id": "QF-M3",
+      "stage": "quarter",
+      "round": 4,
+      "order": 3,
+      "team1": {
+        "type": "group_seed",
+        "source": "1C"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "2D"
+      }
+    },
+    {
+      "id": "QF-M4",
+      "stage": "quarter",
+      "round": 4,
+      "order": 4,
+      "team1": {
+        "type": "group_seed",
+        "source": "2A"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "1B"
+      }
+    },
+    {
+      "id": "SF-M1",
+      "stage": "semi",
+      "round": 2,
+      "order": 1,
+      "team1": {
+        "type": "winner",
+        "matchId": "QF-M1"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "QF-M2"
+      }
+    },
+    {
+      "id": "SF-M2",
+      "stage": "semi",
+      "round": 2,
+      "order": 2,
+      "team1": {
+        "type": "winner",
+        "matchId": "QF-M3"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "QF-M4"
+      }
+    },
+    {
+      "id": "F-M1",
+      "stage": "final",
+      "round": 1,
+      "order": 1,
+      "team1": {
+        "type": "winner",
+        "matchId": "SF-M1"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "SF-M2"
+      }
+    }
+  ],
+  "qualifiedSources": [
+    "1A",
+    "2C",
+    "2B",
+    "1D",
+    "1C",
+    "2D",
+    "2A",
+    "1B"
+  ]
+}
