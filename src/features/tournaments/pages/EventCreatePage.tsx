@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { deleteTournamentPhoto, uploadTournamentPhoto } from "../../photos/api/mutations";
 import { getPhotosByTournament } from "../../photos/api/queries";
+import { updateMatch } from "../../matches/api/mutations";
+import { getMatchesByCategory } from "../../matches/api/queries";
 import {
   createCategory,
   createTournament,
@@ -25,6 +27,8 @@ import {
   defaultCourtsCount,
   defaultMatchIntervalMinutes,
 } from "./tournament-category/tournamentCategoryPage.constants";
+import { getScheduleDays } from "../services/scheduleDays";
+import { applyEventWideScheduling } from "../services/schedulingUtils";
 import type { Database } from "../../../shared/types/database";
 
 type TournamentCreatePageProps = {
@@ -116,6 +120,14 @@ export const TournamentCreatePage = ({
     defaultMatchIntervalMinutes
   );
   const [savingDefaults, setSavingDefaults] = useState(false);
+  const [eventCourtsCountInput, setEventCourtsCountInput] = useState(defaultCourtsCount);
+  const [eventMatchIntervalInput, setEventMatchIntervalInput] = useState(
+    defaultMatchIntervalMinutes
+  );
+  const [eventScheduleStartTimesInput, setEventScheduleStartTimesInput] = useState<
+    Record<string, string>
+  >({});
+  const [generatingEventSchedule, setGeneratingEventSchedule] = useState(false);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     slug?: string;
@@ -123,6 +135,7 @@ export const TournamentCreatePage = ({
     category?: string;
   }>({});
   const setupDraftStorageKey = `tm:tournament-setup:${tenantSlug}`;
+  const scheduleDays = useMemo(() => getScheduleDays(startDate, endDate), [endDate, startDate]);
 
   useEffect(() => {
     setCurrentTournamentId(tournamentId);
@@ -248,10 +261,30 @@ export const TournamentCreatePage = ({
         const firstMatchInterval = tournamentCategories.find(
           (row) => row.match_interval_minutes != null
         )?.match_interval_minutes;
-        setDefaultCourtsCountInput(firstCourtsCount ?? defaultCourtsCount);
-        setDefaultMatchIntervalInput(
-          firstMatchInterval ?? defaultMatchIntervalMinutes
-        );
+        const nextCourtsCount = firstCourtsCount ?? defaultCourtsCount;
+        const nextMatchInterval = firstMatchInterval ?? defaultMatchIntervalMinutes;
+        setDefaultCourtsCountInput(nextCourtsCount);
+        setDefaultMatchIntervalInput(nextMatchInterval);
+        setEventCourtsCountInput(nextCourtsCount);
+        setEventMatchIntervalInput(nextMatchInterval);
+
+        const firstScheduleStartTimes = tournamentCategories.find(
+          (row) => row.schedule_start_times != null
+        )?.schedule_start_times;
+        if (
+          firstScheduleStartTimes &&
+          typeof firstScheduleStartTimes === "object" &&
+          !Array.isArray(firstScheduleStartTimes)
+        ) {
+          setEventScheduleStartTimesInput(
+            Object.entries(firstScheduleStartTimes as Record<string, unknown>).reduce<
+              Record<string, string>
+            >((acc, [day, value]) => {
+              if (typeof value === "string") acc[day] = value;
+              return acc;
+            }, {})
+          );
+        }
       } catch (loadError) {
         setError(
           loadError instanceof Error ? loadError.message : "No se pudo cargar el torneo"
@@ -261,6 +294,16 @@ export const TournamentCreatePage = ({
       }
     })();
   }, [currentTournamentId, isEditMode]);
+
+  useEffect(() => {
+    if (!scheduleDays.length) return;
+    setEventScheduleStartTimesInput((prev) =>
+      scheduleDays.reduce<Record<string, string>>((acc, day) => {
+        acc[day.key] = prev[day.key] ?? "18:00";
+        return acc;
+      }, {})
+    );
+  }, [scheduleDays]);
 
   const loadPhotos = async (tournamentId: string) => {
     setPhotosLoading(true);
@@ -517,6 +560,86 @@ export const TournamentCreatePage = ({
       );
     } finally {
       setSavingDefaults(false);
+    }
+  };
+
+  const handleGenerateEventSchedule = async () => {
+    if (!currentTournamentId || !existingCategories.length) {
+      setError("Este torneo no tiene categorías para programar.");
+      return;
+    }
+    if (!Number.isInteger(eventCourtsCountInput) || eventCourtsCountInput <= 0) {
+      setError("Canchas Totales Disponibles debe ser un entero mayor a 0.");
+      return;
+    }
+    if (!Number.isInteger(eventMatchIntervalInput) || eventMatchIntervalInput <= 0) {
+      setError("Intervalo de Partido debe ser un entero mayor a 0.");
+      return;
+    }
+
+    const payloadStartTimes = scheduleDays.reduce<Record<string, string>>((acc, day) => {
+      const candidate = eventScheduleStartTimesInput[day.key] ?? "";
+      if (/^([01]\d|2[0-3]):[0-5]\d$/.test(candidate)) {
+        acc[day.key] = candidate;
+      }
+      return acc;
+    }, {});
+
+    if (!Object.keys(payloadStartTimes).length) {
+      setError("Configurá al menos un horario de inicio por día del evento.");
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setGeneratingEventSchedule(true);
+    try {
+      const categoriesWithMatches = await Promise.all(
+        existingCategories.map(async (categoryItem) => ({
+          matches: await getMatchesByCategory(categoryItem.id),
+        }))
+      );
+      const matchesCount = categoriesWithMatches.reduce(
+        (total, category) => total + category.matches.length,
+        0
+      );
+
+      if (!matchesCount) {
+        setError("No hay partidos generados para programar en este torneo.");
+        return;
+      }
+
+      const scheduledMatches = applyEventWideScheduling(categoriesWithMatches, {
+        totalCourts: eventCourtsCountInput,
+        matchIntervalMinutes: eventMatchIntervalInput,
+        scheduleStartTimes: payloadStartTimes,
+      });
+
+      await Promise.all(
+        scheduledMatches.map((match) =>
+          updateMatch(
+            match.id,
+            {
+              scheduled_at: match.scheduled_at,
+              court: match.court,
+              order_in_day: match.order_in_day,
+            },
+            { skipRankingRecalculation: true }
+          )
+        )
+      );
+
+      setSuccessMessage(
+        `Horarios del evento generados para ${scheduledMatches.length} partidos.`
+      );
+    } catch (scheduleError) {
+      setError(
+        scheduleError instanceof Error
+          ? scheduleError.message
+          : "No se pudieron generar los horarios del evento."
+      );
+    } finally {
+      setGeneratingEventSchedule(false);
     }
   };
 
@@ -901,7 +1024,92 @@ export const TournamentCreatePage = ({
       {shouldShowAdminManageTabs && activeAdminTab === "configuracion" && currentTournamentId ? (
         <article className="tm-card">
           <h2 className="text-lg font-semibold text-slate-900">Configuración</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+          <div className="mt-3 rounded-xl border border-slate-200 p-3">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Configuración de Horarios del Evento
+            </h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Generá horarios con un pool único de partidos para evitar superposición
+              de canchas entre categorías.
+            </p>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-slate-600">
+                  Canchas Totales Disponibles
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={eventCourtsCountInput}
+                  onChange={(event) =>
+                    setEventCourtsCountInput(Number(event.target.value))
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-slate-600">
+                  Intervalo de Partido (minutos)
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={eventMatchIntervalInput}
+                  onChange={(event) =>
+                    setEventMatchIntervalInput(Number(event.target.value))
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {scheduleDays.length ? (
+                scheduleDays.map((day) => (
+                  <label key={day.key} className="space-y-1">
+                    <span className="text-xs font-medium text-slate-600">
+                      Inicio {day.label}
+                    </span>
+                    <input
+                      type="time"
+                      value={eventScheduleStartTimesInput[day.key] ?? "18:00"}
+                      onChange={(event) =>
+                        setEventScheduleStartTimesInput((prev) => ({
+                          ...prev,
+                          [day.key]: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
+                  Definí fecha de inicio y fin del torneo para configurar horarios
+                  por día.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleGenerateEventSchedule()}
+              disabled={generatingEventSchedule || !scheduleDays.length}
+              className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {generatingEventSchedule
+                ? "Generando..."
+                : "Generar Horarios del Evento"}
+            </button>
+          </div>
+
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-900">Defaults de categorías</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
               <span className="text-xs font-medium text-slate-600">
                 Canchas por defecto
@@ -933,14 +1141,15 @@ export const TournamentCreatePage = ({
               />
             </label>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleSaveDefaultSetup()}
-            disabled={savingDefaults}
-            className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
-          >
-            {savingDefaults ? "Guardando..." : "Guardar defaults de setup"}
-          </button>
+            <button
+              type="button"
+              onClick={() => void handleSaveDefaultSetup()}
+              disabled={savingDefaults}
+              className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+            >
+              {savingDefaults ? "Guardando..." : "Guardar defaults de setup"}
+            </button>
+          </div>
 
           <div className="mt-5 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-red-700">Zona peligrosa</p>
