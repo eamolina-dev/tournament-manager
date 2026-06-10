@@ -2873,7 +2873,8 @@ export const TournamentCategoryPage = ({
               </div>
               <p className="mt-1 text-xs text-slate-500">
                 Los cruces se definen con plantillas predefinidas según la
-                cantidad de clasificados y la composición de zonas.
+                cantidad de clasificados y la composición de zonas. La edición
+                manual de cruces está deshabilitada.
               </p>
               {roundBlocksForDisplay.length ? (
                 <div className="mt-2 space-y-3">

@@ -154,15 +154,6 @@ export const HomePage = ({
     return endDate < getTodayKey();
   };
 
-  const canShowRegistration = (startDate: string | null) => {
-    if (!startDate) return false;
-    const start = new Date(`${startDate}T00:00:00Z`);
-    if (Number.isNaN(start.getTime())) return false;
-    start.setUTCDate(start.getUTCDate() - 1);
-    const registrationDeadline = start.toISOString().slice(0, 10);
-    return getTodayKey() <= registrationDeadline;
-  };
-
   const publicTournaments = tournaments;
 
   const visibleTournaments = isAdminMode ? tournaments : publicTournaments;
@@ -228,17 +219,6 @@ export const HomePage = ({
                 >
                   Ver fotos
                 </button>
-              ) : canShowRegistration(tournament.start_date) ? (
-                <button
-                  onClick={() =>
-                    navigate(
-                      `${tenantBasePath}/tournaments/${tournament.id}/register`
-                    )
-                  }
-                  className="tm-btn-primary px-3 py-2 text-sm"
-                >
-                  Inscribirme
-                </button>
               ) : null}
             </div>
 
@@ -297,19 +277,6 @@ export const HomePage = ({
                 </button>
               ))}
             </div>
-
-            {!isAdminMode && false ? (
-              <button
-                onClick={() =>
-                  navigate(
-                    `${tenantBasePath}/tournaments/${tournament.id}/register`
-                  )
-                }
-                className="rounded-lg border border-[var(--tm-border)] px-3 py-1 text-sm text-[var(--tm-muted)]"
-              >
-                Inscribirse
-              </button>
-            ) : null}
           </article>
         ))}
         {!visibleTournaments.length && !loading ? (

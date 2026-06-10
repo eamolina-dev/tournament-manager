@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { deleteTournamentPhoto, uploadTournamentPhoto } from "../../photos/api/mutations";
-import { getPhotosByTournament } from "../../photos/api/queries";
+import { useEffect, useMemo, useState } from "react";
 import {
   createCategory,
   createTournament,
@@ -25,7 +23,6 @@ import {
   defaultCourtsCount,
   defaultMatchIntervalMinutes,
 } from "./tournament-category/tournamentCategoryPage.constants";
-import type { Database } from "../../../shared/types/database";
 
 type TournamentCreatePageProps = {
   navigate: (path: string) => void;
@@ -60,8 +57,7 @@ type TournamentSetupDraft = {
   draftCategories: CategoryDraftItem[];
 };
 
-type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
-type AdminManageTab = "datos" | "fotos" | "inscriptos" | "configuracion";
+type AdminManageTab = "datos" | "configuracion";
 
 const genderOptions: { value: TournamentCategoryGender; label: string }[] = [
   { value: "M", label: "Masculino" },
@@ -105,9 +101,6 @@ export const TournamentCreatePage = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<PhotoRow[]>([]);
-  const [photosLoading, setPhotosLoading] = useState(false);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState<AdminManageTab>("datos");
   const [defaultCourtsCountInput, setDefaultCourtsCountInput] = useState(
     defaultCourtsCount
@@ -262,26 +255,6 @@ export const TournamentCreatePage = ({
     })();
   }, [currentTournamentId, isEditMode]);
 
-  const loadPhotos = async (tournamentId: string) => {
-    setPhotosLoading(true);
-    try {
-      const tournamentPhotos = await getPhotosByTournament(tournamentId);
-      setPhotos(tournamentPhotos);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar las fotos.");
-    } finally {
-      setPhotosLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!currentTournamentId) {
-      setPhotos([]);
-      return;
-    }
-    void loadPhotos(currentTournamentId);
-  }, [currentTournamentId]);
-
   const getBackPath = () => (isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`);
 
   const selectedCategoryName = useMemo(
@@ -435,24 +408,6 @@ export const TournamentCreatePage = ({
     }
   };
 
-  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!currentTournamentId || !files?.length) return;
-
-    setUploadingPhotos(true);
-    setError(null);
-    try {
-      await Promise.all(Array.from(files).map((file) => uploadTournamentPhoto(currentTournamentId, file)));
-      await loadPhotos(currentTournamentId);
-      setSuccessMessage("Fotos subidas correctamente.");
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "No se pudieron subir las fotos.");
-    } finally {
-      event.target.value = "";
-      setUploadingPhotos(false);
-    }
-  };
-
   const handleDeleteTournament = async () => {
     if (!currentTournamentId) return;
     const confirmed = window.confirm(
@@ -543,8 +498,6 @@ export const TournamentCreatePage = ({
           <div className="mt-3 flex flex-wrap gap-2">
             {[
               { key: "datos", label: "Datos" },
-              { key: "fotos", label: "Fotos" },
-              { key: "inscriptos", label: "Inscriptos" },
               { key: "configuracion", label: "Configuración" },
             ].map((tab) => (
               <button
@@ -829,75 +782,6 @@ export const TournamentCreatePage = ({
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {isEditMode && currentTournamentId && (!shouldShowAdminManageTabs || activeAdminTab === "fotos") ? (
-        <article className="tm-card">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">Fotos del torneo</h2>
-            <label className="rounded-lg border border-slate-300 px-3 py-2 text-sm cursor-pointer">
-              {uploadingPhotos ? "Subiendo..." : "Subir fotos"}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(event) => void handlePhotoUpload(event)}
-                className="hidden"
-                disabled={uploadingPhotos}
-              />
-            </label>
-          </div>
-
-          {photosLoading ? <p className="mt-2 text-sm text-slate-500">Cargando fotos...</p> : null}
-
-          {photos.length ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {photos.map((photo) => (
-                <div key={photo.id} className="rounded-xl border border-slate-200 p-2">
-                  <img
-                    src={photo.url ?? ""}
-                    alt="Foto del torneo"
-                    className="aspect-square w-full rounded-lg object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void (async () => {
-                        await deleteTournamentPhoto(photo.id);
-                        await loadPhotos(currentTournamentId);
-                      })()
-                    }
-                    className="mt-2 w-full rounded-lg border border-red-400/60 px-2 py-1 text-xs text-red-400"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            !photosLoading ? <p className="mt-2 text-sm text-slate-500">Aún no hay fotos en este torneo.</p> : null
-          )}
-        </article>
-      ) : null}
-
-      {shouldShowAdminManageTabs && activeAdminTab === "inscriptos" && currentTournamentId ? (
-        <article className="tm-card">
-          <h2 className="text-lg font-semibold text-slate-900">Inscriptos</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Gestioná altas, confirmaciones y edición de inscripciones desde el módulo de inscriptos.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                `${tenantBasePath}/admin/tournaments/${currentTournamentId}/registrations`
-              )
-            }
-            className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
-          >
-            Ir a gestionar inscriptos
-          </button>
-        </article>
-      ) : null}
-
       {shouldShowAdminManageTabs && activeAdminTab === "configuracion" && currentTournamentId ? (
         <article className="tm-card">
           <h2 className="text-lg font-semibold text-slate-900">Configuración</h2>
@@ -945,7 +829,7 @@ export const TournamentCreatePage = ({
           <div className="mt-5 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-red-700">Zona peligrosa</p>
             <p className="mt-1 text-sm text-slate-600">
-              Esta acción elimina torneo, categorías, equipos, partidos y fotos asociadas.
+              Esta acción elimina torneo, categorías, equipos y partidos asociados.
             </p>
             <button
               type="button"

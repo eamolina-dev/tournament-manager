@@ -8,8 +8,6 @@ import { PublicTournamentPage } from "./features/tournaments/pages/PublicTournam
 import { AdminTournamentSetupPage } from "./features/tournaments/pages/AdminTournamentSetupPage";
 import { AdminTournamentResultsPage } from "./features/tournaments/pages/AdminTournamentResultsPage";
 import { PublicHomePage } from "./features/tournaments/pages/PublicHomePage";
-import { PublicTournamentRegisterPage } from "./features/tournaments/pages/PublicTournamentRegisterPage";
-import { AdminTournamentRegistrationsPage } from "./features/tournaments/pages/AdminTournamentRegistrationsPage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { PublicTournamentPhotosPage } from "./features/photos/pages/PublicTournamentPhotosPage";
 import { useTenantAuth } from "./shared/context/TenantAuthContext";
@@ -49,12 +47,6 @@ export default function App() {
   const isPublicRankingsRoute = isTenantScopedPath && !isAdminPath && nestedSegments.length === 1 && nestedSegments[0] === "rankings";
   const isPublicTournamentRoute =
     isTenantScopedPath && !isAdminPath && nestedSegments.length === 3 && nestedSegments[0] === "tournament";
-  const isPublicTournamentRegisterRoute =
-    isTenantScopedPath &&
-    !isAdminPath &&
-    nestedSegments.length === 3 &&
-    nestedSegments[0] === "tournaments" &&
-    nestedSegments[2] === "register";
   const isPublicTournamentPhotosRoute =
     isTenantScopedPath &&
     !isAdminPath &&
@@ -69,11 +61,6 @@ export default function App() {
     isAdminPath && adminSegments.length === 3 && adminSegments[0] === "tournaments" && adminSegments[2] === "edit";
   const isAdminTournamentResultsRoute =
     isAdminPath && adminSegments.length === 4 && adminSegments[0] === "tournaments" && adminSegments[2] === "categories";
-  const isAdminTournamentRegistrationsRoute =
-    isAdminPath &&
-    adminSegments.length === 3 &&
-    adminSegments[0] === "tournaments" &&
-    adminSegments[2] === "registrations";
   const isAdminTournamentSetupRoute =
     isAdminPath &&
     adminSegments.length === 5 &&
@@ -85,7 +72,6 @@ export default function App() {
     isPublicTournamentsRoute ||
     isPublicRankingsRoute ||
     isPublicTournamentRoute ||
-    isPublicTournamentRegisterRoute ||
     isPublicTournamentPhotosRoute;
   const isKnownAdminRoute =
     isAdminLoginRoute ||
@@ -95,7 +81,6 @@ export default function App() {
     isAdminTournamentEditRoute ||
     isAdminTournamentResultsRoute ||
     isAdminTournamentSetupRoute ||
-    isAdminTournamentRegistrationsRoute ||
     adminSegments.length === 0;
   const shouldRenderNotFound =
     pathname !== "/" &&
@@ -176,14 +161,6 @@ export default function App() {
 
       {isPublicRankingsRoute && <RankingsPage />}
 
-      {isPublicTournamentRegisterRoute && tenantSlug && (
-        <PublicTournamentRegisterPage
-          tenantSlug={tenantSlug}
-          tournamentId={nestedSegments[1]}
-          navigate={navigate}
-        />
-      )}
-
       {isPublicTournamentPhotosRoute && tenantSlug && (
         <PublicTournamentPhotosPage
           tenantSlug={tenantSlug}
@@ -214,14 +191,6 @@ export default function App() {
       {isAdminTournamentEditRoute && hasAdminAccess && tenantSlug && (
           <TournamentCreatePage navigate={navigate} tenantSlug={tenantSlug} tournamentId={adminSegments[1]} mode="admin" />
         )}
-
-      {isAdminTournamentRegistrationsRoute && hasAdminAccess && tenantSlug && (
-        <AdminTournamentRegistrationsPage
-          tenantSlug={tenantSlug}
-          tournamentId={adminSegments[1]}
-          navigate={navigate}
-        />
-      )}
 
       {isAdminTournamentResultsRoute && hasAdminAccess && tenantSlug && (
           <AdminTournamentResultsPage
