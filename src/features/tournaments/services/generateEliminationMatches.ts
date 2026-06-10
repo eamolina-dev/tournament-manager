@@ -1,39 +1,33 @@
-import { generateBracket } from "../brackets/generateBracket"
+import { resolveBracketTemplate } from "../brackets/templateResolver"
 import type { MatchTemplate } from "../brackets/match-template"
 import { supabase } from "../../../shared/lib/supabase"
 import { throwIfError } from "../../../shared/lib/throw-if-error"
-import type { MatchInsert, Team } from "../../../shared/types/entities"
+import type { MatchInsert } from "../../../shared/types/entities"
 import { parseSource } from "../utils/resolveTeamSourcesForMatches"
 
 const buildPlayoffMatchKey = (order: number, round: number): string => `${order}-${round}`
 
 export const getEliminationTemplate = (
   qualifiedTeamSources: string[],
-  groupRanking: string[],
-): MatchTemplate[] => {
-  const virtualTeams = Array.from({ length: qualifiedTeamSources.length }, (_, index) => ({
-    id: `virtual-team-${index + 1}`,
-  }))
-
-  return generateBracket(
-    virtualTeams as unknown as Team[],
-    groupRanking,
+  groupSizePattern: number[],
+): MatchTemplate[] =>
+  resolveBracketTemplate({
     qualifiedTeamSources,
-  )
-}
+    groupSizePattern,
+  })
 
 export const generateEliminationMatches = async ({
   tournamentCategoryId,
   qualifiedTeamSources,
-  groupRanking,
+  groupSizePattern,
   manualFirstRoundMatches,
 }: {
   tournamentCategoryId: string
   qualifiedTeamSources: string[]
-  groupRanking: string[]
+  groupSizePattern: number[]
   manualFirstRoundMatches?: Array<{ round: number; order: number; team1Source: string; team2Source: string }>
 }): Promise<number> => {
-  const template = getEliminationTemplate(qualifiedTeamSources, groupRanking).map((match) => ({ ...match }))
+  const template = getEliminationTemplate(qualifiedTeamSources, groupSizePattern).map((match) => ({ ...match }))
   if (!template.length) return 0
 
   if (manualFirstRoundMatches?.length) {

@@ -283,8 +283,8 @@ export const generateFullTournament = async (
     ensureGroupAssignments(plannedGroups)
     const preGroupMatchesCount = countGroupMatches(plannedGroups)
     const qualifiedTeamSources = getQualifiedTeamSources(plannedGroups)
-    const groupRanking = plannedGroups.map((group) => group.groupKey)
-    const eliminationTemplate = getEliminationTemplate(qualifiedTeamSources, groupRanking)
+    const groupSizePattern = plannedGroups.map((group) => group.teamIds.length)
+    const eliminationTemplate = getEliminationTemplate(qualifiedTeamSources, groupSizePattern)
 
     if (dryRun) {
       debugGeneration(debugEnabled, "Dry-run generado", {
@@ -382,7 +382,7 @@ export const generateFullTournament = async (
     const eliminationMatchesCount = await generateEliminationMatches({
       tournamentCategoryId,
       qualifiedTeamSources,
-      groupRanking,
+      groupSizePattern,
       manualFirstRoundMatches: options?.elimination?.firstRoundMatches,
     })
 

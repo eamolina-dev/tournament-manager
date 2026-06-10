@@ -89,7 +89,6 @@ import type {
   TeamFormState,
   TournamentCategoryGender,
   TournamentCategoryPageProps,
-  ManualEliminationMatchInput,
   ZoneBoardColumn,
 } from "./tournament-category/tournamentCategoryPage.types";
 import { usePersistentTab } from "../../../shared/hooks/usePersistentTab";
@@ -154,7 +153,7 @@ type PublicCategoryOption = {
   label: string;
 };
 
-const getEditableRoundNumbers = (
+const getPreviewRoundNumbers = (
   roundBlocks: DisplayRoundBlock[]
 ): number[] => {
   const sortedRounds = [...roundBlocks]
@@ -319,12 +318,6 @@ export const TournamentCategoryPage = ({
   );
   const [zoneDayById, setZoneDayById] = useState<Record<string, string>>({});
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [manualCrossings, setManualCrossings] = useState<
-    ManualEliminationMatchInput[]
-  >([]);
-  const [manualCrossingsError, setManualCrossingsError] = useState<
-    string | null
-  >(null);
   const [actionNotice, setActionNotice] = useState<ActionNotice>(null);
   const [publicCategoryOptions, setPublicCategoryOptions] = useState<
     PublicCategoryOption[]
@@ -334,9 +327,6 @@ export const TournamentCategoryPage = ({
     : "";
   const teamsDraftStorageKey = data
     ? `tm:teams-draft:${data.tournamentCategoryId}`
-    : "";
-  const manualCrossingsStorageKey = data
-    ? `tm:manual-crossings:${data.tournamentCategoryId}`
     : "";
   const categoryCacheKey = useMemo(() => {
     if (eventId && categoryId) {
@@ -813,34 +803,6 @@ export const TournamentCategoryPage = ({
         // no-op: ignore malformed local stage labels cache
       }
     }
-
-    const storedManualCrossingsRaw = localStorage.getItem(
-      `tm:manual-crossings:${data.tournamentCategoryId}`
-    );
-    if (storedManualCrossingsRaw) {
-      try {
-        const storedManualCrossings = JSON.parse(
-          storedManualCrossingsRaw
-        ) as ManualEliminationMatchInput[];
-        if (Array.isArray(storedManualCrossings)) {
-          setManualCrossings(
-            storedManualCrossings
-              .filter(
-                (item) =>
-                  Number.isFinite(item?.order) && Number.isFinite(item?.round)
-              )
-              .map((item) => ({
-                round: Number(item.round),
-                order: item.order,
-                team1Source: String(item.team1Source ?? ""),
-                team2Source: String(item.team2Source ?? ""),
-              }))
-          );
-        }
-      } catch {
-        // no-op: ignore malformed local manual crossings cache
-      }
-    }
   }, [data, scheduleDays]);
 
   const canGenerateZones = (data?.teams.length ?? 0) >= MIN_TEAMS_FOR_ZONES;
@@ -981,13 +943,6 @@ export const TournamentCategoryPage = ({
       JSON.stringify(stageLabelOverrides)
     );
   }, [stageLabelsStorageKey, stageLabelOverrides]);
-  useEffect(() => {
-    if (!manualCrossingsStorageKey) return;
-    localStorage.setItem(
-      manualCrossingsStorageKey,
-      JSON.stringify(manualCrossings)
-    );
-  }, [manualCrossingsStorageKey, manualCrossings]);
   const filteredResults = (data?.results ?? []).filter((row) =>
     row.playerName
       .toLocaleLowerCase()
@@ -1340,24 +1295,38 @@ export const TournamentCategoryPage = ({
       return [];
     }
   }, [plannedGroupsForCrossings]);
-  const eliminationTemplateMatches = useMemo(() => {
-    if (!allowedCrossingSources.length) return [];
-    try {
-      const groupRanking = plannedGroupsForCrossings.map(
-        (group) => group.groupKey
-      );
-      return getEliminationTemplate(allowedCrossingSources, groupRanking);
-    } catch {
-      return [];
-    }
-  }, [allowedCrossingSources, plannedGroupsForCrossings]);
-  const manualCrossingsByRoundOrder = useMemo(
-    () =>
-      new Map(
-        manualCrossings.map((match) => [`${match.round}-${match.order}`, match])
-      ),
-    [manualCrossings]
+  const plannedGroupSizePattern = useMemo(
+    () => plannedGroupsForCrossings.map((group) => group.teamIds.length),
+    [plannedGroupsForCrossings]
   );
+  const eliminationTemplateResult = useMemo(() => {
+    if (!allowedCrossingSources.length) {
+      return {
+        matches: [] as EliminationTemplateMatch[],
+        error: null as string | null,
+      };
+    }
+
+    try {
+      return {
+        matches: getEliminationTemplate(
+          allowedCrossingSources,
+          plannedGroupSizePattern
+        ),
+        error: null as string | null,
+      };
+    } catch (error) {
+      return {
+        matches: [] as EliminationTemplateMatch[],
+        error:
+          error instanceof Error
+            ? error.message
+            : "No hay una plantilla de cruces disponible para esta configuración.",
+      };
+    }
+  }, [allowedCrossingSources, plannedGroupSizePattern]);
+  const eliminationTemplateMatches = eliminationTemplateResult.matches;
+  const eliminationTemplateError = eliminationTemplateResult.error;
   const roundBlocks = useMemo(
     () => buildRoundBlocksForDisplay(eliminationTemplateMatches),
     [eliminationTemplateMatches]
@@ -1369,150 +1338,13 @@ export const TournamentCategoryPage = ({
       ),
     [roundBlocks]
   );
-  const visibleRoundBlocks = useMemo(() => roundBlocks, [roundBlocks]);
-  const editableRounds = useMemo(
-    () => getEditableRoundNumbers(visibleRoundBlocks),
-    [visibleRoundBlocks]
-  );
-  const editableRoundsSet = useMemo(
-    () => new Set(editableRounds),
-    [editableRounds]
-  );
-
-  const getEffectiveSource = useCallback(
-    (
-      round: number,
-      order: number,
-      slot: "team1Source" | "team2Source",
-      templateSource: string
-    ) =>
-      manualCrossingsByRoundOrder.get(`${round}-${order}`)?.[slot] ??
-      templateSource,
-    [manualCrossingsByRoundOrder]
-  );
-
-  const isEditableSourceSlot = useCallback(
-    (round: number): boolean => editableRoundsSet.has(round),
-    [editableRoundsSet]
-  );
-  const getManualMatchForRoundOrder = useCallback(
-    (round: number, order: number) =>
-      manualCrossingsByRoundOrder.get(`${round}-${order}`),
-    [manualCrossingsByRoundOrder]
-  );
-  const getEditableSlotValue = useCallback(
-    (round: number, order: number, slot: "team1Source" | "team2Source") =>
-      getManualMatchForRoundOrder(round, order)?.[slot] ?? "",
-    [getManualMatchForRoundOrder]
-  );
-  const getAvailableSourcesForSlot = useCallback(
-    (
-      round: number,
-      order: number,
-      slot: "team1Source" | "team2Source",
-      currentValue: string
-    ) => {
-      const used = new Set<string>();
-
-      visibleRoundBlocks.forEach((roundBlock) => {
-        roundBlock.matches.forEach((match) => {
-          const team1Editable = isEditableSourceSlot(match.round);
-          const team2Editable = isEditableSourceSlot(match.round);
-          if (team1Editable) {
-            const value = getEditableSlotValue(
-              match.round,
-              match.order,
-              "team1Source"
-            ).trim();
-            if (value.length) used.add(value);
-          }
-          if (team2Editable) {
-            const value = getEditableSlotValue(
-              match.round,
-              match.order,
-              "team2Source"
-            ).trim();
-            if (value.length) used.add(value);
-          }
-        });
-      });
-
-      used.delete(currentValue);
-
-      const currentSlotValue = getEditableSlotValue(round, order, slot).trim();
-      if (currentSlotValue.length) {
-        used.delete(currentSlotValue);
-      }
-
-      const previousRound = round * 2;
-      const winnerSources = eliminationTemplateMatches
-        .filter((match) => match.round === previousRound)
-        .map((match) => `W-${match.order}-${match.round}`);
-      const allowedSources =
-        previousRound > 0
-          ? [...allowedCrossingSources, ...winnerSources]
-          : [...allowedCrossingSources];
-
-      return allowedSources.filter(
-        (source) => source === currentValue || !used.has(source)
-      );
-    },
-    [
-      allowedCrossingSources,
-      eliminationTemplateMatches,
-      getEditableSlotValue,
-      isEditableSourceSlot,
-      visibleRoundBlocks,
-    ]
-  );
-  const editableSlots = useMemo(
-    () =>
-      visibleRoundBlocks.flatMap((roundBlock) =>
-        roundBlock.matches.flatMap((match) => {
-          const slots: Array<{
-            round: number;
-            order: number;
-            slot: "team1Source" | "team2Source";
-          }> = [];
-          if (isEditableSourceSlot(match.round)) {
-            slots.push({
-              round: match.round,
-              order: match.order,
-              slot: "team1Source",
-            });
-          }
-          if (isEditableSourceSlot(match.round)) {
-            slots.push({
-              round: match.round,
-              order: match.order,
-              slot: "team2Source",
-            });
-          }
-          return slots;
-        })
-      ),
-    [isEditableSourceSlot, visibleRoundBlocks]
-  );
-  const selectedEditableSourcesCount = useMemo(
-    () =>
-      editableSlots.filter(({ round, order, slot }) =>
-        Boolean(getEditableSlotValue(round, order, slot).trim())
-      ).length,
-    [editableSlots, getEditableSlotValue]
-  );
-  useEffect(() => {
-    setManualCrossings((prev) =>
-      prev.filter((item) =>
-        eliminationTemplateMatches.some(
-          (match) =>
-            match.order === item.order &&
-            match.round === item.round &&
-            isEditableSourceSlot(match.round)
-        )
-      )
+  const visibleRoundBlocks = useMemo(() => {
+    const previewRounds = new Set(getPreviewRoundNumbers(roundBlocks));
+    return roundBlocks.filter((roundBlock) =>
+      previewRounds.has(roundBlock.round)
     );
-    setManualCrossingsError(null);
-  }, [eliminationTemplateMatches, isEditableSourceSlot]);
+  }, [roundBlocks]);
+
   const schedulingPhases = useMemo(
     () =>
       schedulingData.validPhaseKeys.map((key) => ({
@@ -1570,6 +1402,8 @@ export const TournamentCategoryPage = ({
     !manualZoneError;
   const hasGeneratedMatches = orderedEditableMatches.length > 0;
   const isStep3Enabled = isTournamentEditable && hasReadyZones;
+  const canGenerateMatches =
+    isStep3Enabled && canGenerateZones && eliminationTemplateMatches.length > 0;
   const isStep4Enabled = isTournamentEditable && hasGeneratedMatches;
 
   const moveTeam = ({
@@ -1640,134 +1474,6 @@ export const TournamentCategoryPage = ({
     moveTeam({ activeTeamId: activeId, targetZoneId, overTeamId: overId });
   };
 
-  const handleAutofillCrossings = () => {
-    const suggested = eliminationTemplateMatches
-      .flatMap((match) => {
-        const slots: ManualEliminationMatchInput = {
-          round: match.round,
-          order: match.order,
-          team1Source: match.team1,
-          team2Source: match.team2,
-        };
-        const team1Editable = isEditableSourceSlot(match.round);
-        const team2Editable = isEditableSourceSlot(match.round);
-        if (!team1Editable && !team2Editable) return [];
-        return [slots];
-      })
-      .sort((a, b) => a.round - b.round || a.order - b.order);
-    setManualCrossings(suggested);
-    setManualCrossingsError(null);
-  };
-
-  const validateManualCrossings = (): ManualEliminationMatchInput[] => {
-    if (!editableSlots.length || selectedEditableSourcesCount === 0) return [];
-    if (!eliminationTemplateMatches.length) {
-      throw new Error(
-        "No hay cruces eliminatorios disponibles para esta configuración."
-      );
-    }
-    if (selectedEditableSourcesCount < editableSlots.length) {
-      throw new Error(
-        "Completá todos los cruces manuales o dejalos todos vacíos para usar el modo automático."
-      );
-    }
-
-    const normalizedAllowedGroupSources = new Set(
-      allowedCrossingSources.map((source) => source.trim().toUpperCase())
-    );
-    const allowedWinnerSourcesByRound = new Map<number, Set<string>>();
-    editableRounds.forEach((round) => {
-      const previousRound = round * 2;
-      const winnerSources = eliminationTemplateMatches
-        .filter((match) => match.round === previousRound)
-        .map((match) => `W-${match.order}-${match.round}`.toUpperCase());
-      allowedWinnerSourcesByRound.set(round, new Set(winnerSources));
-    });
-    const editableTemplateMatches = eliminationTemplateMatches.filter((match) =>
-      isEditableSourceSlot(match.round)
-    );
-    const normalizedDraft = editableTemplateMatches.map((templateMatch) => {
-      const draftMatch = manualCrossings.find(
-        (item) =>
-          item.order === templateMatch.order &&
-          item.round === templateMatch.round
-      );
-      if (!draftMatch) {
-        throw new Error(
-          `Falta definir el partido ${templateMatch.order} de ${getRoundTitle(
-            templateMatch.stage,
-            templateMatch.round
-          )}.`
-        );
-      }
-
-      const team1Source = draftMatch.team1Source.trim().toUpperCase();
-      const team2Source = draftMatch.team2Source.trim().toUpperCase();
-      const team1Editable = isEditableSourceSlot(templateMatch.round);
-      const team2Editable = isEditableSourceSlot(templateMatch.round);
-      if ((team1Editable && !team1Source) || (team2Editable && !team2Source)) {
-        throw new Error(
-          `Completá los clasificados de zona del partido ${
-            templateMatch.order
-          } (${getRoundTitle(templateMatch.stage, templateMatch.round)}).`
-        );
-      }
-
-      return {
-        round: templateMatch.round,
-        order: templateMatch.order,
-        team1Source,
-        team2Source,
-      };
-    });
-
-    const usedSources = new Set<string>();
-    normalizedDraft.forEach((match) => {
-      const templateMatch = eliminationTemplateMatches.find(
-        (item) => item.round === match.round && item.order === match.order
-      );
-      if (!templateMatch) return;
-      const allowedWinnerSources =
-        allowedWinnerSourcesByRound.get(templateMatch.round) ??
-        new Set<string>();
-      const sourcesBySlot: Array<{ source: string; editable: boolean }> = [
-        {
-          source: match.team1Source,
-          editable: isEditableSourceSlot(templateMatch.round),
-        },
-        {
-          source: match.team2Source,
-          editable: isEditableSourceSlot(templateMatch.round),
-        },
-      ];
-      sourcesBySlot.forEach(({ source, editable }) => {
-        if (!editable) return;
-        if (
-          !normalizedAllowedGroupSources.has(source) &&
-          !allowedWinnerSources.has(source)
-        ) {
-          throw new Error(
-            `El source ${source} no es válido para esta categoría.`
-          );
-        }
-        if (usedSources.has(source)) {
-          throw new Error(
-            `El source ${source} está repetido en la configuración manual.`
-          );
-        }
-        usedSources.add(source);
-      });
-    });
-    const usedGroupSources = Array.from(usedSources).filter((source) =>
-      normalizedAllowedGroupSources.has(source)
-    );
-    if (usedGroupSources.length !== normalizedAllowedGroupSources.size) {
-      throw new Error("Debés usar todos los clasificados exactamente una vez.");
-    }
-
-    return normalizedDraft;
-  };
-
   const handleGenerateMatches = async () => {
     if (!canGenerateZones || !data) return;
     if (hasRecordedResults) {
@@ -1780,8 +1486,6 @@ export const TournamentCategoryPage = ({
     }
     setGenerationError(null);
     setGenerationSuccess(null);
-    setManualCrossingsError(null);
-
     const readyZones = zoneBoardColumns.length
       ? zoneBoardColumns
       : buildAutomaticZones();
@@ -1795,15 +1499,10 @@ export const TournamentCategoryPage = ({
       setManualZones(readyZones);
     }
 
-    let validManualCrossings: ManualEliminationMatchInput[] = [];
-    try {
-      validManualCrossings = validateManualCrossings();
-    } catch (error) {
+    if (!eliminationTemplateMatches.length) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Los cruces manuales no son válidos.";
-      setManualCrossingsError(message);
+        eliminationTemplateError ??
+        "No hay una plantilla de cruces disponible para esta configuración.";
       setGenerationError(message);
       setActionNotice({ type: "error", message });
       return;
@@ -1815,9 +1514,6 @@ export const TournamentCategoryPage = ({
         scheduling: {
           zoneDayById,
           phaseByDay,
-        },
-        elimination: {
-          firstRoundMatches: validManualCrossings,
         },
       });
       await load();
@@ -3167,21 +2863,18 @@ export const TournamentCategoryPage = ({
               </div>
             )} */}
             <div className="mt-3 rounded-lg border border-slate-200 p-3">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Configurar cruces (opcional)
+                  Vista previa de cruces
                 </p>
-                <button
-                  type="button"
-                  onClick={handleAutofillCrossings}
-                  disabled={
-                    !isStep3Enabled || !eliminationTemplateMatches.length
-                  }
-                  className="rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                >
-                  Autocompletar cruces sugeridos
-                </button>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
+                  Automático · solo lectura
+                </span>
               </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Los cruces se definen con plantillas predefinidas según la
+                cantidad de clasificados y la composición de zonas.
+              </p>
               {roundBlocksForDisplay.length ? (
                 <div className="mt-2 space-y-3">
                   {roundBlocksForDisplay.map((roundBlock) => (
@@ -3189,184 +2882,48 @@ export const TournamentCategoryPage = ({
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {roundBlock.title}
                       </p>
-                      {roundBlock.matches.map((match) => {
-                        const team1Editable = isEditableSourceSlot(match.round);
-                        const team2Editable = isEditableSourceSlot(match.round);
-                        const team1Current = team1Editable
-                          ? getEditableSlotValue(
-                              match.round,
-                              match.order,
-                              "team1Source"
-                            )
-                          : getEffectiveSource(
-                              match.round,
-                              match.order,
-                              "team1Source",
-                              match.team1
-                            );
-                        const team2Current = team2Editable
-                          ? getEditableSlotValue(
-                              match.round,
-                              match.order,
-                              "team2Source"
-                            )
-                          : getEffectiveSource(
-                              match.round,
-                              match.order,
-                              "team2Source",
-                              match.team2
-                            );
-                        const team1Options = getAvailableSourcesForSlot(
-                          match.round,
-                          match.order,
-                          "team1Source",
-                          team1Current
-                        );
-                        const team2Options = getAvailableSourcesForSlot(
-                          match.round,
-                          match.order,
-                          "team2Source",
-                          team2Current
-                        );
-
-                        const updateManualMatch = (
-                          slot: "team1Source" | "team2Source",
-                          value: string
-                        ) => {
-                          setManualCrossings((prev) => {
-                            const keyRound = match.round;
-                            const existing = prev.find(
-                              (item) =>
-                                item.order === match.order &&
-                                item.round === keyRound
-                            );
-                            const next = {
-                              round: keyRound,
-                              order: match.order,
-                              team1Source:
-                                slot === "team1Source"
-                                  ? value
-                                  : existing?.team1Source ??
-                                    (team1Editable ? "" : match.team1),
-                              team2Source:
-                                slot === "team2Source"
-                                  ? value
-                                  : existing?.team2Source ??
-                                    (team2Editable ? "" : match.team2),
-                            };
-                            return [
-                              ...prev.filter(
-                                (item) =>
-                                  !(
-                                    item.order === match.order &&
-                                    item.round === keyRound
-                                  )
-                              ),
-                              next,
-                            ].sort(
-                              (a, b) => a.round - b.round || a.order - b.order
-                            );
-                          });
-                        };
-
-                        return (
-                          <div
-                            key={`${match.round}-${match.order}`}
-                            className="grid gap-2 rounded border border-slate-200 p-2 sm:grid-cols-[auto_1fr_auto_1fr]"
-                          >
-                            <p className="text-xs text-slate-600">
-                              Partido {match.order}
-                            </p>
-                            {team1Editable ? (
-                              <select
-                                value={team1Current}
-                                onChange={(event) =>
-                                  updateManualMatch(
-                                    "team1Source",
-                                    event.target.value
-                                  )
-                                }
-                                disabled={!isStep3Enabled}
-                                className="rounded border border-slate-300 px-2 py-1 text-xs"
-                              >
-                                <option value="">Seleccionar</option>
-                                {team1Options.map((source) => (
-                                  <option
-                                    key={`team1-${match.round}-${match.order}-${source}`}
-                                    value={source}
-                                  >
-                                    {getSourceOptionLabel(
-                                      source,
-                                      roundTitleByNumber
-                                    )}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(
-                                  team1Current,
-                                  roundTitleByNumber
-                                )}
-                              </p>
+                      {roundBlock.matches.map((match) => (
+                        <div
+                          key={`${match.round}-${match.order}`}
+                          className="grid gap-2 rounded border border-slate-200 bg-slate-50 p-2 sm:grid-cols-[auto_1fr_auto_1fr]"
+                        >
+                          <p className="text-xs text-slate-600">
+                            Partido {match.order}
+                          </p>
+                          <p className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">
+                            {getSourceOptionLabel(
+                              match.team1,
+                              roundTitleByNumber
                             )}
-                            <span className="self-center text-center text-xs text-slate-500">
-                              vs
-                            </span>
-                            {team2Editable ? (
-                              <select
-                                value={team2Current}
-                                onChange={(event) =>
-                                  updateManualMatch(
-                                    "team2Source",
-                                    event.target.value
-                                  )
-                                }
-                                disabled={!isStep3Enabled}
-                                className="rounded border border-slate-300 px-2 py-1 text-xs"
-                              >
-                                <option value="">Seleccionar</option>
-                                {team2Options.map((source) => (
-                                  <option
-                                    key={`team2-${match.round}-${match.order}-${source}`}
-                                    value={source}
-                                  >
-                                    {getSourceOptionLabel(
-                                      source,
-                                      roundTitleByNumber
-                                    )}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                                {getSourceOptionLabel(
-                                  team2Current,
-                                  roundTitleByNumber
-                                )}
-                              </p>
+                          </p>
+                          <span className="self-center text-center text-xs text-slate-500">
+                            vs
+                          </span>
+                          <p className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">
+                            {getSourceOptionLabel(
+                              match.team2,
+                              roundTitleByNumber
                             )}
-                          </div>
-                        );
-                      })}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
+              ) : eliminationTemplateError ? (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {eliminationTemplateError}
+                </p>
               ) : (
                 <p className="mt-2 text-xs text-slate-500">
-                  Guardá zonas válidas para habilitar la configuración de
+                  Guardá zonas válidas para ver la vista previa automática de
                   cruces.
-                </p>
-              )}
-              {manualCrossingsError && (
-                <p className="mt-2 text-xs text-red-600">
-                  {manualCrossingsError}
                 </p>
               )}
             </div>
 
             <button
-              disabled={!isStep3Enabled || !canGenerateZones || saving}
+              disabled={!canGenerateMatches || saving}
               onClick={() => void handleGenerateMatches()}
               className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
