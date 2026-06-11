@@ -50,7 +50,7 @@
       },
       "team2": {
         "type": "group_seed",
-        "source": "2D"
+        "source": "2A"
       }
     },
     {
@@ -60,7 +60,7 @@
       "order": 4,
       "team1": {
         "type": "group_seed",
-        "source": "2A"
+        "source": "2D"
       },
       "team2": {
         "type": "group_seed",
@@ -116,8 +116,8 @@
     "2B",
     "1D",
     "1C",
-    "2D",
     "2A",
+    "2D",
     "1B"
   ]
 }

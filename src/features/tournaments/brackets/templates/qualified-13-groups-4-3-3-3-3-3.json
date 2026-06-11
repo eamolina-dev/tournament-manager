@@ -1,0 +1,200 @@
+{
+  "id": "qualified-13-groups-4-3-3-3-3-3-v2",
+  "version": 2,
+  "qualifiedCount": 13,
+  "groupSizePattern": [
+    4,
+    3,
+    3,
+    3,
+    3,
+    3
+  ],
+  "name": "13 clasificados - 5 de 3 y 1 de 4 (Formato 5 Octavos)",
+  "description": "Cruces actualizados: 5 partidos en octavos y 4 en cuartos.",
+  "matches": [
+    {
+      "id": "R16-M1",
+      "stage": "round_of_16",
+      "round": 8,
+      "order": 1,
+      "team1": {
+        "type": "group_seed",
+        "source": "2B"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "2C"
+      }
+    },
+    {
+      "id": "R16-M2",
+      "stage": "round_of_16",
+      "round": 8,
+      "order": 2,
+      "team1": {
+        "type": "group_seed",
+        "source": "1E"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "2F"
+      }
+    },
+    {
+      "id": "R16-M3",
+      "stage": "round_of_16",
+      "round": 8,
+      "order": 3,
+      "team1": {
+        "type": "group_seed",
+        "source": "1C"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "2A"
+      }
+    },
+    {
+      "id": "R16-M4",
+      "stage": "round_of_16",
+      "round": 8,
+      "order": 4,
+      "team1": {
+        "type": "group_seed",
+        "source": "2E"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "1F"
+      }
+    },
+    {
+      "id": "R16-M5",
+      "stage": "round_of_16",
+      "round": 8,
+      "order": 5,
+      "team1": {
+        "type": "group_seed",
+        "source": "2D"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "3A"
+      }
+    },
+    {
+      "id": "QF-M1",
+      "stage": "quarter",
+      "round": 4,
+      "order": 1,
+      "team1": {
+        "type": "group_seed",
+        "source": "1A"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "R16-M1"
+      }
+    },
+    {
+      "id": "QF-M2",
+      "stage": "quarter",
+      "round": 4,
+      "order": 2,
+      "team1": {
+        "type": "winner",
+        "matchId": "R16-M2"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "1D"
+      }
+    },
+    {
+      "id": "QF-M3",
+      "stage": "quarter",
+      "round": 4,
+      "order": 3,
+      "team1": {
+        "type": "winner",
+        "matchId": "R16-M3"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "R16-M4"
+      }
+    },
+    {
+      "id": "QF-M4",
+      "stage": "quarter",
+      "round": 4,
+      "order": 4,
+      "team1": {
+        "type": "winner",
+        "matchId": "R16-M5"
+      },
+      "team2": {
+        "type": "group_seed",
+        "source": "1B"
+      }
+    },
+    {
+      "id": "SF-M1",
+      "stage": "semi",
+      "round": 2,
+      "order": 1,
+      "team1": {
+        "type": "winner",
+        "matchId": "QF-M1"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "QF-M2"
+      }
+    },
+    {
+      "id": "SF-M2",
+      "stage": "semi",
+      "round": 2,
+      "order": 2,
+      "team1": {
+        "type": "winner",
+        "matchId": "QF-M3"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "QF-M4"
+      }
+    },
+    {
+      "id": "F-M1",
+      "stage": "final",
+      "round": 1,
+      "order": 1,
+      "team1": {
+        "type": "winner",
+        "matchId": "SF-M1"
+      },
+      "team2": {
+        "type": "winner",
+        "matchId": "SF-M2"
+      }
+    }
+  ],
+  "qualifiedSources": [
+    "2B",
+    "2C",
+    "1E",
+    "2F",
+    "1C",
+    "2A",
+    "2E",
+    "1F",
+    "2D",
+    "3A",
+    "1A",
+    "1D",
+    "1B"
+  ]
+}
