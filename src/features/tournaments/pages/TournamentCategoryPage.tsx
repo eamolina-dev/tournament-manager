@@ -119,6 +119,35 @@ const buildZoneMatchLabel = (zoneName: string, matchIndex: number) => {
 const toGroupKeyByIndex = (index: number) => String.fromCharCode(65 + index);
 const MIN_TEAMS_FOR_ZONES = 8;
 const toZoneNameByIndex = (index: number) => `Zona ${toGroupKeyByIndex(index)}`;
+const getZoneTotalPoints = (
+  zone: Pick<ZoneBoardColumn, "teamIds">,
+  teamPointsById: Map<string, number>
+): number =>
+  zone.teamIds.reduce(
+    (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
+    0
+  );
+const compareZonesForSave = (
+  left: ZoneBoardColumn,
+  right: ZoneBoardColumn,
+  teamPointsById: Map<string, number>
+): number => {
+  const leftIsFourTeamGroup = left.teamIds.length === 4;
+  const rightIsFourTeamGroup = right.teamIds.length === 4;
+
+  if (leftIsFourTeamGroup !== rightIsFourTeamGroup) {
+    return leftIsFourTeamGroup ? -1 : 1;
+  }
+
+  const leftPoints = getZoneTotalPoints(left, teamPointsById);
+  const rightPoints = getZoneTotalPoints(right, teamPointsById);
+
+  if (leftPoints !== rightPoints) {
+    return rightPoints - leftPoints;
+  }
+
+  return left.name.localeCompare(right.name);
+};
 const getRoundTitle = (stage: string, fallbackRound: number): string => {
   if (stage === "final") return "Final";
   if (stage === "semi") return "Semis";
@@ -1191,20 +1220,7 @@ export const TournamentCategoryPage = ({
       return;
     }
     const nextZones = [...normalizedZones]
-      .sort((left, right) => {
-        const leftPoints = left.teamIds.reduce(
-          (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-          0
-        );
-        const rightPoints = right.teamIds.reduce(
-          (sum, teamId) => sum + (teamPointsById.get(teamId) ?? 0),
-          0
-        );
-        if (leftPoints !== rightPoints) {
-          return rightPoints - leftPoints;
-        }
-        return left.name.localeCompare(right.name);
-      })
+      .sort((left, right) => compareZonesForSave(left, right, teamPointsById))
       .map((zone, index) => ({
         ...zone,
         name: toZoneNameByIndex(index),
