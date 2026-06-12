@@ -207,12 +207,15 @@ export const HomePage = ({
                     Gestionar
                   </button>
                 </div>
-              ) : tournament.photoCount > 0 ? (
-                // ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
+              ) : // ) : tournament.photoCount > 0 ? (
+              // ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
+              tournament.id === "58253012-d250-4c96-8e6c-ef66f54edc78" ? (
                 <button
                   onClick={() =>
-                    navigate(
-                      `${tenantBasePath}/tournaments/${tournament.id}/photos`
+                    window.open(
+                      "https://photos.google.com/share/AF1QipMNkOjQ5RKYPeUh9WcKOaDsMgo2fCvlEZ7JJwu5sAZGAg5AUCEGjAkmop8Ci0qBYw?key=Z19xUXFqZ295X3FPNC03ZURCd2NteXItNVJIdEtB",
+                      "_blank",
+                      "noopener,noreferrer"
                     )
                   }
                   className="tm-btn-primary px-4 py-2 text-sm"
