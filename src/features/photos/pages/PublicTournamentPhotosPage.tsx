@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
-const FALLBACK_DRIVE_PHOTOS_URL = "https://drive.google.com/";
+const FALLBACK_DRIVE_PHOTOS_URL =
+  "https://photos.google.com/share/AF1QipMNkOjQ5RKYPeUh9WcKOaDsMgo2fCvlEZ7JJwu5sAZGAg5AUCEGjAkmop8Ci0qBYw?key=Z19xUXFqZ295X3FPNC03ZURCd2NteXItNVJIdEtB";
 
 type PublicTournamentPhotosPageProps = {
   tenantSlug: string;
@@ -19,9 +20,12 @@ export const PublicTournamentPhotosPage = ({
 
   return (
     <section className="tm-card">
-      <h1 className="text-2xl font-bold text-[var(--tm-text)]">Fotos del torneo</h1>
+      <h1 className="text-2xl font-bold text-[var(--tm-text)]">
+        Fotos del torneo
+      </h1>
       <p className="mt-2 text-sm text-[var(--tm-muted)]">
-        Las fotos ya no se almacenan en el sistema. Te estamos redirigiendo a la carpeta externa de fotos.
+        Las fotos ya no se almacenan en el sistema. Te estamos redirigiendo a la
+        carpeta externa de fotos.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <a
