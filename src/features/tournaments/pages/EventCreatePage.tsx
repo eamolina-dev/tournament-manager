@@ -12,7 +12,10 @@ import {
   getTournamentById,
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
-import { formatCategoryName, getGenderShortLabel } from "../../../shared/lib/category-display";
+import {
+  formatCategoryName,
+  getGenderShortLabel,
+} from "../../../shared/lib/category-display";
 import { useTenantAuth } from "../../../shared/context/TenantAuthContext";
 import { resolveActiveCircuitIdForClient } from "../../../shared/lib/active-circuit";
 import {
@@ -57,7 +60,7 @@ type TournamentSetupDraft = {
   draftCategories: CategoryDraftItem[];
 };
 
-type AdminManageTab = "datos" | "configuracion";
+type AdminManageTab = "datos" | "categorias" | "fixture" | "horarios" | "fotos";
 
 const genderOptions: { value: TournamentCategoryGender; label: string }[] = [
   { value: "M", label: "Masculino" },
@@ -83,7 +86,9 @@ export const TournamentCreatePage = ({
   const tenantBasePath = `/${tenantSlug}`;
   const { client } = useTenantAuth();
   const isAdminMode = mode === "admin";
-  const [currentTournamentId, setCurrentTournamentId] = useState<string | undefined>(tournamentId);
+  const [currentTournamentId, setCurrentTournamentId] = useState<
+    string | undefined
+  >(tournamentId);
   const isEditMode = Boolean(currentTournamentId);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -91,20 +96,24 @@ export const TournamentCreatePage = ({
   const [categoryMode, setCategoryMode] = useState<"normal" | "suma">("normal");
   const [categorySelection, setCategorySelection] = useState("");
   const [sumSelection, setSumSelection] = useState(13);
-  const [genderSelection, setGenderSelection] = useState<TournamentCategoryGender>("M");
+  const [genderSelection, setGenderSelection] =
+    useState<TournamentCategoryGender>("M");
   const [existingCategories, setExistingCategories] = useState<
     (CategoryDraftItem & { id: string })[]
   >([]);
-  const [draftCategories, setDraftCategories] = useState<CategoryDraftItem[]>([]);
-  const [categoriesCatalog, setCategoriesCatalog] = useState<CategoryOption[]>([]);
+  const [draftCategories, setDraftCategories] = useState<CategoryDraftItem[]>(
+    []
+  );
+  const [categoriesCatalog, setCategoriesCatalog] = useState<CategoryOption[]>(
+    []
+  );
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeAdminTab, setActiveAdminTab] = useState<AdminManageTab>("datos");
-  const [defaultCourtsCountInput, setDefaultCourtsCountInput] = useState(
-    defaultCourtsCount
-  );
+  const [defaultCourtsCountInput, setDefaultCourtsCountInput] =
+    useState(defaultCourtsCount);
   const [defaultMatchIntervalInput, setDefaultMatchIntervalInput] = useState(
     defaultMatchIntervalMinutes
   );
@@ -187,13 +196,29 @@ export const TournamentCreatePage = ({
       setLoading(isEditMode);
 
       try {
+        // const allCategories = await getAllCategories();
+        // setCategoriesCatalog(
+        //   allCategories.map((category) => ({
+        //     id: category.id,
+        //     name: category.name,
+        //   }))
+        // );
+
         const allCategories = await getAllCategories();
+
+        // Filtramos para que SOLO guarde las que NO empiezan con "Suma"
+        const onlyNormalCategories = allCategories.filter(
+          (category) => !category.name.toLowerCase().startsWith("suma")
+        );
+
         setCategoriesCatalog(
-          allCategories.map((category) => ({
+          onlyNormalCategories.map((category) => ({
             id: category.id,
             name: category.name,
           }))
         );
+
+        //
 
         if (!currentTournamentId) return;
 
@@ -215,22 +240,24 @@ export const TournamentCreatePage = ({
           allCategories.map((category) => [category.id, category.name])
         );
         const mappedExistingCategories = tournamentCategories.map((row) => {
-          const normalizedGender = (getGenderShortLabel(row.gender) ?? "M") as TournamentCategoryGender;
+          const normalizedGender = (getGenderShortLabel(row.gender) ??
+            "M") as TournamentCategoryGender;
           return {
             id: row.id,
             category_id: row.category_id ?? null,
             is_suma: Boolean(row.is_suma),
             suma_value: row.suma_value ?? null,
             gender: normalizedGender,
-            key: `${row.is_suma ? "suma" : "normal"}:${row.category_id ?? row.suma_value ?? "none"}:${normalizedGender}`,
-            label:
-              formatCategoryName({
-                categoryName:
-                  row.is_suma && row.suma_value != null
-                    ? `Suma ${row.suma_value}`
-                    : categoriesById.get(row.category_id ?? "") ?? "Categoría",
-                gender: row.gender,
-              }),
+            key: `${row.is_suma ? "suma" : "normal"}:${
+              row.category_id ?? row.suma_value ?? "none"
+            }:${normalizedGender}`,
+            label: formatCategoryName({
+              categoryName:
+                row.is_suma && row.suma_value != null
+                  ? `Suma ${row.suma_value}`
+                  : categoriesById.get(row.category_id ?? "") ?? "Categoría",
+              gender: row.gender,
+            }),
           };
         });
         setExistingCategories(mappedExistingCategories);
@@ -247,7 +274,9 @@ export const TournamentCreatePage = ({
         );
       } catch (loadError) {
         setError(
-          loadError instanceof Error ? loadError.message : "No se pudo cargar el torneo"
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudo cargar el torneo"
         );
       } finally {
         setLoading(false);
@@ -255,19 +284,25 @@ export const TournamentCreatePage = ({
     })();
   }, [currentTournamentId, isEditMode]);
 
-  const getBackPath = () => (isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`);
+  const getBackPath = () =>
+    isAdminMode ? `${tenantBasePath}/admin/tournaments` : `${tenantBasePath}/`;
 
   const selectedCategoryName = useMemo(
-    () => categoriesCatalog.find((category) => category.id === categorySelection)?.name ?? "",
+    () =>
+      categoriesCatalog.find((category) => category.id === categorySelection)
+        ?.name ?? "",
     [categoriesCatalog, categorySelection]
   );
 
   const currentDraftItem = useMemo((): CategoryDraftItem | null => {
-    const categoryName = categoryMode === "suma" ? `Suma ${sumSelection}` : selectedCategoryName;
+    const categoryName =
+      categoryMode === "suma" ? `Suma ${sumSelection}` : selectedCategoryName;
     if (!categoryName) return null;
 
     const item: CategoryDraftItem = {
-      key: `${categoryMode}:${categoryMode === "suma" ? sumSelection : categorySelection}:${genderSelection}`,
+      key: `${categoryMode}:${
+        categoryMode === "suma" ? sumSelection : categorySelection
+      }:${genderSelection}`,
       label: formatCategoryName({
         categoryName,
         gender: genderSelection,
@@ -279,16 +314,29 @@ export const TournamentCreatePage = ({
     };
 
     return item;
-  }, [categoryMode, categorySelection, genderSelection, selectedCategoryName, sumSelection]);
+  }, [
+    categoryMode,
+    categorySelection,
+    genderSelection,
+    selectedCategoryName,
+    sumSelection,
+  ]);
 
   const allConfiguredKeys = useMemo(
-    () => new Set([...existingCategories.map((item) => item.key), ...draftCategories.map((item) => item.key)]),
+    () =>
+      new Set([
+        ...existingCategories.map((item) => item.key),
+        ...draftCategories.map((item) => item.key),
+      ]),
     [draftCategories, existingCategories]
   );
 
   const handleAddCategory = async () => {
     if (!currentDraftItem) return;
-    const categoryError = validateCategorySelection(categoryMode, categorySelection);
+    const categoryError = validateCategorySelection(
+      categoryMode,
+      categorySelection
+    );
     if (categoryError) {
       setFormErrors((prev) => ({ ...prev, category: categoryError }));
       return;
@@ -316,10 +364,15 @@ export const TournamentCreatePage = ({
         suma_value: currentDraftItem.suma_value,
         gender: currentDraftItem.gender,
       });
-      setExistingCategories((prev) => [...prev, { id: createdCategory.id, ...currentDraftItem }]);
+      setExistingCategories((prev) => [
+        ...prev,
+        { id: createdCategory.id, ...currentDraftItem },
+      ]);
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "No se pudo agregar la categoría"
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo agregar la categoría"
       );
     }
   };
@@ -398,10 +451,14 @@ export const TournamentCreatePage = ({
       );
       setDraftCategories([]);
       localStorage.removeItem(setupDraftStorageKey);
-      setSuccessMessage("Torneo creado. Se recargó la vista para seguir configurando categorías.");
+      setSuccessMessage(
+        "Torneo creado. Se recargó la vista para seguir configurando categorías."
+      );
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "No se pudo guardar el torneo"
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo guardar el torneo"
       );
     } finally {
       setSaving(false);
@@ -411,7 +468,9 @@ export const TournamentCreatePage = ({
   const handleDeleteTournament = async () => {
     if (!currentTournamentId) return;
     const confirmed = window.confirm(
-      `¿Eliminar el torneo \"${name || "sin nombre"}\"? Esta acción no se puede deshacer.`
+      `¿Eliminar el torneo \"${
+        name || "sin nombre"
+      }\"? Esta acción no se puede deshacer.`
     );
     if (!confirmed) return;
 
@@ -498,7 +557,10 @@ export const TournamentCreatePage = ({
           <div className="mt-3 flex flex-wrap gap-2">
             {[
               { key: "datos", label: "Datos" },
-              { key: "configuracion", label: "Configuración" },
+              { key: "categorias", label: "Categorias" },
+              { key: "fixture", label: "Fixture" },
+              { key: "horarios", label: "Horarios" },
+              { key: "fotos", label: "Fotos" },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -519,100 +581,120 @@ export const TournamentCreatePage = ({
         {(!shouldShowAdminManageTabs || activeAdminTab === "datos") && (
           <>
             <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-slate-600">Nombre del torneo *</span>
-            <input
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                setFormErrors((prev) => ({ ...prev, name: undefined, slug: undefined }));
-              }}
-              onBlur={() =>
-                setFormErrors((prev) => ({
-                  ...prev,
-                  ...validateTournamentForm({
-                    name,
-                    startDate,
-                    endDate,
-                    slug: slugify(name),
-                  }),
-                }))
-              }
-              placeholder="Ej: Fecha 3 - Primavera"
-              className={`w-full rounded-lg px-3 py-2 text-sm ${
-                formErrors.name || formErrors.slug ? "border border-red-400" : "border border-slate-300"
-              }`}
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-slate-600">Fecha de inicio (opcional)</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setStartDate(event.target.value);
-                setFormErrors((prev) => ({ ...prev, dates: undefined }));
-              }}
-              onBlur={() =>
-                setFormErrors((prev) => ({
-                  ...prev,
-                  ...validateTournamentForm({
-                    name,
-                    startDate,
-                    endDate,
-                    slug: slugify(name),
-                  }),
-                }))
-              }
-              className={`w-full rounded-lg px-3 py-2 text-sm ${
-                formErrors.dates ? "border border-red-400" : "border border-slate-300"
-              }`}
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-slate-600">Fecha de fin (opcional)</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(event) => {
-                setEndDate(event.target.value);
-                setFormErrors((prev) => ({ ...prev, dates: undefined }));
-              }}
-              onBlur={() =>
-                setFormErrors((prev) => ({
-                  ...prev,
-                  ...validateTournamentForm({
-                    name,
-                    startDate,
-                    endDate,
-                    slug: slugify(name),
-                  }),
-                }))
-              }
-              className={`w-full rounded-lg px-3 py-2 text-sm ${
-                formErrors.dates ? "border border-red-400" : "border border-slate-300"
-              }`}
-            />
-          </label>
-          <button
-            onClick={() => void handleSubmit()}
-            disabled={
-              saving ||
-              loading ||
-              (!isEditMode && draftCategories.length === 0) ||
-              Object.keys(
-                validateTournamentForm({
-                  name,
-                  startDate,
-                  endDate,
-                  slug: slugify(name),
-                }),
-              ).length > 0
-            }
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear torneo"}
-          </button>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-slate-600">
+                  Nombre del torneo *
+                </span>
+                <input
+                  value={name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      name: undefined,
+                      slug: undefined,
+                    }));
+                  }}
+                  onBlur={() =>
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      ...validateTournamentForm({
+                        name,
+                        startDate,
+                        endDate,
+                        slug: slugify(name),
+                      }),
+                    }))
+                  }
+                  placeholder="Ej: Fecha 3 - Primavera"
+                  className={`w-full rounded-lg px-3 py-2 text-sm ${
+                    formErrors.name || formErrors.slug
+                      ? "border border-red-400"
+                      : "border border-slate-300"
+                  }`}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-slate-600">
+                  Fecha de inicio (opcional)
+                </span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => {
+                    setStartDate(event.target.value);
+                    setFormErrors((prev) => ({ ...prev, dates: undefined }));
+                  }}
+                  onBlur={() =>
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      ...validateTournamentForm({
+                        name,
+                        startDate,
+                        endDate,
+                        slug: slugify(name),
+                      }),
+                    }))
+                  }
+                  className={`w-full rounded-lg px-3 py-2 text-sm ${
+                    formErrors.dates
+                      ? "border border-red-400"
+                      : "border border-slate-300"
+                  }`}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-medium text-slate-600">
+                  Fecha de fin (opcional)
+                </span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => {
+                    setEndDate(event.target.value);
+                    setFormErrors((prev) => ({ ...prev, dates: undefined }));
+                  }}
+                  onBlur={() =>
+                    setFormErrors((prev) => ({
+                      ...prev,
+                      ...validateTournamentForm({
+                        name,
+                        startDate,
+                        endDate,
+                        slug: slugify(name),
+                      }),
+                    }))
+                  }
+                  className={`w-full rounded-lg px-3 py-2 text-sm ${
+                    formErrors.dates
+                      ? "border border-red-400"
+                      : "border border-slate-300"
+                  }`}
+                />
+              </label>
+              <button
+                onClick={() => void handleSubmit()}
+                disabled={
+                  saving ||
+                  loading ||
+                  (!isEditMode && draftCategories.length === 0) ||
+                  Object.keys(
+                    validateTournamentForm({
+                      name,
+                      startDate,
+                      endDate,
+                      slug: slugify(name),
+                    })
+                  ).length > 0
+                }
+                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {saving
+                  ? "Guardando..."
+                  : isEditMode
+                  ? "Guardar cambios"
+                  : "Crear torneo"}
+              </button>
             </div>
             {(formErrors.name || formErrors.slug || formErrors.dates) && (
               <p className="mt-2 text-sm text-red-600">
@@ -624,167 +706,204 @@ export const TournamentCreatePage = ({
             </p>
 
             <div className="mt-4 rounded-xl border border-slate-200 p-3">
-          <p className="text-sm font-semibold text-slate-900">Categoría / tipo</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <select
-              value={categoryMode}
-              onChange={(event) =>
-                setCategoryMode(event.target.value === "suma" ? "suma" : "normal")
-              }
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="normal">Categoría normal</option>
-              <option value="suma">Categoría suma</option>
-            </select>
-
-            {categoryMode === "normal" ? (
-              <select
-                value={categorySelection}
-                onChange={(event) => {
-                  setCategorySelection(event.target.value);
-                  setFormErrors((prev) => ({ ...prev, category: undefined }));
-                }}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar categoría...</option>
-                {categoriesCatalog.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <select
-                value={sumSelection}
-                onChange={(event) => setSumSelection(Number(event.target.value))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              >
-                {Array.from({ length: 13 }, (_, index) => index + 3).map((sumValue) => (
-                  <option key={sumValue} value={sumValue}>
-                    Suma {sumValue}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <select
-              value={genderSelection}
-              onChange={(event) =>
-                setGenderSelection(
-                  event.target.value === "F"
-                    ? "F"
-                    : event.target.value === "X"
-                      ? "X"
-                      : "M"
-                )
-              }
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            >
-              {genderOptions.map((genderOption) => (
-                <option key={genderOption.value} value={genderOption.value}>
-                  {genderOption.label}
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              onClick={() => void handleAddCategory()}
-              disabled={!currentDraftItem || allConfiguredKeys.has(currentDraftItem.key)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
-            >
-              Agregar
-            </button>
-          </div>
-          {formErrors.category && <p className="mt-2 text-sm text-red-600">{formErrors.category}</p>}
-
-          {isEditMode ? (
-            <div className="mt-3">
-              <p className="text-xs text-slate-500">Categorías existentes:</p>
+              <p className="text-sm font-semibold text-slate-900">
+                Categoría / tipo
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {existingCategories.map((existingCategory) => (
-                  <div key={existingCategory.id} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        isAdminMode
-                          ? navigate(
-                              `${tenantBasePath}/admin/tournaments/${currentTournamentId}/categories/${existingCategory.id}/setup`
-                            )
-                          : navigate(
-                              `${tenantBasePath}/tournaments/${currentTournamentId}/categories/${existingCategory.id}`
-                            )
-                      }
-                      className="rounded-full border border-slate-300 px-3 py-1 text-sm"
-                    >
-                      {existingCategory.label}
-                    </button>
-                    {isAdminMode ? (
-                      <button
-                        onClick={() =>
-                          void (async () => {
-                            const confirmed = window.confirm(
-                              `¿Eliminar la categoría "${existingCategory.label}" del torneo?`
-                            );
-                            if (!confirmed) return;
-                            await deleteTournamentCategory(existingCategory.id);
-                            setExistingCategories((prev) =>
-                              prev.filter((item) => item.id !== existingCategory.id)
-                            );
-                          })()
-                        }
-                        className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
-                      >
-                        Eliminar
-                      </button>
-                    ) : (
-                      null
+                <select
+                  value={categoryMode}
+                  onChange={(event) =>
+                    setCategoryMode(
+                      event.target.value === "suma" ? "suma" : "normal"
+                    )
+                  }
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="normal">Categoría normal</option>
+                  <option value="suma">Categoría suma</option>
+                </select>
+
+                {categoryMode === "normal" ? (
+                  <select
+                    value={categorySelection}
+                    onChange={(event) => {
+                      setCategorySelection(event.target.value);
+                      setFormErrors((prev) => ({
+                        ...prev,
+                        category: undefined,
+                      }));
+                    }}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Seleccionar categoría...</option>
+                    {categoriesCatalog.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={sumSelection}
+                    onChange={(event) =>
+                      setSumSelection(Number(event.target.value))
+                    }
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    {Array.from({ length: 13 }, (_, index) => index + 3).map(
+                      (sumValue) => (
+                        <option key={sumValue} value={sumValue}>
+                          Suma {sumValue}
+                        </option>
+                      )
                     )}
-                  </div>
-                ))}
+                  </select>
+                )}
+
+                <select
+                  value={genderSelection}
+                  onChange={(event) =>
+                    setGenderSelection(
+                      event.target.value === "F"
+                        ? "F"
+                        : event.target.value === "X"
+                        ? "X"
+                        : "M"
+                    )
+                  }
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {genderOptions.map((genderOption) => (
+                    <option key={genderOption.value} value={genderOption.value}>
+                      {genderOption.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => void handleAddCategory()}
+                  disabled={
+                    !currentDraftItem ||
+                    allConfiguredKeys.has(currentDraftItem.key)
+                  }
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  Agregar
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <p className="text-xs text-slate-500">Categorías a crear:</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {draftCategories.map((draftCategory) => (
-                  <div key={draftCategory.key} className="flex items-center gap-2">
-                    <span className="rounded-full border border-slate-300 px-3 py-1 text-sm">
-                      {draftCategory.label}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDraftCategories((prev) =>
-                          prev.filter((item) => item.key !== draftCategory.key)
-                        )
-                      }
-                      className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
-                    >
-                      Quitar
-                    </button>
-                  </div>
-                ))}
-                {draftCategories.length === 0 ? (
+              {formErrors.category && (
+                <p className="mt-2 text-sm text-red-600">
+                  {formErrors.category}
+                </p>
+              )}
+
+              {isEditMode ? (
+                <div className="mt-3">
                   <p className="text-xs text-slate-500">
-                    Aún no agregaste categorías. Sumá al menos una para crear el torneo.
+                    Categorías existentes:
                   </p>
-                ) : null}
-              </div>
-            </div>
-          )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {existingCategories.map((existingCategory) => (
+                      <div
+                        key={existingCategory.id}
+                        className="flex items-center gap-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            isAdminMode
+                              ? navigate(
+                                  `${tenantBasePath}/admin/tournaments/${currentTournamentId}/categories/${existingCategory.id}/setup`
+                                )
+                              : navigate(
+                                  `${tenantBasePath}/tournaments/${currentTournamentId}/categories/${existingCategory.id}`
+                                )
+                          }
+                          className="rounded-full border border-slate-300 px-3 py-1 text-sm"
+                        >
+                          {existingCategory.label}
+                        </button>
+                        {isAdminMode ? (
+                          <button
+                            onClick={() =>
+                              void (async () => {
+                                const confirmed = window.confirm(
+                                  `¿Eliminar la categoría "${existingCategory.label}" del torneo?`
+                                );
+                                if (!confirmed) return;
+                                await deleteTournamentCategory(
+                                  existingCategory.id
+                                );
+                                setExistingCategories((prev) =>
+                                  prev.filter(
+                                    (item) => item.id !== existingCategory.id
+                                  )
+                                );
+                              })()
+                            }
+                            className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                          >
+                            Eliminar
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <p className="text-xs text-slate-500">Categorías a crear:</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {draftCategories.map((draftCategory) => (
+                      <div
+                        key={draftCategory.key}
+                        className="flex items-center gap-2"
+                      >
+                        <span className="rounded-full border border-slate-300 px-3 py-1 text-sm">
+                          {draftCategory.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDraftCategories((prev) =>
+                              prev.filter(
+                                (item) => item.key !== draftCategory.key
+                              )
+                            )
+                          }
+                          className="rounded-full border border-red-400/60 px-2 py-1 text-xs text-red-300"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                    {draftCategories.length === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        Aún no agregaste categorías. Sumá al menos una para
+                        crear el torneo.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
 
-        {successMessage && <p className="mt-2 text-sm text-emerald-700">{successMessage}</p>}
+        {successMessage && (
+          <p className="mt-2 text-sm text-emerald-700">{successMessage}</p>
+        )}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
-      {shouldShowAdminManageTabs && activeAdminTab === "configuracion" && currentTournamentId ? (
+      {shouldShowAdminManageTabs &&
+      activeAdminTab === "horarios" &&
+      currentTournamentId ? (
         <article className="tm-card">
-          <h2 className="text-lg font-semibold text-slate-900">Configuración</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Configuración
+          </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
               <span className="text-xs font-medium text-slate-600">
@@ -829,7 +948,8 @@ export const TournamentCreatePage = ({
           <div className="mt-5 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-red-700">Zona peligrosa</p>
             <p className="mt-1 text-sm text-slate-600">
-              Esta acción elimina torneo, categorías, equipos y partidos asociados.
+              Esta acción elimina torneo, categorías, equipos y partidos
+              asociados.
             </p>
             <button
               type="button"
