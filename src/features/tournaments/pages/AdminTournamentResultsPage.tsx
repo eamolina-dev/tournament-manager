@@ -50,6 +50,15 @@ export const AdminTournamentResultsPage = ({
   return (
     <section className="grid gap-4">
       <article className="tm-card">
+        <div className="mb-3 flex flex-wrap justify-end">
+          <button
+            type="button"
+            onClick={() => navigate(`${tenantBasePath}/admin/tournaments/${eventId}/edit`)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            Volver a gestión
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <button

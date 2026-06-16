@@ -93,6 +93,7 @@ export const TournamentCreatePage = ({
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [photosFolderUrl, setPhotosFolderUrl] = useState("");
   const [categoryMode, setCategoryMode] = useState<"normal" | "suma">("normal");
   const [categorySelection, setCategorySelection] = useState("");
   const [sumSelection, setSumSelection] = useState(13);
@@ -235,6 +236,7 @@ export const TournamentCreatePage = ({
         setName(tournament.name ?? "");
         setStartDate(tournament.start_date ?? "");
         setEndDate(tournament.end_date ?? "");
+        setPhotosFolderUrl(tournament.photos_folder_url ?? "");
 
         const categoriesById = new Map(
           allCategories.map((category) => [category.id, category.name])
@@ -398,6 +400,7 @@ export const TournamentCreatePage = ({
           slug: slugify(name),
           start_date: startDate || null,
           end_date: endDate || null,
+          photos_folder_url: photosFolderUrl.trim() || null,
         });
 
         setSuccessMessage("Datos del torneo guardados.");
@@ -418,6 +421,7 @@ export const TournamentCreatePage = ({
         slug: slugify(name),
         start_date: startDate || null,
         end_date: endDate || null,
+        photos_folder_url: photosFolderUrl.trim() || null,
       });
 
       const categoriesToCreate = draftCategories;
@@ -565,7 +569,18 @@ export const TournamentCreatePage = ({
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveAdminTab(tab.key as AdminManageTab)}
+                onClick={() => {
+                  const nextTab = tab.key as AdminManageTab;
+                  if (nextTab === "categorias" && currentTournamentId && existingCategories[0]) {
+                    navigate(`${tenantBasePath}/admin/tournaments/${currentTournamentId}/categories/${existingCategories[0].id}/setup`);
+                    return;
+                  }
+                  if (nextTab === "fixture" && currentTournamentId && existingCategories[0]) {
+                    navigate(`${tenantBasePath}/admin/tournaments/${currentTournamentId}/categories/${existingCategories[0].id}`);
+                    return;
+                  }
+                  setActiveAdminTab(nextTab);
+                }}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                   activeAdminTab === tab.key
                     ? "bg-slate-900 text-white"
@@ -897,6 +912,35 @@ export const TournamentCreatePage = ({
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </article>
 
+      {shouldShowAdminManageTabs && activeAdminTab === "fotos" && currentTournamentId ? (
+        <article className="tm-card">
+          <h2 className="text-lg font-semibold text-slate-900">Fotos</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Configurá el link externo al que redirigirá el botón Fotos del inicio público.
+          </p>
+          <label className="mt-3 block space-y-1">
+            <span className="text-xs font-medium text-slate-600">
+              Link de carpeta de fotos
+            </span>
+            <input
+              type="url"
+              value={photosFolderUrl}
+              onChange={(event) => setPhotosFolderUrl(event.target.value)}
+              placeholder="https://photos.google.com/share/..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={saving}
+            className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? "Guardando..." : "Guardar link de fotos"}
+          </button>
+        </article>
+      ) : null}
+
       {shouldShowAdminManageTabs &&
       activeAdminTab === "horarios" &&
       currentTournamentId ? (
@@ -945,6 +989,7 @@ export const TournamentCreatePage = ({
             {savingDefaults ? "Guardando..." : "Guardar defaults de setup"}
           </button>
 
+          {/* Botón de eliminar torneo oculto temporalmente; se reactivará próximamente.
           <div className="mt-5 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-red-700">Zona peligrosa</p>
             <p className="mt-1 text-sm text-slate-600">
@@ -958,7 +1003,7 @@ export const TournamentCreatePage = ({
             >
               Eliminar torneo
             </button>
-          </div>
+          </div> */}
         </article>
       ) : null}
     </section>

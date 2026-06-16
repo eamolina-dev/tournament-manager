@@ -1097,6 +1097,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string | null
+          photos_folder_url: string | null
           slug: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["tournament_status"]
@@ -1110,6 +1111,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
+          photos_folder_url?: string | null
           slug?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1123,6 +1125,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
+          photos_folder_url?: string | null
           slug?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1154,6 +1157,7 @@ export type Database = {
           end_date: string | null
           id: string | null
           name: string | null
+          photos_folder_url: string | null
           slug: string | null
           start_date: string | null
         }

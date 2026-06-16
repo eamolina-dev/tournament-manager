@@ -2657,7 +2657,7 @@ export const TournamentCategoryPage = ({
           </article>
 
           <article
-            className={`tm-setup-step-card order-4 rounded-xl border border-slate-200 p-4 ${
+            className={`hidden tm-setup-step-card order-4 rounded-xl border border-slate-200 p-4 ${
               isStep4Enabled ? "" : "opacity-70"
             }`}
           >

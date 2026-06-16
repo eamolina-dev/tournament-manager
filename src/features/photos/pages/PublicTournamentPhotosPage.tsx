@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getTournamentById } from "../../tournaments/api/queries";
 
 const FALLBACK_DRIVE_PHOTOS_URL =
   "https://photos.google.com/share/AF1QipMNkOjQ5RKYPeUh9WcKOaDsMgo2fCvlEZ7JJwu5sAZGAg5AUCEGjAkmop8Ci0qBYw?key=Z19xUXFqZ295X3FPNC03ZURCd2NteXItNVJIdEtB";
@@ -14,9 +15,16 @@ export const PublicTournamentPhotosPage = ({
   tournamentId,
   navigate,
 }: PublicTournamentPhotosPageProps) => {
+  const [photosUrl, setPhotosUrl] = useState<string | null>(null);
+
   useEffect(() => {
-    window.location.assign(FALLBACK_DRIVE_PHOTOS_URL);
-  }, []);
+    void (async () => {
+      const tournament = await getTournamentById(tournamentId);
+      const nextPhotosUrl = tournament?.photos_folder_url || FALLBACK_DRIVE_PHOTOS_URL;
+      setPhotosUrl(nextPhotosUrl);
+      window.location.assign(nextPhotosUrl);
+    })();
+  }, [tournamentId]);
 
   return (
     <section className="tm-card">
@@ -29,7 +37,7 @@ export const PublicTournamentPhotosPage = ({
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <a
-          href={FALLBACK_DRIVE_PHOTOS_URL}
+          href={photosUrl ?? FALLBACK_DRIVE_PHOTOS_URL}
           className="tm-btn-primary px-4 py-2 text-sm"
         >
           Abrir carpeta de fotos

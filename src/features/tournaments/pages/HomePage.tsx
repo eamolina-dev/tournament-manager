@@ -21,6 +21,7 @@ type TournamentCard = {
   start_date: string | null;
   end_date: string | null;
   photoCount: number;
+  photosFolderUrl: string | null;
   categories: {
     id: string;
     name: string;
@@ -78,6 +79,7 @@ export const HomePage = ({
           start_date: tournament.start_date,
           end_date: tournament.end_date,
           photoCount: photoCounts[tournament.id] ?? 0,
+          photosFolderUrl: tournament.photos_folder_url ?? null,
           categories: categoriesPerTournament[index]
             .map((row) => {
               const category = categoriesMap.get(row.category_id ?? "");
@@ -207,13 +209,11 @@ export const HomePage = ({
                     Gestionar
                   </button>
                 </div>
-              ) : // ) : tournament.photoCount > 0 ? (
-              // ) : isTournamentFinished(tournament.end_date) && tournament.photoCount > 0 ? (
-              tournament.id === "58253012-d250-4c96-8e6c-ef66f54edc78" ? (
+              ) : tournament.photosFolderUrl ? (
                 <button
                   onClick={() =>
                     window.open(
-                      "https://photos.google.com/share/AF1QipMNkOjQ5RKYPeUh9WcKOaDsMgo2fCvlEZ7JJwu5sAZGAg5AUCEGjAkmop8Ci0qBYw?key=Z19xUXFqZ295X3FPNC03ZURCd2NteXItNVJIdEtB",
+                      tournament.photosFolderUrl ?? "",
                       "_blank",
                       "noopener,noreferrer"
                     )
