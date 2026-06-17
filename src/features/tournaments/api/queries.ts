@@ -67,6 +67,28 @@ export const getPrimaryTournamentScheduleConfig = async (
   return data
 }
 
+
+export type TournamentScheduleSetupGroup = {
+  id: string
+  name: string
+  tournament_category_id: string
+}
+
+export const getTournamentScheduleSetupGroups = async (
+  tournamentCategoryIds: string[],
+): Promise<TournamentScheduleSetupGroup[]> => {
+  if (!tournamentCategoryIds.length) return []
+
+  const { data, error } = await supabase
+    .from("groups")
+    .select("id, name, tournament_category_id")
+    .in("tournament_category_id", tournamentCategoryIds)
+    .order("name", { ascending: true })
+
+  throwIfError(error)
+  return data ?? []
+}
+
 export const getAllCategories = async (): Promise<
   { id: string; name: string; slug: string | null; level: number }[]
 > => {
