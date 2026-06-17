@@ -16,6 +16,10 @@ export type TournamentUpdate = TableUpdate<"tournaments">
 export type TournamentCategory = TableRow<"tournament_categories">
 export type TournamentCategoryInsert = TableInsert<"tournament_categories">
 export type TournamentCategoryUpdate = TableUpdate<"tournament_categories">
+export type TournamentScheduleConfig = TableRow<"tournament_schedule_configs">
+export type TournamentScheduleConfigInsert = TableInsert<"tournament_schedule_configs">
+export type TournamentScheduleConfigUpdate = TableUpdate<"tournament_schedule_configs">
+export type TournamentScheduleConfigCategory = TableRow<"tournament_schedule_config_categories">
 
 export type Team = TableRow<"teams">
 export type TeamInsert = TableInsert<"teams">

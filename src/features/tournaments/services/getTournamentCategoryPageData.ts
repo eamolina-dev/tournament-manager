@@ -4,6 +4,7 @@ import { getRankingTableByCategory } from "../../rankings/api/queries"
 import { getTeamPlayersByCategory, getTeamsByCategory } from "../../teams/api/queries"
 import {
   getGroupsByCategory,
+  getPrimaryTournamentScheduleConfig,
   getTournamentBySlug,
   getTournamentCategoryBySlugs,
 } from "../api/queries"
@@ -185,11 +186,12 @@ export const getTournamentCategoryPageData = async (
 
   const tournamentCategoryId = category.id
 
-  const [teamPlayers, rawTeams, groups, matches] = await Promise.all([
+  const [teamPlayers, rawTeams, groups, matches, scheduleConfig] = await Promise.all([
     getTeamPlayersByCategory(tournamentCategoryId),
     getTeamsByCategory(tournamentCategoryId),
     getGroupsByCategory(tournamentCategoryId),
     getMatchesByCategory(tournamentCategoryId),
+    getPrimaryTournamentScheduleConfig(tournament.id),
   ])
 
   const uniquePlayerIds = Array.from(
@@ -434,9 +436,9 @@ export const getTournamentCategoryPageData = async (
     isSuma: Boolean(category.is_suma),
     sumaValue: category.suma_value ?? null,
     categoryLevel: category.category?.level ?? null,
-    scheduleStartTimes: category.schedule_start_times,
-    matchIntervalMinutes: category.match_interval_minutes,
-    courtsCount: category.courts_count,
+    scheduleStartTimes: scheduleConfig?.schedule_start_times ?? category.schedule_start_times,
+    matchIntervalMinutes: scheduleConfig?.match_interval_minutes ?? category.match_interval_minutes,
+    courtsCount: scheduleConfig?.courts_count ?? category.courts_count,
     champion,
     finalist,
     semifinalists:

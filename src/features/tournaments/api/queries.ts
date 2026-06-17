@@ -5,6 +5,7 @@ import type {
   GroupWithTeams,
   Tournament,
   TournamentCategory,
+  TournamentScheduleConfig,
 } from "../../../shared/types/entities"
 
 export const getTournaments = async (): Promise<Tournament[]> => {
@@ -46,6 +47,21 @@ export const getTournamentCategories = async (
     .from("tournament_categories")
     .select("*")
     .eq("tournament_id", tournamentId)
+
+  throwIfError(error)
+  return data
+}
+
+export const getPrimaryTournamentScheduleConfig = async (
+  tournamentId: string,
+): Promise<TournamentScheduleConfig | null> => {
+  const { data, error } = await supabase
+    .from("tournament_schedule_configs")
+    .select("*")
+    .eq("tournament_id", tournamentId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
 
   throwIfError(error)
   return data

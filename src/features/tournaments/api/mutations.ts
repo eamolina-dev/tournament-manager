@@ -18,11 +18,14 @@ import {
   generateFullTournament,
 } from "../services/generateTournament"
 import { scheduleGeneratedMatches } from "../services/scheduleGeneratedMatches"
+import { scheduleTournamentConfigMatches } from "../services/scheduleTournamentConfigMatches"
+import type { Json } from "../../../shared/types/database"
 import type {
   Tournament,
   TournamentCategory,
   TournamentCategoryInsert,
   TournamentCategoryUpdate,
+  TournamentScheduleConfig,
   TournamentInsert,
   TournamentUpdate,
 } from "../../../shared/types/entities"
@@ -465,6 +468,129 @@ export const applyMatchScheduling = async (
 ): Promise<void> => {
   await assertTournamentEditableByCategoryId(tournamentCategoryId)
   await scheduleGeneratedMatches(tournamentCategoryId, options)
+}
+
+export const saveTournamentScheduleConfigForTournament = async ({
+  tournamentId,
+  name = "Programación principal",
+  scheduleStartTimes,
+  matchIntervalMinutes,
+  courtsCount,
+}: {
+  tournamentId: string
+  name?: string
+  scheduleStartTimes: Record<string, string>
+  matchIntervalMinutes: number
+  courtsCount: number
+}): Promise<TournamentScheduleConfig> => {
+  await assertTournamentEditableByTournamentId(tournamentId)
+  assertPositiveInteger(courtsCount, "courts_count debe ser un entero mayor a 0.")
+  assertPositiveInteger(
+    matchIntervalMinutes,
+    "match_interval_minutes debe ser un entero mayor a 0.",
+  )
+
+  const { data: existingConfig, error: existingConfigError } = await supabase
+    .from("tournament_schedule_configs")
+    .select("*")
+    .eq("tournament_id", tournamentId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  throwIfError(existingConfigError)
+
+  const payload = {
+    name,
+    schedule_start_times: scheduleStartTimes as Json,
+    match_interval_minutes: matchIntervalMinutes,
+    courts_count: courtsCount,
+  }
+
+  if (existingConfig) {
+    const { data, error } = await supabase
+      .from("tournament_schedule_configs")
+      .update(payload)
+      .eq("id", existingConfig.id)
+      .select("*")
+      .single()
+    throwIfError(error)
+    return data
+  }
+
+  const { data, error } = await supabase
+    .from("tournament_schedule_configs")
+    .insert({
+      ...payload,
+      tournament_id: tournamentId,
+    })
+    .select("*")
+    .single()
+  throwIfError(error)
+  return data
+}
+
+export const syncTournamentScheduleConfigCategories = async ({
+  scheduleConfigId,
+  tournamentId,
+}: {
+  scheduleConfigId: string
+  tournamentId: string
+}): Promise<void> => {
+  await assertTournamentEditableByTournamentId(tournamentId)
+
+  const { data: categories, error: categoriesError } = await supabase
+    .from("tournament_categories")
+    .select("id")
+    .eq("tournament_id", tournamentId)
+  throwIfError(categoriesError)
+
+  const categoryIds = (categories ?? []).map((category) => category.id)
+  if (!categoryIds.length) return
+
+  const { error: deleteError } = await supabase
+    .from("tournament_schedule_config_categories")
+    .delete()
+    .eq("schedule_config_id", scheduleConfigId)
+  throwIfError(deleteError)
+
+  const { error: insertError } = await supabase
+    .from("tournament_schedule_config_categories")
+    .insert(
+      categoryIds.map((tournamentCategoryId) => ({
+        schedule_config_id: scheduleConfigId,
+        tournament_category_id: tournamentCategoryId,
+      })),
+    )
+  throwIfError(insertError)
+}
+
+export const saveAndApplyTournamentSchedule = async ({
+  tournamentId,
+  scheduleStartTimes,
+  matchIntervalMinutes,
+  courtsCount,
+  options,
+}: {
+  tournamentId: string
+  scheduleStartTimes: Record<string, string>
+  matchIntervalMinutes: number
+  courtsCount: number
+  options?: {
+    zoneDayById?: Record<string, string>
+    phaseByDay?: Partial<Record<"quarterfinals" | "semifinals" | "finals", string>>
+  }
+}): Promise<void> => {
+  const config = await saveTournamentScheduleConfigForTournament({
+    tournamentId,
+    scheduleStartTimes,
+    matchIntervalMinutes,
+    courtsCount,
+  })
+  await syncTournamentScheduleConfigCategories({
+    scheduleConfigId: config.id,
+    tournamentId,
+  })
+  await scheduleTournamentConfigMatches(config.id, options)
 }
 
 export const resolveEliminationTeamSources = async (

@@ -29,10 +29,11 @@ import {
   getTournamentCategories,
 } from "../../../features/tournaments/api/queries";
 import {
-  applyMatchScheduling,
   generateFullTournament,
+  saveAndApplyTournamentSchedule,
+  saveTournamentScheduleConfigForTournament,
+  syncTournamentScheduleConfigCategories,
   saveZonesForCategory,
-  updateTournamentCategory,
 } from "../../../features/tournaments/api/mutations";
 import { getTournamentCategoryPageData } from "../../../features/tournaments/services/getTournamentCategoryPageData";
 import {
@@ -1088,14 +1089,17 @@ export const TournamentCategoryPage = ({
         })
       );
 
-      await updateTournamentCategory(data.tournamentCategoryId, {
-        schedule_start_times: Object.keys(payloadStartTimes).length
-          ? payloadStartTimes
-          : null,
-        match_interval_minutes: matchIntervalMinutesInput,
-        courts_count: courtsCountInput,
-      });
       if (!canApplyScheduling) {
+        const config = await saveTournamentScheduleConfigForTournament({
+          tournamentId: data.tournamentId,
+          scheduleStartTimes: payloadStartTimes,
+          matchIntervalMinutes: matchIntervalMinutesInput,
+          courtsCount: courtsCountInput,
+        });
+        await syncTournamentScheduleConfigCategories({
+          scheduleConfigId: config.id,
+          tournamentId: data.tournamentId,
+        });
         setScheduleConfigSuccess(
           "Configuración guardada sin aplicar horarios. Podés definir día y hora más adelante."
         );
@@ -1108,9 +1112,20 @@ export const TournamentCategoryPage = ({
       }
       if (orderedEditableMatches.length) {
         const shouldOverwriteSchedule = window.confirm(
-          "Esto actualizará día, hora y cancha de los partidos existentes. ¿Querés continuar?"
+          "Esto actualizará día, hora y cancha de los partidos existentes en todas las categorías del torneo. " +
+            "¿Querés continuar?"
         );
         if (!shouldOverwriteSchedule) {
+          const config = await saveTournamentScheduleConfigForTournament({
+            tournamentId: data.tournamentId,
+            scheduleStartTimes: payloadStartTimes,
+            matchIntervalMinutes: matchIntervalMinutesInput,
+            courtsCount: courtsCountInput,
+          });
+          await syncTournamentScheduleConfigCategories({
+            scheduleConfigId: config.id,
+            tournamentId: data.tournamentId,
+          });
           setScheduleConfigSuccess(
             "Configuración guardada. No se aplicaron cambios sobre el fixture actual."
           );
@@ -1122,14 +1137,22 @@ export const TournamentCategoryPage = ({
           return;
         }
       }
-      await applyMatchScheduling(data.tournamentCategoryId, {
-        zoneDayById,
-        phaseByDay,
+      await saveAndApplyTournamentSchedule({
+        tournamentId: data.tournamentId,
+        scheduleStartTimes: payloadStartTimes,
+        matchIntervalMinutes: matchIntervalMinutesInput,
+        courtsCount: courtsCountInput,
+        options: {
+          zoneDayById,
+          phaseByDay,
+        },
       });
-      setScheduleConfigSuccess("Horarios guardados y aplicados al fixture.");
+      setScheduleConfigSuccess(
+        "Horarios globales guardados y aplicados a todas las categorías del torneo."
+      );
       setActionNotice({
         type: "success",
-        message: "Horarios aplicados sin regenerar la estructura.",
+        message: "Horarios globales aplicados sin regenerar la estructura.",
       });
       await load();
     } catch (error) {
@@ -2663,7 +2686,8 @@ export const TournamentCategoryPage = ({
           >
             <h3 className="font-semibold text-slate-900">4. Horarios</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Guardá y aplicá horarios sin regenerar partidos.
+              Guardá y aplicá horarios compartidos para todas las categorías
+              del torneo sin regenerar partidos.
             </p>
             {!isStep4Enabled && (
               <p className="mt-2 text-xs text-amber-700">
@@ -2820,7 +2844,7 @@ export const TournamentCategoryPage = ({
               Aplicar / actualizar horarios
             </button>
             <p className="mt-2 text-xs text-amber-700">
-              Esta acción sobrescribe día, hora y cancha del fixture actual,
+              Esta acción sobrescribe día, hora y cancha de los fixtures de todas las categorías del torneo,
               pero no regenera partidos.
             </p>
 

@@ -16,6 +16,7 @@ export type MatchSlotInput = {
   group_id?: string | null
   team1_id?: string | null
   team2_id?: string | null
+  playerIds?: string[]
 }
 
 export type MatchSlot = {
@@ -113,6 +114,10 @@ export const generateMatchSlots = (
 
   const teamIdsForMatch = (match: MatchSlotInput): string[] =>
     [match.team1_id, match.team2_id].filter((teamId): teamId is string => Boolean(teamId))
+  const participantIdsForMatch = (match: MatchSlotInput): string[] => [
+    ...teamIdsForMatch(match).map((teamId) => `team:${teamId}`),
+    ...(match.playerIds ?? []).map((playerId) => `player:${playerId}`),
+  ]
 
   const keyForDaySlot = (day: string, slot: number): string => `${day}__${slot}`
 
@@ -120,7 +125,7 @@ export const generateMatchSlots = (
     const day = resolveDayForMatch(match, config.zoneDayById, config.phaseByDay, config.fallbackDay)
     const startTime = config.startTimeByDay[day]
     const safeStartTime = isValidTime(startTime) ? startTime : "18:00"
-    const matchTeams = teamIdsForMatch(match)
+    const matchParticipants = participantIdsForMatch(match)
     const stageState = dayStageState.get(day)
     const stageChanged = stageState ? stageState.stage !== match.stage : false
     const baseSlot = stageChanged
@@ -131,14 +136,16 @@ export const generateMatchSlots = (
 
     while (true) {
       const daySlotKey = keyForDaySlot(day, slot)
-      const teamsOnSlot = teamsByDaySlot.get(daySlotKey) ?? new Set<string>()
+      const participantsOnSlot = teamsByDaySlot.get(daySlotKey) ?? new Set<string>()
       const usedCourts = usageByDaySlot.get(daySlotKey) ?? 0
-      const hasTeamConflict = matchTeams.some((teamId) => teamsOnSlot.has(teamId))
+      const hasParticipantConflict = matchParticipants.some((participantId) =>
+        participantsOnSlot.has(participantId),
+      )
 
-      if (!hasTeamConflict && usedCourts < courts) {
-        const nextTeams = new Set(teamsOnSlot)
-        matchTeams.forEach((teamId) => nextTeams.add(teamId))
-        teamsByDaySlot.set(daySlotKey, nextTeams)
+      if (!hasParticipantConflict && usedCourts < courts) {
+        const nextParticipants = new Set(participantsOnSlot)
+        matchParticipants.forEach((participantId) => nextParticipants.add(participantId))
+        teamsByDaySlot.set(daySlotKey, nextParticipants)
         usageByDaySlot.set(daySlotKey, usedCourts + 1)
 
         const previousStageSlots = !stageChanged && stageState?.slots ? stageState.slots : []
