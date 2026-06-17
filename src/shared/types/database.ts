@@ -1089,6 +1089,87 @@ export type Database = {
           },
         ]
       }
+      tournament_schedule_config_categories: {
+        Row: {
+          created_at: string
+          schedule_config_id: string
+          tournament_category_id: string
+        }
+        Insert: {
+          created_at?: string
+          schedule_config_id: string
+          tournament_category_id: string
+        }
+        Update: {
+          created_at?: string
+          schedule_config_id?: string
+          tournament_category_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_schedule_config_categori_tournament_category_id_fkey"
+            columns: ["tournament_category_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_schedule_config_categories_schedule_config_id_fkey"
+            columns: ["schedule_config_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_schedule_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_schedule_configs: {
+        Row: {
+          courts_count: number
+          created_at: string
+          id: string
+          match_interval_minutes: number
+          name: string
+          schedule_start_times: Json
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          courts_count: number
+          created_at?: string
+          id?: string
+          match_interval_minutes: number
+          name?: string
+          schedule_start_times?: Json
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          courts_count?: number
+          created_at?: string
+          id?: string
+          match_interval_minutes?: number
+          name?: string
+          schedule_start_times?: Json
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_schedule_configs_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "home_tournaments_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_schedule_configs_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tournaments: {
         Row: {
           circuit_id: string | null
@@ -1097,7 +1178,6 @@ export type Database = {
           end_date: string | null
           id: string
           name: string | null
-          photos_folder_url: string | null
           slug: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["tournament_status"]
@@ -1111,7 +1191,6 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
-          photos_folder_url?: string | null
           slug?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1125,7 +1204,6 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string | null
-          photos_folder_url?: string | null
           slug?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1157,7 +1235,6 @@ export type Database = {
           end_date: string | null
           id: string | null
           name: string | null
-          photos_folder_url: string | null
           slug: string | null
           start_date: string | null
         }
